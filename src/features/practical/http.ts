@@ -7,8 +7,12 @@ export const answerBody = z.object({ questionId: z.string().min(1).max(160), opt
 export const flagBody = z.object({ questionId: z.string().min(1).max(160), flag: z.enum(["bookmarked", "difficult"]), value: z.boolean() }).strict();
 export const practicalGenerateBody = z.object({
   sourceImageId: z.string().min(1),
+  examImageId: z.string().optional(),
   targetX: z.number().min(0).max(1),
   targetY: z.number().min(0).max(1),
+  // Verified correct structure is optional at creation time: if omitted the
+  // artifact is created as NEEDS_REVIEW and the AI never guesses an answer.
+  correctStructure: z.string().max(200).optional(),
   prompt: z.string().optional(),
   idempotencyKey: z.string().uuid(),
 }).strict();

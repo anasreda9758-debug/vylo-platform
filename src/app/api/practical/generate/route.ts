@@ -1,34 +1,34 @@
 import { getSession } from "@/shared/session";
 import { practicalGenerateBody, practicalFailure, privateHeaders } from "@/features/practical/http";
-import { reserveAiUsageSlot, FREE_DAILY_LIMIT, recordAiUsage } from "@/features/ai/queries";
+import { getAiUsageToday, reserveAiUsageSlot, FREE_DAILY_LIMIT, recordAiUsage } from "@/features/ai/queries";
 import { beginGeneration, finalizeGeneration } from "@/features/gamification/idempotency";
 import { generateJson } from "@/shared/ai-client";
 import { eq } from "drizzle-orm";
 import { practicalImage, practicalQuestion } from "@/features/practical/schema";
+import { buildFiveOptions } from "@/features/practical/authoring";
+import { getAccessibleModuleBySlug } from "@/features/access/learning-access";
 import { db } from "@/shared/db";
 import { randomUUID } from "crypto";
 import { z } from "zod";
 
-const SYSTEM_PROMPT_PRACTICAL = `You are a medical education assistant. Create a realistic medical image identification question based on the provided image description and target structure.
+const SYSTEM_PROMPT_PRACTICAL = `You are a medical education assistant building a practical spotter question.
+The examiner has ALREADY verified the correct structure; you must NOT invent or choose the correct answer.
+Generate exactly four plausible WRONG distractor structures (nearby/neighboring structures, same tissue or anatomical region) plus short teaching aids.
 Return ONLY valid JSON in exactly this shape with no extra text:
 {
-  "prompt": "What is the structure indicated by the arrow?",
-  "options": ["option1", "option2", "option3", "option4", "option5"],
-  "correctOptionId": "option_id_of_correct_answer",
-  "explanation": "Brief explanation of why the correct answer is correct",
-  "identifyingClue": "A key visual feature to identify the structure",
-  "commonMistake": "A common confusion students have",
-  "examTip": "A practical tip for identifying this structure in exams"
+  "distractors": ["wrong1", "wrong2", "wrong3", "wrong4"],
+  "explanation": "Brief reason the correct structure is correct",
+  "identifyingClue": "A key visual feature",
+  "commonMistake": "A common confusion",
+  "examTip": "A practical exam tip"
 }`;
 
 const AIPracticalResponseSchema = z.object({
-  prompt: z.string(),
-  options: z.array(z.string()).length(5),
-  correctOptionId: z.string(),
-  explanation: z.string(),
-  identifyingClue: z.string(),
-  commonMistake: z.string(),
-  examTip: z.string(),
+  distractors: z.array(z.string()).default([]),
+  explanation: z.string().optional(),
+  identifyingClue: z.string().optional(),
+  commonMistake: z.string().optional(),
+  examTip: z.string().optional(),
 });
 
 type AIPracticalResponse = z.infer<typeof AIPracticalResponseSchema>;
@@ -47,12 +47,40 @@ export async function POST(request: Request) {
 
     const sessionUser = session.user;
 
-    // Idempotency: replay the exact stored result for a reused key (scoped to the
-    // same user), never a second generation or a second quota charge.
+    // Authoring context: source image, track, module access — resolved BEFORE the
+    // idempotency check so a reused key is bound to the same source.
+    const sourceImage = await db.query.practicalImage.findFirst({
+      where: eq(practicalImage.id, body.sourceImageId),
+    });
+    if (!sourceImage) {
+      return Response.json({ error: "Source image not found" }, { status: 404, headers: privateHeaders });
+    }
+    const track = await db.query.practicalTrack.findFirst({
+      where: (pt, { eq: eqT }) => eqT(pt.id, sourceImage.trackId ?? ""),
+    });
+    if (!track) {
+      return Response.json({ error: "Track not found" }, { status: 404, headers: privateHeaders });
+    }
+    const access = await getAccessibleModuleBySlug({ id: session.user.id, role: session.user.role }, sourceImage.moduleId);
+    if (!access.ok) {
+      return Response.json({ error: "Module access required" }, { status: 403, headers: privateHeaders });
+    }
+
+    const examImage =
+      body.examImageId && body.examImageId.length > 0
+        ? await db.query.practicalImage.findFirst({ where: eq(practicalImage.id, body.examImageId) })
+        : null;
+    if (body.examImageId && body.examImageId.length > 0 && !examImage) {
+      return Response.json({ error: "Exam image not found" }, { status: 404, headers: privateHeaders });
+    }
+
+    // Idempotency is user-scoped and bound to feature + source (track). A replayed
+    // key returns the stored result; the same key for a DIFFERENT source is 409.
     const idempotent = await beginGeneration({
       userId: sessionUser.id,
       idempotencyKey: body.idempotencyKey,
       feature: "practical",
+      practicalTrackId: track.id,
     });
     if (idempotent.kind === "completed") {
       const stored = (idempotent.result ?? {}) as Record<string, unknown>;
@@ -61,152 +89,167 @@ export async function POST(request: Request) {
     if (idempotent.kind === "pending") {
       return Response.json({ error: "generation_in_progress" }, { status: 409, headers: privateHeaders });
     }
+    if (idempotent.kind === "conflict") {
+      return Response.json(
+        { error: "idempotency_key_already_used_for_different_request" },
+        { status: 409, headers: privateHeaders },
+      );
+    }
 
-    // Shared study-generation quota applies to every user (no subscription bypass).
-    const reservation = await reserveAiUsageSlot(sessionUser.id);
-    if (!reservation.ok) {
+    const correctStructure = (body.correctStructure ?? "").trim();
+    const needsVerifiedAnswer = correctStructure.length === 0;
+    const needsCleanImage = !examImage;
+
+    // Soft pre-flight: refuse already-exhausted quotas before doing the work.
+    const used = await getAiUsageToday(sessionUser.id);
+    if (used >= FREE_DAILY_LIMIT) {
       return Response.json(
         { error: "daily_limit", message: `Daily AI generation limit (${FREE_DAILY_LIMIT}) reached` },
         { status: 429, headers: privateHeaders },
       );
     }
 
-    // Verify source image exists and user has access
-    const sourceImage = await db.query.practicalImage.findFirst({
-      where: eq(practicalImage.id, body.sourceImageId),
-    });
-
-    if (!sourceImage) {
-      return Response.json({ error: "Source image not found" }, { status: 404, headers: privateHeaders });
-    }
-
-    const track = await db.query.practicalTrack.findFirst({
-      where: (pt, { eq }) => eq(pt.id, sourceImage.trackId ?? ""),
-    });
-
-    if (!track) {
-      return Response.json({ error: "Track not found" }, { status: 404, headers: privateHeaders });
-    }
-
-    const { getAccessibleModuleBySlug } = await import("@/features/access/learning-access");
-    const access = await getAccessibleModuleBySlug({ id: session.user.id, role: session.user.role }, sourceImage.moduleId);
-    if (!access.ok) {
-      return Response.json({ error: "Module access required" }, { status: 403, headers: privateHeaders });
-    }
-
-    // Generate the question
-    try {
-      const prompt = `Create a medical image identification question for a practical exam.
-Source image description: ${sourceImage.alt}
-Target structure coordinates: x=${body.targetX}, y=${body.targetY}
+    let generated: AIPracticalResponse | null = null;
+    let aiSucceeded = false;
+    if (!needsVerifiedAnswer) {
+      try {
+        const prompt = `Create a medical image identification practical question.
+Image description: ${sourceImage.alt}
+Verified correct structure (DO NOT reveal or change it): ${correctStructure}
+Target coordinates: x=${body.targetX}, y=${body.targetY}
 ${body.prompt ? `Additional context: ${body.prompt}` : ""}
 
-Generate a medical image identification question with exactly 5 options.`;
-
-      const { data, inputTokens, outputTokens } = await generateJson<AIPracticalResponse>({
-        system: SYSTEM_PROMPT_PRACTICAL,
-        user: prompt,
-      });
-
-      const aiResponse = data;
-
-      if (!aiResponse || !aiResponse.options || aiResponse.options.length !== 5 || !aiResponse.correctOptionId) {
-        throw new Error("Invalid AI response format");
+Suggest four plausible distractors and teaching aids.`;
+        const { data, inputTokens, outputTokens } = await generateJson<AIPracticalResponse>({
+          system: SYSTEM_PROMPT_PRACTICAL,
+          user: prompt,
+        });
+        const parsed = AIPracticalResponseSchema.safeParse(data ?? {});
+        if (parsed.success) {
+          generated = parsed.data;
+          aiSucceeded = true;
+        }
+        await recordAiUsage({
+          userId: sessionUser.id,
+          lectureId: null,
+          model: process.env.GROQ_MODEL ?? "llama-3.3-70b-versatile",
+          inputTokens: inputTokens ?? 0,
+          outputTokens: outputTokens ?? 0,
+        });
+      } catch (err) {
+        console.error("Practical generation error:", err);
+        if (idempotent.kind === "new") {
+          await finalizeGeneration({
+            userId: sessionUser.id,
+            idempotencyKey: body.idempotencyKey,
+            status: "failed",
+            result: { error: (err as Error).message },
+          });
+        }
+        return Response.json({ error: "Generation failed" }, { status: 500, headers: privateHeaders });
       }
+    }
 
-      // Create the practical image for the exam derivative
-      const examImageId = randomUUID();
+    const five = buildFiveOptions(correctStructure, generated?.distractors ?? []);
+    const needsReview = needsVerifiedAnswer || needsCleanImage || five.needsReview;
+    const reviewStatus = needsReview ? "NEEDS_REVIEW" : "DRAFT";
+
+    // The student-visible image is the CLEAN EXAM version, never the labeled
+    // source. If no clean image was supplied the derivative is created as a
+    // pending draft: it cannot be approved (and therefore never reaches students).
+    let imageId = examImage ? examImage.id : null;
+    if (!imageId) {
+      imageId = randomUUID();
       await db.insert(practicalImage).values({
-        id: examImageId,
+        id: imageId,
         moduleId: sourceImage.moduleId,
         studyYear: sourceImage.studyYear,
         subject: sourceImage.subject,
-        storageKey: `exam_${sourceImage.id}_${Date.now()}`,
-        alt: `Exam derivative of ${sourceImage.alt}`,
-        sourceMaterial: { title: "Exam derivative", path: "", sha256: "", approvedBy: null, approvedAt: null },
+        storageKey: "",
+        alt: `Pending clean exam version of ${sourceImage.alt}`,
+        sourceMaterial: {
+          title: "Pending clean exam version",
+          path: `exam-derivative:${imageId}`,
+          sha256: "",
+          approvedBy: null,
+          approvedAt: null,
+        },
         sourcePage: sourceImage.sourcePage,
         markers: [],
-        status: "APPROVED",
+        status: "DRAFT_AI",
         isFixture: false,
         sourceImageId: body.sourceImageId,
         examImageId: null,
         targetX: body.targetX,
         targetY: body.targetY,
         isExamDerivative: true,
-        generationStatus: "COMPLETED",
-        reviewStatus: "APPROVED",
-        generatedByAi: true,
+        generationStatus: needsReview ? "NEEDS_REVIEW" : "COMPLETED",
+        reviewStatus: "NEEDS_REVIEW",
+        generatedByAi: aiSucceeded,
       });
+    }
 
-      // Create the practical question
-      const questionId = randomUUID();
-      const optionIds = aiResponse.options.map((_, i) => `opt_${i}`);
-      const correctIndex = aiResponse.options.findIndex(o => o === aiResponse.correctOptionId);
-      const correctOptionId = optionIds[correctIndex >= 0 ? correctIndex : 0];
+    const questionId = randomUUID();
+    const result = { questionId, examImageId: imageId, duplicate: false, reviewStatus };
 
-      const result = { questionId, examImageId, duplicate: false };
+    await db.insert(practicalQuestion).values({
+      id: questionId,
+      trackId: track.id,
+      moduleId: sourceImage.moduleId,
+      studyYear: sourceImage.studyYear,
+      subject: sourceImage.subject,
+      sourceMaterial: {
+        title: "AI-assisted authoring",
+        path: sourceImage.storageKey,
+        sha256: "",
+        approvedBy: null,
+        approvedAt: null,
+      },
+      sourcePage: sourceImage.sourcePage,
+      questionType: "IMAGE_IDENTIFICATION",
+      answerFormat: "SINGLE_CHOICE",
+      imageId,
+      markerIds: [],
+      groupId: "spotter_generated",
+      order: 0,
+      prompt: correctStructure ? "Identify the structure indicated by the arrow." : "Pending verified structure.",
+      options: five.options as { id: string; text: string }[],
+      correctOptionId: five.correctOptionId,
+      explanation: generated?.explanation ?? "",
+      identifyingClue: generated?.identifyingClue ?? "",
+      commonMistake: generated?.commonMistake ?? "",
+      examTip: generated?.examTip ?? "",
+      status: "DRAFT_AI",
+      isFixture: false,
+      sourceImageId: body.sourceImageId,
+      examImageId: imageId,
+      targetX: body.targetX,
+      targetY: body.targetY,
+      correctStructure: correctStructure.length > 0 ? correctStructure : null,
+      generationRequestId: idempotent.requestId,
+      generationStatus: needsReview ? "NEEDS_REVIEW" : "COMPLETED",
+      reviewStatus,
+      generatedByAi: aiSucceeded,
+    });
 
-      await db.insert(practicalQuestion).values({
-        id: questionId,
-        trackId: track.id,
-        moduleId: sourceImage.moduleId,
-        studyYear: sourceImage.studyYear,
-        subject: sourceImage.subject,
-        sourceMaterial: { title: "AI Generated", path: "", sha256: "", approvedBy: null, approvedAt: null },
-        sourcePage: 1,
-        questionType: "IMAGE_IDENTIFICATION",
-        answerFormat: "SINGLE_CHOICE",
-        imageId: examImageId,
-        markerIds: [],
-        groupId: "ai_generated",
-        order: 0,
-        prompt: aiResponse.prompt || "What is the structure indicated by the arrow?",
-        options: aiResponse.options.map((text, i) => ({ id: `opt_${i}`, text })),
-        correctOptionId,
-        explanation: aiResponse.explanation,
-        identifyingClue: aiResponse.identifyingClue,
-        commonMistake: aiResponse.commonMistake,
-        examTip: aiResponse.examTip,
-        status: "APPROVED",
-        isFixture: false,
-        sourceImageId: body.sourceImageId,
-        examImageId: examImageId,
-        targetX: body.targetX,
-        targetY: body.targetY,
-        generationRequestId: body.idempotencyKey,
-        generationStatus: "COMPLETED",
-        reviewStatus: "APPROVED",
-        generatedByAi: true,
-      });
-
-      await recordAiUsage({
-        userId: sessionUser.id,
-        lectureId: null,
-        model: process.env.GROQ_MODEL ?? "llama-3.3-70b-versatile",
-        inputTokens: inputTokens ?? 0,
-        outputTokens: outputTokens ?? 0,
-      });
-
+    if (idempotent.kind === "new") {
       await finalizeGeneration({
         userId: sessionUser.id,
         idempotencyKey: body.idempotencyKey,
         status: "completed",
         result,
       });
-
-      return Response.json(result, { headers: privateHeaders });
-    } catch (err) {
-      if (idempotent.kind === "new") {
-        await finalizeGeneration({
-          userId: sessionUser.id,
-          idempotencyKey: body.idempotencyKey,
-          status: "failed",
-          result: { error: (err as Error).message },
-        });
-      }
-      console.error("Practical generation error:", err);
-      return Response.json({ error: "Generation failed" }, { status: 500, headers: privateHeaders });
     }
+
+    // Quota semantics: a successful AI-assisted generation consumes exactly one
+    // study_generation slot; it is charged AT SUCCESS (never on a failed call or
+    // a pure authoring action). A hard race where the last slot was taken while
+    // generating yields a hidden NEEDS_REVIEW draft and no over-quota charge.
+    if (aiSucceeded) {
+      await reserveAiUsageSlot(sessionUser.id);
+    }
+
+    return Response.json(result, { headers: privateHeaders });
   } catch (error) {
     return practicalFailure(error);
   }

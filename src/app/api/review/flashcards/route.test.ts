@@ -4,8 +4,15 @@ import { NextRequest } from "next/server";
 type SqlObj = { query: string; values: unknown[] };
 
 const mem = vi.hoisted(() => {
-  type Req = { status: string; resultJson: string | null; completedAt: Date | null };
+  type Req = {
+    status: string;
+    resultJson: string | null;
+    completedAt: Date | null;
+    feature: string | null;
+    lectureId: string | null;
+  };
   const store = new Map<string, Req>();
+  const empty = (feature: string | null, lectureId: string | null): Req => ({ status: "pending", resultJson: null, completedAt: null, feature, lectureId });
   const keyOf = (u: string, k: string) => `${u}|${k}`;
   const parse = (s: unknown): SqlObj => {
     const o = s as { queryChunks?: unknown[] };
@@ -28,31 +35,49 @@ const mem = vi.hoisted(() => {
   };
   const exec = (s: unknown): unknown[] => {
     const { query, values } = parse(s);
-    if (query.includes("SELECT status, result_json FROM ai_generation_request")) {
+    if (query.includes("SELECT count FROM ai_usage_daily")) {
+      const [user] = values as [string];
+      return [{ count: 0 }]; // unused by resume-once audit path
+    }
+    if (query.includes("SELECT id FROM ai_generation_request")) {
       const [user, key] = values as [string, string];
       const row = store.get(keyOf(user, key));
-      return row ? [{ status: row.status, result_json: row.resultJson }] : [];
+      return row ? [{ id: `req-${key}` }] : [];
+    }
+    if (query.includes("FROM ai_generation_request")) {
+      const [user, key] = values as [string, string];
+      const row = store.get(keyOf(user, key));
+      return row
+        ? [{ id: `req-${key}`, status: row.status, result_json: row.resultJson, feature: row.feature, lecture_id: row.lectureId, practical_track_id: null }]
+        : [];
     }
     if (query.includes("INSERT INTO ai_generation_request")) {
-      const [key, user, , lectureId, practicalTrackId] = values as [string, string, string, string | null, string | null];
-      const id = keyOf(user, key);
-      if (store.has(id)) {
+      const [id, key, user, feature, lectureId] = values as [string, string, string, string, string | null];
+      const entry = keyOf(user, key);
+      if (store.has(entry)) {
         throw { code: "23505", constraint: "ai_generation_request_user_idempotency_key_unique" };
       }
-      store.set(id, { status: "pending", resultJson: null, completedAt: null });
+      store.set(entry, { ...empty(feature, lectureId), status: "pending" });
       return [];
     }
     if (query.includes("UPDATE ai_generation_request")) {
       const [status, resultJson, completedAt, user, key] = values as [string, string | null, Date | null, string, string];
-      store.set(keyOf(user, key), { status, resultJson, completedAt });
+      const row = store.get(keyOf(user, key));
+      store.set(keyOf(user, key), { ...(row ?? empty(null, null)), status, resultJson, completedAt });
       return [];
     }
     throw new Error(`unexpected sql: ${query}`);
   };
   return {
     db: { execute: async (s: unknown) => exec(s) },
-    seed: (user: string, key: string, status: Req["status"], resultJson?: string | null) =>
-      store.set(keyOf(user, key), { status, resultJson: resultJson ?? null, completedAt: status === "completed" ? new Date() : null }),
+    seed: (user: string, key: string, status: Req["status"], resultJson?: string | null, opts?: { feature?: string | null; lectureId?: string | null }) =>
+      store.set(keyOf(user, key), {
+        status,
+        resultJson: resultJson ?? null,
+        completedAt: status === "completed" ? new Date() : null,
+        feature: opts?.feature ?? "flashcard",
+        lectureId: opts?.lectureId ?? "lecture-1",
+      }),
     state: (user: string, key: string) => store.get(keyOf(user, key)),
   };
 });
@@ -161,6 +186,16 @@ describe("POST /api/review/flashcards - idempotent generation", () => {
     const second = await POST(request({ lectureId: "lecture-1", idempotencyKey: key }));
     expect(mocks.createFlashcards).toHaveBeenCalledTimes(2);
     expect((await second.json())).toMatchObject({ count: 3, source: "lecture" });
+  });
+
+  it("reusing a key for a DIFFERENT lecture is a 409 conflict (key is bound to its source)", async () => {
+    const key = "ffffffff-ffff-4fff-8fff-ffffffffffff";
+    await POST(request({ lectureId: "lecture-1", idempotencyKey: key }));
+    const response = await POST(request({ lectureId: "lecture-2", idempotencyKey: key }));
+    expect(response.status).toBe(409);
+    const body = await response.json();
+    expect(body.error).toBe("idempotency_key_already_used_for_different_request");
+    expect(mocks.reserve).toHaveBeenCalledTimes(1); // only the first request was charged
   });
 
   it("without an idempotency key the old behavior is preserved (generate each time)", async () => {

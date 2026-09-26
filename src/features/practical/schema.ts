@@ -1,5 +1,5 @@
 ﻿import { sql } from "drizzle-orm";
-import { boolean, check, index, integer, jsonb, pgTable, primaryKey, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import { boolean, check, doublePrecision, index, integer, jsonb, pgTable, primaryKey, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 import { user } from "@/features/auth/schema";
 import { curriculumModule, lecture } from "@/features/curriculum/schema";
 import { academicYear } from "@/features/hierarchy/schema";
@@ -37,8 +37,8 @@ export const practicalImage = pgTable("practical_image", {
   isFixture: boolean("is_fixture").notNull().default(false),
   sourceImageId: text("source_image_id").references((): any => practicalImage.id),
   examImageId: text("exam_image_id").references((): any => practicalImage.id),
-  targetX: integer("target_x"),
-  targetY: integer("target_y"),
+  targetX: doublePrecision("target_x"),
+  targetY: doublePrecision("target_y"),
   isExamDerivative: boolean("is_exam_derivative").notNull().default(false),
   generationStatus: text("generation_status").notNull().default("DRAFT"),
   reviewStatus: text("review_status").notNull().default("DRAFT"),
@@ -72,9 +72,10 @@ export const practicalQuestion = pgTable("practical_question", {
   isFixture: boolean("is_fixture").notNull().default(false),
   sourceImageId: text("source_image_id").references(() => practicalImage.id),
   examImageId: text("exam_image_id").references(() => practicalImage.id),
-  targetX: integer("target_x"),
-  targetY: integer("target_y"),
-  generationRequestId: text("generation_request_id").references(() => aiGenerationRequest.idempotencyKey),
+  targetX: doublePrecision("target_x"),
+  targetY: doublePrecision("target_y"),
+  correctStructure: text("correct_structure"),
+  generationRequestId: uuid("generation_request_id").references(() => aiGenerationRequest.id),
   generationStatus: text("generation_status").notNull().default("DRAFT"),
   reviewStatus: text("review_status").notNull().default("DRAFT"),
   generatedByAi: boolean("generated_by_ai").notNull().default(false),

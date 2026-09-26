@@ -18,6 +18,7 @@ export const PRACTICAL_SUBJECT_CONFIG = [
 ] as const;
 export const practicalTrackStatusSchema = z.enum(["DRAFT", "PUBLISHED", "ARCHIVED"]);
 export const statusSchema = z.enum(["DRAFT_AI", "REVIEWED", "APPROVED"]);
+export const reviewStatusSchema = z.enum(["DRAFT", "NEEDS_REVIEW", "APPROVED", "REJECTED"]);
 const english = z.string().min(1).max(4000).refine((s) => !/[\u0600-\u06ff]/u.test(s), "Learning content must be English");
 export const sourceSchema = z.object({
   title: english,
@@ -35,6 +36,11 @@ export const imageSchema = z.object({
   storageKey: z.string(), alt: english, sourceMaterial: sourceSchema,
   sourcePage: z.number().int().positive(), markers: z.array(markerSchema),
   status: statusSchema, isFixture: z.boolean(),
+  // Authoring metadata (0025). Optional so legacy rows still parse unchanged.
+  sourceImageId: z.string().nullable().optional(),
+  examImageId: z.string().nullable().optional(),
+  isExamDerivative: z.boolean().optional(),
+  reviewStatus: reviewStatusSchema.optional(),
 });
 export const questionSchema = z.object({
   id: z.string(), academicYearId: z.string().nullable(), studyYear: z.number().int().positive(),
@@ -46,6 +52,11 @@ export const questionSchema = z.object({
   options: z.array(z.object({ id: z.string().min(1), text: english })).min(2).max(6),
   correctOptionId: z.string(), explanation: english, identifyingClue: english,
   commonMistake: english, examTip: english, status: statusSchema, isFixture: z.boolean(),
+  // Authoring metadata (0025). Optional so legacy rows still parse unchanged.
+  correctStructure: z.string().nullable().optional(),
+  reviewStatus: reviewStatusSchema.optional(),
+  sourceImageId: z.string().nullable().optional(),
+  examImageId: z.string().nullable().optional(),
 }).superRefine((q, ctx) => {
   const ids = q.options.map((o) => o.id);
   if (new Set(ids).size !== ids.length || !ids.includes(q.correctOptionId)) {
@@ -84,12 +95,28 @@ function approvedSource(source: SourceMaterial) {
   return /^[a-f0-9]{64}$/i.test(source.sha256) && Boolean(source.approvedBy && source.approvedAt);
 }
 
+/**
+ * 0025 authoring verification: an admin explicitly APPROVED the question AND
+ * the clean exam derivative image, the derivative has a real uploaded file and
+ * is genuinely a derivative (never the labeled source). This is the authoring
+ * flow's equivalent of the legacy approved-source hash credential.
+ */
+function authoringVerified(q: PracticalQuestion, image: PracticalImage) {
+  return (
+    q.reviewStatus === "APPROVED" &&
+    image.isExamDerivative === true &&
+    image.reviewStatus === "APPROVED" &&
+    image.storageKey.length > 0
+  );
+}
+
 /** Fail closed: a folder name or an image alone never makes a question eligible. */
 export function eligibleQuestion(q: PracticalQuestion, image: PracticalImage | undefined, scope: Scope) {
   if (!image || q.trackId !== scope.trackId || q.moduleId !== scope.moduleId || q.studyYear !== scope.studyYear) return false;
   if (image.id !== q.imageId || image.trackId !== q.trackId || image.moduleId !== q.moduleId || image.subject !== q.subject || image.studyYear !== q.studyYear) return false;
   if (q.isFixture !== scope.fixtures || image.isFixture !== scope.fixtures) return false;
-  if (!scope.fixtures && (q.status !== "APPROVED" || image.status !== "APPROVED" || !approvedSource(q.sourceMaterial) || !approvedSource(image.sourceMaterial))) return false;
+  if (!scope.fixtures && (q.status !== "APPROVED" || image.status !== "APPROVED")) return false;
+  if (!scope.fixtures && !authoringVerified(q, image) && (!approvedSource(q.sourceMaterial) || !approvedSource(image.sourceMaterial))) return false;
   if (q.questionType === "LABELED_STRUCTURE" && q.markerIds.length === 0) return false;
   return q.markerIds.every((id) => image.markers.some((m) => m.id === id));
 }

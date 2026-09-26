@@ -75,15 +75,26 @@ describe("POST /api/review/cases/evaluate", () => {
     expect(mocks.reserve).not.toHaveBeenCalled();
   });
 
-  it("reserves a shared quota slot before evaluating (no subscription bypass)", async () => {
+  it("evaluates a case without consuming the shared study-generation quota", async () => {
     const response = await POST(request({ caseId: "case-1", answers: ["a1", "a2"] }));
     expect(response.status).toBe(200);
-    expect(mocks.reserve).toHaveBeenCalledTimes(1);
-    expect(mocks.reserve).toHaveBeenCalledWith("user-1");
+    expect(mocks.reserve).not.toHaveBeenCalled();
     expect(mocks.generate).not.toHaveBeenCalled();
     expect(mocks.record).not.toHaveBeenCalled();
     const body = await response.json();
     expect(body).toMatchObject({ score: 60, source: "lecture" });
+  });
+
+  it("evaluations stay unlimited even after the daily generation quota is spent (20 evaluations at exhausted quota)", async () => {
+    // 14 slots already consumed elsewhere (seeded), quota fully spent: but evaluation
+    // must not even ask for a slot.
+    mocks.reserve.mockResolvedValue({ ok: false, reason: "limit_reached" });
+    for (let i = 0; i < 20; i++) {
+      const response = await POST(request({ caseId: "case-1", answers: ["a1", "a2"] }));
+      expect(response.status).toBe(200);
+    }
+    expect(mocks.reserve).not.toHaveBeenCalled();
+    expect(mocks.createEvaluation).toHaveBeenCalledTimes(20);
   });
 
   it("10 evaluations record 10 attempts, persist answers/score, and award case XP each time (once-ever enforced by the ledger)", async () => {
@@ -103,16 +114,6 @@ describe("POST /api/review/cases/evaluate", () => {
       expect(call[1]).toBe("case_complete");
       expect(call[2]).toBe("case-1");
     }
-  });
-
-  it("rejects with 429 (free_limit) when the shared quota is exhausted, before anything else", async () => {
-    mocks.reserve.mockResolvedValue({ ok: false, reason: "limit_reached" });
-    const response = await POST(request({ caseId: "case-1", answers: ["a1"] }));
-    expect(response.status).toBe(429);
-    const body = await response.json();
-    expect(body.error).toBe("free_limit");
-    expect(mocks.createEvaluation).not.toHaveBeenCalled();
-    expect(mocks.evaluateLocal).not.toHaveBeenCalled();
   });
 
   it("treats each user independently (cross-user isolation)", async () => {

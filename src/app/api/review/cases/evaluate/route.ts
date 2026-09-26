@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/shared/session";
-import { reserveAiUsageSlot, FREE_DAILY_LIMIT, recordAiUsage } from "@/features/ai/queries";
+import { recordAiUsage } from "@/features/ai/queries";
 import { generateJson } from "@/shared/ai-client";
 import { awardXp } from "@/features/gamification/queries";
 import { evaluateSourceAnswers } from "@/features/review/source-generators";
@@ -40,18 +40,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "case not found" }, { status: 404 });
   }
   const caseRow = access.value.case;
-
-  // Shared study-generation quota applies to every user (no subscription bypass).
-  const reservation = await reserveAiUsageSlot(session.user.id);
-  if (!reservation.ok) {
-    return NextResponse.json(
-      {
-        error: "free_limit",
-        message: `وصلت إلى حد ${FREE_DAILY_LIMIT} عملية ذكية مجانية اليوم.`,
-      },
-      { status: 429 },
-    );
-  }
 
   const questions = JSON.parse(caseRow.questionsJson) as string[];
   const modelAnswers = JSON.parse(caseRow.modelAnswersJson) as string[];

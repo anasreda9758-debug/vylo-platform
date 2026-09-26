@@ -1,4 +1,4 @@
-﻿import { pgTable, text, timestamp, integer, uuid, index, uniqueIndex, primaryKey } from "drizzle-orm/pg-core";
+﻿import { date, pgTable, text, timestamp, integer, uuid, index, uniqueIndex, primaryKey } from "drizzle-orm/pg-core";
 import { user } from "@/features/auth/schema";
 import { lecture } from "@/features/curriculum/schema";
 import { practicalTrack } from "@/features/practical/schema";
@@ -103,7 +103,7 @@ export const aiUsageDaily = pgTable(
     userId: text("user_id")
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
-    usageDate: text("usage_date").notNull(),
+    usageDate: date("usage_date", { mode: "string" }).notNull(),
     bucket: text("bucket").notNull().default("study_generation"),
     count: integer("count").notNull().default(0),
   },
@@ -116,7 +116,8 @@ export const aiUsageDaily = pgTable(
 export const aiGenerationRequest = pgTable(
   "ai_generation_request",
   {
-    idempotencyKey: text("idempotency_key").primaryKey(),
+    id: uuid("id").primaryKey().defaultRandom(),
+    idempotencyKey: text("idempotency_key").notNull(),
     userId: text("user_id")
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),

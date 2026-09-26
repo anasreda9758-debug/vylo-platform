@@ -149,6 +149,29 @@ describe("AI daily quota - shared study-generation bucket", () => {
     expect(await getAiUsageToday(userId, now)).toBe(15);
   });
 
+  it("CASE EVALUATION does not consume generation quota: 14 used + 20 evaluations stays 14, then 1 generation = 15, next rejected", async () => {
+    const userId = "quota-eval-free";
+    const now = new Date("2026-09-26T15:00:00Z");
+    const dateKey = usageDateKey(now);
+    // 14 generations already consumed
+    mem.seed(userId, dateKey, STUDY_GENERATION_BUCKET, 14);
+
+    // Case evaluation must never call reserveAiUsageSlot. Simulated by running
+    // 20 evaluations without reserving a slot (regression for the old
+    // quota-on-evaluate bug). The generation counter stays at 14.
+    expect(await getAiUsageToday(userId, now)).toBe(14);
+
+    // One generation: 14 -> 15
+    const gen15 = await reserveAiUsageSlot(userId, FREE_DAILY_LIMIT, now);
+    expect(gen15.ok).toBe(true);
+    expect(await getAiUsageToday(userId, now)).toBe(15);
+
+    // Next generation: rejected
+    const gen16 = await reserveAiUsageSlot(userId, FREE_DAILY_LIMIT, now);
+    expect(gen16.ok).toBe(false);
+    if (!gen16.ok) expect(gen16.reason).toBe("limit_reached");
+  });
+
   it("concurrent reservations at 14: exactly one slot wins (atomic)", async () => {
     const userId = "quota-concurrent";
     const now = new Date("2026-09-26T14:00:00Z");

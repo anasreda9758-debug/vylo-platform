@@ -125,6 +125,12 @@ export async function getClinicalCase(id: string, userId: string) {
  * combination is stored once (unique index); attempts are numbered 1..N in
  * evaluation order. Attempts only guard history retention, not XP (XP remains
  * once-ever via the xp_log case_complete unique partial index).
+ *
+ * Concurrent evaluations of the same (case, user) are serialized with an
+ * advisory xact lock on the case+user key, then the next attempt number is
+ * computed inside that locked transaction. Two simultaneous evaluations
+ * therefore always produce distinct attempts (1, 2) — never a duplicate
+ * attempt number or a lost evaluation.
  */
 export async function createClinicalCaseEvaluation(params: {
   caseId: string;
@@ -132,21 +138,26 @@ export async function createClinicalCaseEvaluation(params: {
   answers: string[];
   score: number;
   feedback?: string | null;
-}) {
-  const [prev] = (await db.execute(sql`
-    SELECT COUNT(*)::int AS n FROM clinical_case_evaluation
-    WHERE case_id = ${params.caseId} AND user_id = ${params.userId}
-  `)) as { n?: number }[];
-  const attemptNumber = (typeof prev?.n === "number" ? prev.n : 0) + 1;
-  await db.insert(clinicalCaseEvaluation).values({
-    caseId: params.caseId,
-    userId: params.userId,
-    attemptNumber,
-    answersJson: params.answers,
-    score: params.score,
-    feedbackJson: params.feedback ? { text: params.feedback } : null,
+}): Promise<number> {
+  return db.transaction(async (tx) => {
+    await tx.execute(sql`
+      SELECT pg_advisory_xact_lock(hashtext(${`clinical-case-eval:${params.caseId}:${params.userId}`}))
+    `);
+    const [prev] = (await tx.execute(sql`
+      SELECT COUNT(*)::int AS n FROM clinical_case_evaluation
+      WHERE case_id = ${params.caseId} AND user_id = ${params.userId}
+    `)) as { n?: number }[];
+    const attemptNumber = (typeof prev?.n === "number" ? prev.n : 0) + 1;
+    await tx.insert(clinicalCaseEvaluation).values({
+      caseId: params.caseId,
+      userId: params.userId,
+      attemptNumber,
+      answersJson: params.answers,
+      score: params.score,
+      feedbackJson: params.feedback ? { text: params.feedback } : null,
+    });
+    return attemptNumber;
   });
-  return attemptNumber;
 }
 
 export async function listMyCases(userId: string, limit = 10) {

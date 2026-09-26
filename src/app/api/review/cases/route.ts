@@ -56,6 +56,12 @@ export async function POST(request: NextRequest) {
     if (state.kind === "pending") {
       return NextResponse.json({ error: "generation_in_progress" }, { status: 409 });
     }
+    if (state.kind === "conflict") {
+      return NextResponse.json(
+        { error: "idempotency_key_already_used_for_different_request" },
+        { status: 409 },
+      );
+    }
   }
 
   // Shared study-generation quota applies to every user (no subscription bypass).
