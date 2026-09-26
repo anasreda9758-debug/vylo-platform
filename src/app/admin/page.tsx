@@ -2,13 +2,12 @@ import Link from "next/link";
 import { requireAdmin } from "@/shared/session";
 import { AdminPanel } from "@/components/admin-panel";
 import { Navigation } from "@/components/navigation";
-import { GraduationCap } from "lucide-react";
 
 export default async function AdminPage() {
   const session = await requireAdmin();
 
   return (
-    <div className="flex flex-1">
+    <div className="flex flex-1 flex-col lg:flex-row">
       <Navigation
         user={{ name: session.user.name, email: session.user.email }}
         isAdmin={true}
@@ -19,9 +18,9 @@ export default async function AdminPage() {
           {/* Header */}
           <div className="mb-8 flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold">لوحة الإدارة</h1>
+              <h1 className="text-3xl font-bold">VYLO Admin Control Center</h1>
               <p className="mt-1 text-sm text-muted-foreground">
-                مدير النظام: {session.user.email}
+                لوحة إدارة ومراقبة المنصة — للقراءة والإشراف · مدير النظام: {session.user.email}
               </p>
             </div>
             <Link
