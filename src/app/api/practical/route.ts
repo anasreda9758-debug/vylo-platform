@@ -4,11 +4,13 @@ import { answerBody, flagBody, requestScope, practicalFailure, privateHeaders } 
 
 export async function GET(request: Request) {
   try {
-    const session = await getSession(); const url = new URL(request.url);
+    const session = await getSession();
+    const url = new URL(request.url);
     const result = await practicalService.list(session?.user ?? null, requestScope(url), url.searchParams.get("mode") === "wrong");
     return Response.json(result, { headers: privateHeaders });
   } catch (error) { return practicalFailure(error); }
 }
+
 export async function POST(request: Request) {
   try {
     const session = await getSession();
@@ -18,6 +20,7 @@ export async function POST(request: Request) {
     return Response.json(result, { headers: privateHeaders });
   } catch (error) { return practicalFailure(error); }
 }
+
 export async function PATCH(request: Request) {
   try {
     const session = await getSession();

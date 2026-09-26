@@ -5,6 +5,13 @@ export function requestScope(url: URL): RequestScope {
 }
 export const answerBody = z.object({ questionId: z.string().min(1).max(160), optionId: z.string().min(1).max(160), requestId: z.string().uuid() }).strict();
 export const flagBody = z.object({ questionId: z.string().min(1).max(160), flag: z.enum(["bookmarked", "difficult"]), value: z.boolean() }).strict();
+export const practicalGenerateBody = z.object({
+  sourceImageId: z.string().min(1),
+  targetX: z.number().min(0).max(1),
+  targetY: z.number().min(0).max(1),
+  prompt: z.string().optional(),
+  idempotencyKey: z.string().uuid(),
+}).strict();
 export const privateHeaders = { "Cache-Control": "private, no-store", "Vary": "Cookie", "X-Content-Type-Options": "nosniff" };
 export function practicalFailure(error: unknown) {
   const status = error instanceof PracticalError ? error.status : error instanceof z.ZodError || error instanceof SyntaxError ? 400 : 503;

@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/shared/session";
-import { hasAnySubscription } from "@/features/billing/queries";
-import { getAiUsageToday, FREE_DAILY_LIMIT, recordAiUsage } from "@/features/ai/queries";
+import { reserveAiUsageSlot, FREE_DAILY_LIMIT, recordAiUsage } from "@/features/ai/queries";
 import { generateJson } from "@/shared/ai-client";
 import { awardXp } from "@/features/gamification/queries";
 import { evaluateSourceAnswers } from "@/features/review/source-generators";
+import { createClinicalCaseEvaluation } from "@/features/review/queries";
 import { getAccessibleClinicalCase } from "@/features/access/learning-access";
+import { safeAwardXpGeneral } from "@/features/gamification/error-handling";
 
 const SYSTEM_PROMPT =
   "You are a medical examiner. Evaluate the student's answers against the model answers. Give clear, concise feedback " +
@@ -40,26 +41,46 @@ export async function POST(request: NextRequest) {
   }
   const caseRow = access.value.case;
 
-  const premium = await hasAnySubscription(session.user.id);
-  if (!premium) {
-    const usedToday = await getAiUsageToday(session.user.id);
-    if (usedToday >= FREE_DAILY_LIMIT) {
-      return NextResponse.json(
-        {
-          error: "free_limit",
-          message: `وصلت إلى حد ${FREE_DAILY_LIMIT} عملية ذكية مجانية اليوم. فعّل Premium لفتح استخدام غير محدود.`,
-        },
-        { status: 429 },
-      );
-    }
+  // Shared study-generation quota applies to every user (no subscription bypass).
+  const reservation = await reserveAiUsageSlot(session.user.id);
+  if (!reservation.ok) {
+    return NextResponse.json(
+      {
+        error: "free_limit",
+        message: `وصلت إلى حد ${FREE_DAILY_LIMIT} عملية ذكية مجانية اليوم.`,
+      },
+      { status: 429 },
+    );
   }
 
   const questions = JSON.parse(caseRow.questionsJson) as string[];
   const modelAnswers = JSON.parse(caseRow.modelAnswersJson) as string[];
   const joined = answers.map((a, i) => `Q${i + 1}: ${a}`).join("\n");
-  const evaluateLocally = () => {
-    const result = evaluateSourceAnswers(answers, modelAnswers);
-    awardXp(session.user.id, "case_complete", caseId).catch(() => {});
+
+  const recordEvaluation = async (score: number | null, feedback?: string) => {
+    try {
+      await createClinicalCaseEvaluation({
+        caseId,
+        userId: session.user.id,
+        answers,
+        score: score ?? 0,
+        feedback,
+      });
+    } catch (err) {
+      console.warn("[clinical_case_evaluation] persistence skipped", err);
+    }
+  };
+
+  const awardOnceEverXp = () =>
+    safeAwardXpGeneral(
+      () => awardXp(session.user.id, "case_complete", caseId),
+      (msg, err) => console.warn(`[case_complete] ${msg}`, err),
+    );
+
+const evaluateLocally = async () => {
+    const result = await evaluateSourceAnswers(answers, modelAnswers);
+    await recordEvaluation(result.score, result.feedback);
+    await awardOnceEverXp();
     return NextResponse.json({ ...result, source: "lecture" });
   };
   if (!process.env.GROQ_API_KEY) return evaluateLocally();
@@ -76,7 +97,8 @@ export async function POST(request: NextRequest) {
       inputTokens,
       outputTokens,
     });
-    awardXp(session.user.id, "case_complete", caseId).catch(() => {});
+    await recordEvaluation(data?.score ?? null, data?.feedback);
+    await awardOnceEverXp();
     return NextResponse.json({
       score: data?.score ?? null,
       feedback: data?.feedback ?? "لم نتمكن من توليد تقييم.",

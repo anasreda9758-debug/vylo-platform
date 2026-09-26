@@ -3,6 +3,7 @@ import { getSession } from "@/shared/session";
 import { reviewFlashcard } from "@/features/review/queries";
 import { awardXp } from "@/features/gamification/queries";
 import { getAccessibleFlashcard } from "@/features/access/learning-access";
+import { safeAwardXpGeneral } from "@/features/gamification/error-handling";
 
 export async function POST(request: NextRequest) {
   const session = await getSession();
@@ -29,7 +30,12 @@ export async function POST(request: NextRequest) {
   const access = await getAccessibleFlashcard(session.user, cardId);
   if (!access.ok) return NextResponse.json({ error: "card not found" }, { status: 404 });
 
-  await reviewFlashcard(cardId, session.user.id, rating);
-  awardXp(session.user.id, "flashcard_review", cardId).catch(() => {});
-  return NextResponse.json({ ok: true });
+  const { wasDue } = await reviewFlashcard(cardId, session.user.id, rating);
+  if (wasDue) {
+    await safeAwardXpGeneral(
+      () => awardXp(session.user.id, "flashcard_review", cardId),
+      (msg, err) => console.warn(`[flashcard_review] ${msg}`, err),
+    );
+  }
+  return NextResponse.json({ ok: true, xpEarned: wasDue });
 }

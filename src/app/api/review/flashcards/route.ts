@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/shared/session";
-import { hasAnySubscription } from "@/features/billing/queries";
-import { getAiUsageToday, FREE_DAILY_LIMIT, recordAiUsage } from "@/features/ai/queries";
+import { reserveAiUsageSlot, FREE_DAILY_LIMIT, recordAiUsage } from "@/features/ai/queries";
+import { beginGeneration, finalizeGeneration } from "@/features/gamification/idempotency";
 import { generateJson } from "@/shared/ai-client";
 import { createFlashcards, getDueFlashcards } from "@/features/review/queries";
 import { createSourceFlashcards } from "@/features/review/source-generators";
@@ -19,12 +19,17 @@ export async function POST(request: NextRequest) {
   }
 
   let lectureId: string;
+  let idempotencyKey: string | null = null;
   try {
     const body = await request.json();
     if (typeof body.lectureId !== "string" || body.lectureId.length === 0) {
       return NextResponse.json({ error: "invalid lectureId" }, { status: 400 });
     }
+    if (body.idempotencyKey !== undefined && typeof body.idempotencyKey !== "string") {
+      return NextResponse.json({ error: "invalid idempotencyKey" }, { status: 400 });
+    }
     lectureId = body.lectureId;
+    idempotencyKey = typeof body.idempotencyKey === "string" && body.idempotencyKey.length > 0 ? body.idempotencyKey : null;
   } catch {
     return NextResponse.json({ error: "invalid json" }, { status: 400 });
   }
@@ -36,37 +41,65 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "no readable content for this lecture" }, { status: 400 });
   }
 
-  const premium = await hasAnySubscription(session.user.id);
-  if (!premium) {
-    const usedToday = await getAiUsageToday(session.user.id);
-    if (usedToday >= FREE_DAILY_LIMIT) {
-      return NextResponse.json(
-        {
-          error: "free_limit",
-          message: `وصلت إلى حد ${FREE_DAILY_LIMIT} عملية ذكية مجانية اليوم. فعّل Premium لفتح استخدام غير محدود.`,
-        },
-        { status: 429 },
-      );
+  // Idempotency: replay the exact stored result for a reused key, never a second generation.
+  if (idempotencyKey) {
+    const state = await beginGeneration({
+      userId: session.user.id,
+      idempotencyKey,
+      feature: "flashcard",
+      lectureId,
+    });
+    if (state.kind === "completed") {
+      return NextResponse.json({ ...(state.result as object), duplicate: true });
+    }
+    if (state.kind === "pending") {
+      return NextResponse.json({ error: "generation_in_progress" }, { status: 409 });
     }
   }
 
+  // Shared study-generation quota applies to every user (no subscription bypass).
+  const reservation = await reserveAiUsageSlot(session.user.id);
+  if (!reservation.ok) {
+    return NextResponse.json(
+      {
+        error: "free_limit",
+        message: `وصلت إلى حد ${FREE_DAILY_LIMIT} عملية ذكية مجانية اليوم.`,
+      },
+      { status: 429 },
+    );
+  }
+
   const body = lectureRow.content.slice(0, 15000);
-  const createLocalCards = async () => {
+  const createLocalCards = async (): Promise<{ count: number; source: string }> => {
     const cards = createSourceFlashcards(lectureRow.title, body, lectureRow.summaryJson);
     if (cards.length === 0) {
-      return NextResponse.json({ error: "no_usable_content" }, { status: 400 });
+      throw Object.assign(new Error("no_usable_content"), { status: 400 });
     }
     const count = await createFlashcards(session.user.id, lectureId, cards);
-    return NextResponse.json({ count, source: "lecture" });
+    return { count, source: "lecture" };
   };
-  if (process.env.USE_HOSTED_AI !== "true" || !process.env.GROQ_API_KEY) return createLocalCards();
+
+  const respond = async (result: { count: number; source?: string; duplicate?: boolean }) => {
+    if (idempotencyKey) {
+      await finalizeGeneration({ userId: session.user.id, idempotencyKey, status: "completed", result });
+    }
+    return NextResponse.json(result);
+  };
+
+  if (process.env.USE_HOSTED_AI !== "true" || !process.env.GROQ_API_KEY) {
+    try {
+      return await respond(await createLocalCards());
+    } catch (err) {
+      return NextResponse.json({ error: (err as Error).message }, { status: (err as { status?: number }).status ?? 400 });
+    }
+  }
 
   try {
     const { data, inputTokens, outputTokens } = await generateJson<{ front: string; back: string }[]>({
       system: SYSTEM_PROMPT,
       user: `Create 12 flashcards.\nContent:\n${body}`,
     });
-    if (!data || data.length === 0) return createLocalCards();
+    if (!data || data.length === 0) return await respond(await createLocalCards());
     const count = await createFlashcards(session.user.id, lectureId, data.slice(0, 12));
     await recordAiUsage({
       userId: session.user.id,
@@ -75,10 +108,22 @@ export async function POST(request: NextRequest) {
       inputTokens,
       outputTokens,
     });
-    return NextResponse.json({ count });
+    return await respond({ count });
   } catch (err) {
     console.error("flashcards error:", err);
-    return createLocalCards();
+    try {
+      return await respond(await createLocalCards());
+    } catch (fallbackErr) {
+      if (idempotencyKey) {
+        await finalizeGeneration({
+          userId: session.user.id,
+          idempotencyKey,
+          status: "failed",
+          result: { error: (fallbackErr as Error).message },
+        });
+      }
+      return NextResponse.json({ error: (fallbackErr as Error).message }, { status: (fallbackErr as { status?: number }).status ?? 400 });
+    }
   }
 }
 

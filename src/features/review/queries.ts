@@ -1,7 +1,7 @@
-import { and, eq, lte } from "drizzle-orm";
+import { and, eq, lte, sql } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { db } from "@/shared/db";
-import { clinicalCase, flashcard } from "./schema";
+import { clinicalCase, clinicalCaseEvaluation, flashcard } from "./schema";
 import { canAccessModule, type LearningActor } from "@/features/access/learning-access";
 
 export type ReviewLecture = {
@@ -71,14 +71,30 @@ export async function getDueFlashcards(userId: string, limit = 30) {
   });
 }
 
-export async function reviewFlashcard(cardId: string, userId: string, rating: "again" | "good" | "easy") {
+export async function reviewFlashcard(
+  cardId: string,
+  userId: string,
+  rating: "again" | "good" | "easy",
+): Promise<{ wasDue: boolean }> {
   const intervals = { again: 1, good: 3, easy: 7 } as const;
-  const due = new Date();
-  due.setDate(due.getDate() + intervals[rating]);
-  await db
-    .update(flashcard)
-    .set({ intervalDays: intervals[rating], dueDate: due })
-    .where(and(eq(flashcard.id, cardId), eq(flashcard.userId, userId)));
+  const now = new Date();
+  return db.transaction(async (tx) => {
+    const rows = (await tx.execute(sql`
+      SELECT due_date FROM flashcard
+      WHERE id = ${cardId} AND user_id = ${userId}
+      FOR UPDATE
+    `)) as { due_date?: Date }[];
+    const dueDate = rows[0]?.due_date ? new Date(rows[0].due_date) : null;
+    const wasDue = dueDate ? dueDate.getTime() <= now.getTime() : false;
+    const due = new Date();
+    due.setDate(due.getDate() + intervals[rating]);
+    await tx.execute(sql`
+      UPDATE flashcard
+      SET interval_days = ${intervals[rating]}, due_date = ${due}
+      WHERE id = ${cardId} AND user_id = ${userId}
+    `);
+    return { wasDue };
+  });
 }
 
 export async function createClinicalCase(
@@ -104,11 +120,56 @@ export async function getClinicalCase(id: string, userId: string) {
   });
 }
 
+/**
+ * Persist a clinical case evaluation attempt. Each (case, user, attempt)
+ * combination is stored once (unique index); attempts are numbered 1..N in
+ * evaluation order. Attempts only guard history retention, not XP (XP remains
+ * once-ever via the xp_log case_complete unique partial index).
+ */
+export async function createClinicalCaseEvaluation(params: {
+  caseId: string;
+  userId: string;
+  answers: string[];
+  score: number;
+  feedback?: string | null;
+}) {
+  const [prev] = (await db.execute(sql`
+    SELECT COUNT(*)::int AS n FROM clinical_case_evaluation
+    WHERE case_id = ${params.caseId} AND user_id = ${params.userId}
+  `)) as { n?: number }[];
+  const attemptNumber = (typeof prev?.n === "number" ? prev.n : 0) + 1;
+  await db.insert(clinicalCaseEvaluation).values({
+    caseId: params.caseId,
+    userId: params.userId,
+    attemptNumber,
+    answersJson: params.answers,
+    score: params.score,
+    feedbackJson: params.feedback ? { text: params.feedback } : null,
+  });
+  return attemptNumber;
+}
+
 export async function listMyCases(userId: string, limit = 10) {
   return db.query.clinicalCase.findMany({
     where: eq(clinicalCase.userId, userId),
     orderBy: (c, { desc }) => [desc(c.createdAt)],
     limit,
+    with: { lecture: true },
+  });
+}
+
+export async function getAllClinicalCases(userId: string) {
+  return db.query.clinicalCase.findMany({
+    where: eq(clinicalCase.userId, userId),
+    orderBy: (c, { desc }) => [desc(c.createdAt)],
+    with: { lecture: true },
+  });
+}
+
+export async function getAllFlashcards(userId: string) {
+  return db.query.flashcard.findMany({
+    where: eq(flashcard.userId, userId),
+    orderBy: (f, { desc }) => [desc(f.createdAt)],
     with: { lecture: true },
   });
 }
