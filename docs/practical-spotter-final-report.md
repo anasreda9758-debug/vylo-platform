@@ -88,3 +88,81 @@ New test suites added this task: practical generate route (13), authoring helper
 - `src/features/review/clinical-case-evaluation.test.ts` (sync tx.insert), `src/features/ai/ai-quota.test.ts`
 
 **Deploy note:** 0023→0024→0025 were applied to live `lms` on 2026-09-27 (ledger ids 25–27). The chain is idempotent (all `IF NOT EXISTS`), and re-application is a no-op. Bulk practical image conversion has NOT started — still pending the owner's explicit go-ahead.
+
+---
+
+# Appendix — FIRST REAL PILOT (owner-supplied OSPE RENAL images, 2026-09-27)
+
+Repository state: branch `wip/renal-anatomy-practical` (HEAD `646e2ea`), dev server on :3000. Codebase unchanged in this appendix — **data authoring only** (real image copies into `private/practical-images` + 10 `practical_image` rows + 5 `practical_question` rows). No migration, no AI quota consumed (`ai_usage_daily`=0, `ai_generation_request`=0 after).
+
+## 1. Source images (the owner's real assets at `C:\work\projects\images\RENAL`)
+
+All five candidates are real OSPE RENAL exam cards already referenced by live `ospe_answer_key` rows (folder=RENAL, diagnosis+identification verified, 24 distinct diagnoses, 0 unmatched/duplicates across the folder's 243 files). Each pilot image = one distinct verified structure = one question (scope per owner decision).
+
+| Source file (real, unmodified) | Size | sha256 (recorded in source_material) | Verified diagnosis (ospe_answer_key) | identification |
+|---|---|---|---|---|
+| `OSPE RENAL-105.png` | 620,721 | `7cb3f7e7…bc37` | Kidney | Bean-shaped organ producing urine |
+| `OSPE RENAL-134.jpg` | 345,327 | `c1839555…cbb` | Ureter | Muscular tube carrying urine from kidney to bladder |
+| `OSPE RENAL-4.png` | 1,019,394 | `1f1f6401…0aae` | Renal artery | Branch of abdominal aorta supplying kidney |
+| `OSPE RENAL-373.png` | 505,644 | `8b2c3ae6…7c7c` | Renal vein | Vein draining kidney into inferior vena cava |
+| `OSPE RENAL-244.png` | 441,797 | `bb3448ee…49f9` | Adrenal gland | Endocrine gland on superior pole of kidney |
+
+- Module: `rau-203` (`ada77ba1-458a-45a7-81d3-4a2047bde027` "Renal & Urinary System (RAU-203)"); subject `Anatomy`, study year 1, track `practical-track-rau-203-anatomy` (PUBLISHED, practice_enabled=true, ospe_enabled=false).
+- Originals at `C:\work\projects\images\RENAL` left byte-for-byte untouched. Copies placed in `private/practical-images/` with deterministic keys (`<slug>-source.<ext>`, `<slug>-exam.<ext>`); both copies are byte-identical to the real card (sha256 identical), served only via `readPracticalImage` (path-traversal guarded, png/jpeg allowed).
+- Clean method: the OSPE cards are already exam-style images (arrow embedded in the original card); no AI generation, no masking, no invented labels — the student-visible "clean" image is the real card, and the verified structure comes from the DB answer key. `is_exam_derivative=true`, `generated_by_ai=false`.
+
+## 2. What was created (all BEFORE→AFTER verified)
+
+- `practical_image`: 1 → **11** (fixture untouched + 5 sources + 5 exam derivatives).
+- `practical_question`: 10 → **15** (all 10 fixtures untouched + 5 real, one per image).
+- New rows (all DRAFT status, reviewStatus DRAFT/NEEDS_REVIEW — **nothing APPROVED, nothing student-visible**):
+  - source images: `renal-105-kidney-source-img-v1`, `renal-134-ureter-source-img-v1`, `renal-4-renal-artery-source-img-v1`, `renal-373-renal-vein-source-img-v1`, `renal-244-adrenal-gland-source-img-v1`
+  - exam images: `*-exam-img-v1` (same ids, `examImageId` group) — reviewStatus `NEEDS_REVIEW`
+  - questions: `renal-105-kidney-q-v1`, `renal-134-ureter-q-v1`, `renal-4-renal-artery-q-v1`, `renal-373-renal-vein-q-v1`, `renal-244-adrenal-gland-q-v1` — `IMAGE_IDENTIFICATION`, target `*` prompt "Identify the structure indicated by the arrow.", group `pilot-renal-ospe-v1`, order 0–4.
+- `practical_progress` 1 / `practical_submission` 2 (pre-existing fixture exercise from 2026-09-12/13, untouched); no new usage/submissions.
+
+## 3. Options integrity (exactly 5 per question, correct always `opt_0`)
+
+Correct = the verified `ospe_answer_key` diagnosis. Distractors = other verified RENAL structures from the same answer-key folder (no AI, no invented anatomy):
+
+| Question | opt_0 (correct) | opt_1 | opt_2 | opt_3 | opt_4 |
+|---|---|---|---|---|---|
+| renal-105-kidney | Kidney | Renal fascia | Perinephric fat | Adrenal gland | Ureter |
+| renal-134-ureter | Ureter | Kidney | Renal vein | Psoas major | Renal artery |
+| renal-4-renal-artery | Renal artery | Renal vein | Kidney | Adrenal gland | Ureter |
+| renal-373-renal-vein | Renal vein | Renal artery | Inferior vena cava | Kidney | Ureter |
+| renal-244-adrenal-gland | Adrenal gland | Kidney | Renal fascia | Perinephric fat | Psoas major |
+
+All 5 rows passed `questionSchema` (unique ids, unique option ids, exactly one valid `correctOptionId` matching `options @> …`) and the DB check `practical_correct_option`. `buildFiveOptions` semantics honoured (correct at opt_0). Teaching aids (explanation/identifyingClue) reuse the answer-key identification text verbatim; commonMistake/examTip are generic exam guidance (no fabricated anatomy).
+
+## 4. Arrow / target coordinates per question
+
+- The source OSPE cards embed their own arrow (exam card format); `target_x/target_y` are intentionally **NULL (not invented)** on all 5 questions and images. The agent has no vision capability and refuses to fabricate coordinates; arrow placement is verified by the owner at admin review (`update-target`, 0..1, persisted + clamped, `targetPosition` math already unit-tested at 320/390/768/1024/1440px).
+- Admin per-question review gates apply: `approve-image` (source + exam derivative) → `set-structure` (already set from answer key) → `update-target`, `update-options` (already 5) → `approve-question`. `eligibleQuestion` returns false for all 5 today (status APPROVED + `authoringVerified`/sha256-approved source both unsatisfied) — verified by running the app's own `getAuthoringCatalog` + `readPracticalImage` + `eligibleQuestion`.
+
+## 5. Integrity bugs discovered during the pilot (unchanged code, reported only)
+
+1. **`trackId` never set on exam derivatives by the authoring routes.** `practicalStore.catalog` inner-joins `practicalQuestion.trackId = scope.trackId` **and** `practicalImage.trackId = scope.trackId` (`store.ts:12-17`), and `generate/route.ts:163` + `upload-clean` (`admin route:151`) insert derivative images **without** `practical_track_id`. Consequence: an approved real question whose exam image went through either route could never appear for students (image.trackId NULL never equals the scope track). The 5 pilot rows avoid this by setting `practical_track_id` explicitly on the source AND exam image rows; the routes still need the fix (assign `sourceImage.trackId`) before bulk authoring.
+2. English-only authoring is enforced in Zod schema but the DB `source_material`/`options` columns have no CHECK constraint — acceptable (all app writes go through Zod), noted for defense-in-depth only.
+
+## 6. Gates (data-only change, code untouched — all re-run 2026-09-27)
+
+- Vitest **269 passing / 34 files** (baseline maintained).
+- `tsc --noEmit` **0 errors**.
+- ESLint **0 errors** (178 pre-existing warnings, unrelated, untouched).
+
+## 7. Commit / push
+
+- `.gitignore`: added `/private/` (keeps the new real-image copies out of git; images are runtime-only assets under `private/practical-images/`).
+- Focused commit **only**: `.gitignore` + this report appendix. No `git add ./-A`; unrelated WIP (semester-3 scripts, billing, curriculum, recovery assets, etc.) untouched.
+- Branch `wip/renal-anatomy-practical`, push to `origin`.
+
+## 8. Verdict
+
+**PILOT DELIVERED — READY FOR ADMIN REVIEW — NOT READY FOR BULK UNTIL:**
+1. Owner approves the 5 questions (or rejects/adjusts) in `/admin/practical`; acceptable = `#APPROVED ≥ 3`.
+2. Owner confirms arrow targets for each approved question (`update-target`).
+3. The `trackId`-on-derivative bug (section 5.1) is fixed in `generate` and `upload-clean` routes so bulk authoring can surface approved rows.
+4. Distractor/teaching-language sweep of any future bulk content (must stay English-only, no fabricated anatomy).
+
+Once those hold, the same verified-source flow scales to the remaining 238 answer-keyed RENAL files and the CVS/IBL/RESP libraries.

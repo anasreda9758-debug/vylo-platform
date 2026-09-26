@@ -34,6 +34,9 @@ yarn-error.log*
 .env
 !.env.example
 
+# runtime-only practical assets (real exam images; never committed)
+/private/
+
 # local embedded postgres (dev only)
 .pgdata/
 
