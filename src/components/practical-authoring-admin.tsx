@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { PracticalTargetArrow } from "@/components/practical-target-arrow";
+import { imageDisplayBox, normalizedTargetFromPoint } from "@/features/practical/geometry";
 import { RefreshCw, CheckCircle2, XCircle, Upload, Eye, Crosshair, Save } from "lucide-react";
 
 type CatalogImage = {
@@ -41,6 +42,22 @@ type CatalogItem = {
   raw: CatalogImage;
   questions: { question: CatalogQuestion | null; raw: CatalogQuestion }[];
 };
+
+const ADMIN_IMAGE = (id: string) => `/api/admin/practical-images/${encodeURIComponent(id)}`;
+
+function PracticalImageState({ id, src, alt, className }: { id: string; src: string; alt: string; className?: string }) {
+  const [failed, setFailed] = useState(false);
+  if (failed) {
+    return (
+      <div className="flex min-h-40 w-full flex-col items-center justify-center gap-1 rounded border border-destructive/40 bg-destructive/5 p-4 text-center">
+        <p className="text-sm font-medium text-destructive">تعذر تحميل الصورة</p>
+        <p className="max-w-full break-all text-xs text-muted-foreground">id: {id}</p>
+        <button className="mt-1 text-xs text-primary underline" onClick={() => setFailed(false)}>إعادة المحاولة</button>
+      </div>
+    );
+  }
+  return <img src={src} alt={alt} className={className} onError={() => setFailed(true)} />;
+}
 
 async function api<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, init);
@@ -211,8 +228,9 @@ function OriginalPanel({ source, artifacts, onPatch, busy }: {
           <XCircle className="h-4 w-4 text-muted-foreground" />
         )}
       </div>
-      <img
-        src={`/api/practical/images/${encodeURIComponent(img.id)}`}
+      <PracticalImageState
+        id={img.id}
+        src={ADMIN_IMAGE(img.id)}
         alt={img.alt}
         className="max-h-72 w-full rounded object-contain"
       />
@@ -266,8 +284,9 @@ function CleanPanel({ source, onPatch, busy }: {
 
       {examImageId ? (
         <>
-          <img
-            src={`/api/practical/images/${encodeURIComponent(examImageId)}`}
+          <PracticalImageState
+            id={examImageId}
+            src={ADMIN_IMAGE(examImageId)}
             alt="Clean exam version"
             className="max-h-72 w-full rounded object-contain"
           />
@@ -325,7 +344,7 @@ function QuestionPanel({ q, selectedImageId, onPatch, onPreview, busy }: {
         <div className="mt-4 space-y-2">
           <Label>انقر على الصورة لتحديد موضع السهم (اسحب لضبطه)</Label>
           <TargetCanvas
-            imageUrl={`/api/practical/images/${encodeURIComponent(examImageId)}`}
+            image={examImageId}
             targetX={targetX}
             targetY={targetY}
             onChange={(x, y) => { setTargetX(x); setTargetY(y); }}
@@ -416,46 +435,64 @@ function QuestionPanel({ q, selectedImageId, onPatch, onPreview, busy }: {
 
 /**
  * Owner-review surface: the CLEAN exam image with a drag/click arrow overlay.
- * Coordinates are normalized 0..1 against the rendered image box, so the arrow
- * tip stays on the same anatomy regardless of viewport (percent-based).
+ * The click is mapped against the RENDERED IMAGE bounds (with object-fit:contain
+ * letterboxing removed), so normalized 0..1 always refers to the image itself,
+ * never the surrounding card. Arrow tip is anchored at translate(-50%, -100%).
  */
-function TargetCanvas({ imageUrl, targetX, targetY, onChange }: {
-  imageUrl: string;
+function TargetCanvas({ image, targetX, targetY, onChange }: {
+  image: string;
   targetX: number;
   targetY: number;
   onChange: (x: number, y: number) => void;
 }) {
-  const boxRef = useRef<HTMLDivElement>(null);
-  const dragging = useRef(false);
+  const imgRef = useRef<HTMLImageElement>(null);
+  const [failed, setFailed] = useState(false);
+  const [natural, setNatural] = useState<{ width: number; height: number } | null>(null);
 
   const setFromPoint = (clientX: number, clientY: number) => {
-    const box = boxRef.current;
-    if (!box) return;
-    const rect = box.getBoundingClientRect();
+    const img = imgRef.current;
+    if (!img) return;
+    const rect = img.getBoundingClientRect();
     if (rect.width === 0 || rect.height === 0) return;
-    const x = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
-    const y = Math.min(1, Math.max(0, (clientY - rect.top) / rect.height));
+    // Normalize against the ACTUAL rendered image area (letterbox excluded),
+    // never the surrounding card.
+    const box = imageDisplayBox(rect, natural, img.style.objectFit);
+    const { x, y } = normalizedTargetFromPoint({ x: clientX, y: clientY }, box);
     onChange(x, y);
   };
 
+  if (failed) {
+    return (
+      <div className="flex min-h-40 w-full flex-col items-center justify-center gap-1 rounded border border-destructive/40 bg-destructive/5 p-4 text-center">
+        <p className="text-sm font-medium text-destructive">تعذر تحميل الصورة</p>
+        <p className="max-w-full break-all text-xs text-muted-foreground">id: {image}</p>
+        <button className="mt-1 text-xs text-primary underline" onClick={() => setFailed(false)}>إعادة المحاولة</button>
+      </div>
+    );
+  }
+
   return (
     <div
-      ref={boxRef}
       dir="ltr"
       className="relative w-full cursor-crosshair select-none overflow-hidden rounded-lg border"
       onPointerDown={(e) => {
         e.currentTarget.setPointerCapture(e.pointerId);
-        dragging.current = true;
         setFromPoint(e.clientX, e.clientY);
       }}
       onPointerMove={(e) => {
-        if (dragging.current) setFromPoint(e.clientX, e.clientY);
+        if (e.buttons === 1) setFromPoint(e.clientX, e.clientY);
       }}
-      onPointerUp={() => { dragging.current = false; }}
-      onPointerCancel={() => { dragging.current = false; }}
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={imageUrl} alt="Clean exam image — click to place the arrow" className="block h-auto w-full" />
+      <img
+        ref={imgRef}
+        src={ADMIN_IMAGE(image)}
+        alt="Clean exam image — click to place the arrow"
+        className="block h-auto w-full"
+        style={{ objectFit: "contain" }}
+        onLoad={(e) => setNatural({ width: e.currentTarget.naturalWidth, height: e.currentTarget.naturalHeight })}
+        onError={() => setFailed(true)}
+      />
       {targetX != null && targetY != null && (
         <span
           aria-label={`Arrow at X ${targetX.toFixed(3)}, Y ${targetY.toFixed(3)}`}

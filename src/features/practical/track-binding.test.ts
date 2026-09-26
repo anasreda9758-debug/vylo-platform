@@ -139,3 +139,57 @@ describe("APPROVED real question visibility chain (trackId binding)", () => {
     await expect(service.answer(null, trackARequest, "q-renal-1", "opt_0", "r")).rejects.toMatchObject({ status: 401 });
   });
 });
+
+describe("student image delivery security (Phase 12)", () => {
+  let store: ScopedMemoryStore;
+  let service: ReturnType<typeof createPracticalService>;
+  const actor = { id: "student-1" };
+  const trackARequest: RequestScope = { moduleSlug: "rau-203", subjectSlug: "anatomy", fixtures: false };
+  const tracks = new Map([["rau-203/anatomy", trackA], ["rs-201/histology", trackB]]);
+
+  beforeEach(() => {
+    store = new ScopedMemoryStore();
+    service = createPracticalService(store, async (_actor, moduleSlug, subjectSlug) => {
+      const track = tracks.get(`${moduleSlug}/${subjectSlug}`);
+      return track ? { ok: true, value: track } : { ok: false, reason: "not_found" };
+    }, false);
+  });
+
+  it("lets a student fetch the APPROVED exam derivative referenced by the question", async () => {
+    store.questions = [approvedQuestion()];
+    store.images = [approvedImage()];
+    const image = await service.image(actor, trackARequest, "img-renal-clean");
+    expect(image.id).toBe("img-renal-clean");
+    expect(image.isExamDerivative).toBe(true);
+  });
+
+  it("never serves the LABELED SOURCE image, even by guessing its id", async () => {
+    store.questions = [approvedQuestion()];
+    store.images = [
+      approvedImage(),
+      { ...approvedImage(), id: "img-renal-src", storageKey: "renal-1-source.png", isExamDerivative: false, sourceImageId: null },
+    ];
+    await expect(service.image(actor, trackARequest, "img-renal-src")).rejects.toMatchObject({ status: 404 });
+  });
+
+  it("blocks a locked (not practice-enabled) student from the derivative", async () => {
+    const locked: ResolvedPracticalTrack = { ...trackA, practiceEnabled: false };
+    const lockedService = createPracticalService(store, async () => ({ ok: true, value: locked }), false);
+    store.questions = [approvedQuestion()];
+    store.images = [approvedImage()];
+    await expect(lockedService.image(actor, { ...trackARequest, moduleSlug: locked.moduleSlug }, "img-renal-clean"))
+      .rejects.toMatchObject({ status: 404 });
+  });
+
+  it("returns 404 for a nonexistent image id", async () => {
+    store.questions = [approvedQuestion()];
+    store.images = [approvedImage()];
+    await expect(service.image(actor, trackARequest, "does-not-exist")).rejects.toMatchObject({ status: 404 });
+  });
+
+  it("keeps track isolation: an image bound to a DIFFERENT track is not fetchable", async () => {
+    store.questions = [approvedQuestion()];
+    store.images = [approvedImage({ trackId: "track-b", moduleId: "module-2" })];
+    await expect(service.image(actor, trackARequest, "img-renal-clean")).rejects.toMatchObject({ status: 404 });
+  });
+});

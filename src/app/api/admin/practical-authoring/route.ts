@@ -74,7 +74,7 @@ export async function GET(request: Request) {
       ...preview,
       targetX: question.targetX,
       targetY: question.targetY,
-      imageUrl: image.storageKey ? `/api/practical/images/${encodeURIComponent(image.id)}` : null,
+      imageUrl: image.storageKey ? `/api/admin/practical-images/${encodeURIComponent(image.id)}` : null,
       imageAlt: image.alt,
     });
   }

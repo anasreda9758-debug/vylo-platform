@@ -48,6 +48,7 @@ const mem = vi.hoisted(() => {
 vi.mock("@/shared/db", () => ({ db: mem.db }));
 
 import { buildFiveOptions, normalizeChoice, targetPosition, isApprovalReady, setQuestionStatus } from "./authoring";
+import { imageDisplayBox, normalizedTargetFromPoint } from "./geometry";
 import { practicalImage, practicalQuestion } from "./schema";
 
 mem.identify(practicalImage, "practical_image");
@@ -129,6 +130,78 @@ describe("targetPosition - arrow overlay math", () => {
 
   it("clamps out-of-range coordinates to the image bounds (0..1)", () => {
     expect(targetPosition(-1, 2, 100, 100)).toEqual({ leftPct: 0, topPct: 100, px: 0, py: 100 });
+  });
+});
+
+describe("imageDisplayBox - rendered image area inside a (possibly letterboxed) element", () => {
+  it("maps 1:1 to the element rect when object-fit is not contain", () => {
+    const rect = { left: 10, top: 20, width: 800, height: 600 };
+    expect(imageDisplayBox(rect, { width: 400, height: 300 }, "fill")).toEqual(rect);
+    expect(imageDisplayBox(rect, null, "contain")).toEqual(rect);
+  });
+
+  it("keeps the whole element when natural aspect matches the element (no letterbox)", () => {
+    const rect = { left: 0, top: 0, width: 800, height: 600 };
+    const box = imageDisplayBox(rect, { width: 1600, height: 1200 }, "contain");
+    expect(box.width).toBeCloseTo(800);
+    expect(box.height).toBeCloseTo(600);
+    expect(box.left).toBeCloseTo(0);
+    expect(box.top).toBeCloseTo(0);
+  });
+
+  it("accounts for vertical letterboxing (wider element than image)", () => {
+    // Image is 4:3; element is 16:9. object-fit: contain centers a scale-to-fit
+    // image; scale = min(1600/400, 900/300) = min(4,3) = 3.
+    const rect = { left: 0, top: 0, width: 1600, height: 900 };
+    const box = imageDisplayBox(rect, { width: 400, height: 300 }, "contain");
+    expect(box.width).toBeCloseTo(1200); // 400*3
+    expect(box.height).toBeCloseTo(900); // 300*3
+    expect(box.left).toBeCloseTo(200);   // (1600-1200)/2
+    expect(box.top).toBeCloseTo(0);
+  });
+
+  it("accounts for horizontal letterboxing (taller element than image)", () => {
+    const rect = { left: 0, top: 0, width: 400, height: 900 };
+    const box = imageDisplayBox(rect, { width: 400, height: 300 }, "contain");
+    expect(box.width).toBeCloseTo(400);
+    expect(box.height).toBeCloseTo(300);
+    expect(box.left).toBeCloseTo(0);
+    expect(box.top).toBeCloseTo(300);    // (900-300)/2
+  });
+});
+
+describe("normalizedTargetFromPoint - client point → 0..1 target inside the rendered image", () => {
+  it("center of the image maps to 0.5/0.5 regardless of letterboxing", () => {
+    // Wide element, 4:3 image inside: the drawn area starts at left=200.
+    const box = { left: 200, top: 0, width: 1200, height: 900 };
+    const center = normalizedTargetFromPoint({ x: 200 + 600, y: 450 }, box);
+    expect(center.x).toBeCloseTo(0.5);
+    expect(center.y).toBeCloseTo(0.5);
+  });
+
+  it("clamps clicks outside the rendered image to the 0..1 range", () => {
+    const box = { left: 200, top: 0, width: 1200, height: 900 };
+    const left = normalizedTargetFromPoint({ x: 100, y: 100 }, box); // in the letterbox
+    const right = normalizedTargetFromPoint({ x: 5000, y: 5000 }, box);
+    expect(left.x).toBe(0);
+    expect(right.x).toBe(1);
+    expect(right.y).toBe(1);
+  });
+
+  it("uses the actual rendered image bounds, NOT the outer card", () => {
+    // Card rect is bigger than the drawn image: a click at the image's top-left
+    // corner must be (0,0) relative to the image, not the card. The card is
+    // 800x800 but the 4:3 image inside it starts at top=100 (letterboxed).
+    const card = { left: 0, top: 0, width: 800, height: 800 };
+    const imageBox = imageDisplayBox(card, { width: 400, height: 300 }, "contain");
+    expect(imageBox.top).toBe(100);
+    const atImageCorner = normalizedTargetFromPoint({ x: imageBox.left, y: imageBox.top }, imageBox);
+    expect(atImageCorner.x).toBe(0);
+    expect(atImageCorner.y).toBe(0);
+    // The same click against the CARD box lands inside (y=100/800 = 0.125),
+    // proving the math must ignore the container.
+    const againstCard = normalizedTargetFromPoint({ x: imageBox.left, y: imageBox.top }, card);
+    expect(againstCard.y).toBeGreaterThan(0);
   });
 });
 
