@@ -72,6 +72,8 @@ describe("student payload security (Phase 11)", () => {
     reviewStatus: "APPROVED",
     sourceImageId: "img-src-1",
     examImageId: "img-clean-9",
+    targetX: 0.42,
+    targetY: 0.67,
   });
 
   it("NEVER leaks the correct option, answer text, teaching keys, or authoring data before submit", () => {
@@ -93,6 +95,12 @@ describe("student payload security (Phase 11)", () => {
     expect(serialized).not.toContain("C-shaped cartilage");
     expect(serialized).not.toContain("look_for_cartilage_hint");
     expect(payload.imageId).toBe("img-clean-9"); // the CLEAN image, never the source id
+  });
+
+  it("delivers the owner-set arrow target (normalized 0..1) so the spotter arrow renders", () => {
+    const payload = studentQuestion(question()) as unknown as Record<string, unknown>;
+    expect(payload.targetX).toBe(0.42);
+    expect(payload.targetY).toBe(0.67);
   });
 
   it("correctness is answered server-side AFTER submission; the leak is only the chosen option", () => {

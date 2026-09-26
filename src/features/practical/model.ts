@@ -57,6 +57,9 @@ export const questionSchema = z.object({
   reviewStatus: reviewStatusSchema.optional(),
   sourceImageId: z.string().nullable().optional(),
   examImageId: z.string().nullable().optional(),
+  // Spotter arrow (owner-verified, normalized 0..1). Optional for legacy rows.
+  targetX: z.number().min(0).max(1).nullable().optional(),
+  targetY: z.number().min(0).max(1).nullable().optional(),
 }).superRefine((q, ctx) => {
   const ids = q.options.map((o) => o.id);
   if (new Set(ids).size !== ids.length || !ids.includes(q.correctOptionId)) {
@@ -121,12 +124,13 @@ export function eligibleQuestion(q: PracticalQuestion, image: PracticalImage | u
   return q.markerIds.every((id) => image.markers.some((m) => m.id === id));
 }
 
-/** Explicit allowlist: no answer key, explanation, or identifying clue before submit. */
+/** Explicit allowlist: arrow target, clean image, options, question text. No answer key. */
 export function studentQuestion(q: PracticalQuestion) {
   return {
     id: q.id, imageId: q.imageId, groupId: q.groupId, order: q.order,
     prompt: q.prompt, options: q.options.map(({ id, text }) => ({ id, text })),
     markerIds: q.markerIds, questionType: q.questionType, answerFormat: q.answerFormat,
+    targetX: q.targetX ?? null, targetY: q.targetY ?? null,
   };
 }
 export type StudentQuestion = ReturnType<typeof studentQuestion>;

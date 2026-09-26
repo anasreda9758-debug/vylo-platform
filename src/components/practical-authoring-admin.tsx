@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
+import { PracticalTargetArrow } from "@/components/practical-target-arrow";
 import { RefreshCw, CheckCircle2, XCircle, Upload, Eye, Crosshair, Save } from "lucide-react";
 
 type CatalogImage = {
@@ -311,6 +312,7 @@ function QuestionPanel({ q, selectedImageId, onPatch, onPreview, busy }: {
 
   const statusChip = data.reviewStatus ?? data.status;
   const color = statusChip === "APPROVED" ? "text-emerald-600" : statusChip === "REJECTED" ? "text-destructive" : "text-muted-foreground";
+  const examImageId = (data.examImageId ?? data.imageId) as string | undefined;
 
   return (
     <Card className="p-4">
@@ -318,6 +320,21 @@ function QuestionPanel({ q, selectedImageId, onPatch, onPreview, busy }: {
         <h3 className="font-semibold">سؤال {data.id.slice(0, 8)}</h3>
         <span className={`text-xs ${color}`}>{statusChip}</span>
       </div>
+
+      {examImageId && (
+        <div className="mt-4 space-y-2">
+          <Label>انقر على الصورة لتحديد موضع السهم (اسحب لضبطه)</Label>
+          <TargetCanvas
+            imageUrl={`/api/practical/images/${encodeURIComponent(examImageId)}`}
+            targetX={targetX}
+            targetY={targetY}
+            onChange={(x, y) => { setTargetX(x); setTargetY(y); }}
+          />
+          <p className="text-xs text-muted-foreground">
+            normalized: X {targetX.toFixed(3)} · Y {targetY.toFixed(3)}
+          </p>
+        </div>
+      )}
 
       <div className="mt-4 grid grid-cols-2 gap-3">
         <div className="space-y-1">
@@ -394,5 +411,60 @@ function QuestionPanel({ q, selectedImageId, onPatch, onPreview, busy }: {
         )}
       </div>
     </Card>
+  );
+}
+
+/**
+ * Owner-review surface: the CLEAN exam image with a drag/click arrow overlay.
+ * Coordinates are normalized 0..1 against the rendered image box, so the arrow
+ * tip stays on the same anatomy regardless of viewport (percent-based).
+ */
+function TargetCanvas({ imageUrl, targetX, targetY, onChange }: {
+  imageUrl: string;
+  targetX: number;
+  targetY: number;
+  onChange: (x: number, y: number) => void;
+}) {
+  const boxRef = useRef<HTMLDivElement>(null);
+  const dragging = useRef(false);
+
+  const setFromPoint = (clientX: number, clientY: number) => {
+    const box = boxRef.current;
+    if (!box) return;
+    const rect = box.getBoundingClientRect();
+    if (rect.width === 0 || rect.height === 0) return;
+    const x = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
+    const y = Math.min(1, Math.max(0, (clientY - rect.top) / rect.height));
+    onChange(x, y);
+  };
+
+  return (
+    <div
+      ref={boxRef}
+      dir="ltr"
+      className="relative w-full cursor-crosshair select-none overflow-hidden rounded-lg border"
+      onPointerDown={(e) => {
+        e.currentTarget.setPointerCapture(e.pointerId);
+        dragging.current = true;
+        setFromPoint(e.clientX, e.clientY);
+      }}
+      onPointerMove={(e) => {
+        if (dragging.current) setFromPoint(e.clientX, e.clientY);
+      }}
+      onPointerUp={() => { dragging.current = false; }}
+      onPointerCancel={() => { dragging.current = false; }}
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={imageUrl} alt="Clean exam image — click to place the arrow" className="block h-auto w-full" />
+      {targetX != null && targetY != null && (
+        <span
+          aria-label={`Arrow at X ${targetX.toFixed(3)}, Y ${targetY.toFixed(3)}`}
+          className="pointer-events-none absolute z-10"
+          style={{ left: `${targetX * 100}%`, top: `${targetY * 100}%`, transform: "translate(-50%, -100%)" }}
+        >
+          <PracticalTargetArrow className="drop-shadow" />
+        </span>
+      )}
+    </div>
   );
 }

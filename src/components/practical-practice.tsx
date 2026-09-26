@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Bookmark, Flag, ZoomIn, ZoomOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLocale } from "@/components/locale-provider";
+import { PracticalTargetArrow } from "@/components/practical-target-arrow";
 import type { Feedback, PracticePayload, Progress } from "@/features/practical/model";
 
 export function PracticalPractice({ moduleSlug, subjectSlug, subjectName, fixtures, wrongOnly }: {
@@ -120,6 +121,11 @@ export function PracticalPractice({ moduleSlug, subjectSlug, subjectName, fixtur
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={image.url} alt={image.alt} className="block h-auto w-full" style={{ filter: "none", objectFit: "contain" }} onError={() => setImageError(true)} onLoad={() => setImageError(false)} />
             {image.markers.map((marker) => <span key={marker.id} aria-label={`Label ${marker.label ?? marker.id}`} className={`absolute flex size-8 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 border-white bg-slate-950 text-sm font-bold text-white shadow ${question.markerIds.includes(marker.id) ? "ring-4 ring-blue-500" : ""}`} style={{ left: `${marker.x * 100}%`, top: `${marker.y * 100}%` }}>{marker.label ?? marker.id}</span>)}
+            {question.targetX != null && question.targetY != null && (
+              <span aria-label={`Spotter arrow at X ${question.targetX.toFixed(3)}, Y ${question.targetY.toFixed(3)}`} className="pointer-events-none absolute z-10" style={{ left: `${question.targetX * 100}%`, top: `${question.targetY * 100}%`, transform: "translate(-50%, -100%)" }}>
+                <PracticalTargetArrow className="drop-shadow" />
+              </span>
+            )}
           </div>
         </div>
         {imageError && <p role="alert" className="p-4 text-destructive">Image unavailable. Answering is disabled until it loads.</p>}
