@@ -166,3 +166,44 @@ All 5 rows passed `questionSchema` (unique ids, unique option ids, exactly one v
 4. Distractor/teaching-language sweep of any future bulk content (must stay English-only, no fabricated anatomy).
 
 Once those hold, the same verified-source flow scales to the remaining 238 answer-keyed RENAL files and the CVS/IBL/RESP libraries.
+
+---
+
+# Appendix B — trackId inheritance fix on exam derivatives (2026-09-27)
+
+## Root cause
+
+`practicalStore.catalog` inner-joins BOTH `practicalQuestion.trackId` AND `practicalImage.trackId` to the student scope (`store.ts:14`). Two authoring routes created exam-derivative `practical_image` rows WITHOUT a `practical_track_id`:
+
+- `POST /api/practical/generate` — the auto-created pending clean derivative left `trackId` unset (the linked question DID get `trackId`), so any approved artifact produced there could never appear to students;
+- admin `upload-clean` — the uploaded clean derivative also left `trackId` unset.
+
+`link-exam`/`approve-question` then had no track-consistency check, so an orphan/mismatched image could be blessed as APPROVED yet stay permanently invisible.
+
+## Fix (files changed)
+
+- `src/app/api/practical/generate/route.ts` — reject untracked sources (409, no fabricated track); ensure a supplied `examImageId` belongs to the SAME track as the source (409 cross-track); set `trackId: track.id` on the auto-created derivative.
+- `src/app/api/admin/practical-authoring/route.ts` — `upload-clean` rejects untracked sources (409) and sets `trackId: source.trackId` on the uploaded derivative.
+- `src/features/practical/authoring.ts` — `setExamImage` (link-exam) refuses cross-track/missing-track image links (`exam_image_track_mismatch`); `setQuestionStatus` approval refuses blessing a question whose student-facing image has a missing or different track.
+
+## Regression tests added (13)
+
+- `src/app/api/practical/generate/route.test.ts` (+4): created derivative inherits source trackId; cross-track `examImageId` → 409; untracked source → 409 with zero inserts/quota/AI.
+- `src/app/api/admin/practical-authoring/route.test.ts` (new, 3): upload-clean derivative inherits source trackId; untracked source → 409 with no file write; 404 for missing source.
+- `src/features/practical/track-binding.test.ts` (new, 6): APPROVED real question visible in its own track, invisible to a different track, hidden until the exam derivative is APPROVED, orphan image filtered by the catalog join, legacy sha256-approved rows unchanged, auth errors preserved.
+- `src/features/practical/authoring.test.ts` — approval gate tests updated for the new track-consistency rule (+1: cross-track / null-track refusal).
+
+## Gates (final for this branch)
+
+- Vitest **282 passing / 36 files** (baseline 269 before this fix; 13 new regression tests).
+- `tsc --noEmit` **0 errors**.
+- ESLint **0 errors**, 178 pre-existing warnings (unchanged baseline; no new warnings).
+
+## APPROVED-question visibility result
+
+With the fix, an approved real question (exact same source→derivative→question wiring as the 5-pilot rows) reaches exactly its own `practical_track_id` scope and no other: verified by `track-binding.test.ts` under the store's real inner-join semantics. Partial existence is never enough — the question also needs an APPROVED same-track exam derivative image (approval gate now enforces this before APPROVED can be set).
+
+## Commit / push
+
+- Commit `trackId justification for exam derivatives` on `wip/renal-anatomy-practical`, pushed to `origin`.
+- Staged files ONLY: `src/app/api/practical/generate/route.ts`, `src/app/api/practical/generate/route.test.ts`, `src/app/api/admin/practical-authoring/route.ts`, `src/app/api/admin/practical-authoring/route.test.ts`, `src/features/practical/authoring.ts`, `src/features/practical/authoring.test.ts`, `src/features/practical/track-binding.test.ts`, `docs/practical-spotter-final-report.md`, `.gitignore` (unchanged from Appendix commit). No `git add ./-A`; unrelated billing/curriculum/OSPE WIP untouched.

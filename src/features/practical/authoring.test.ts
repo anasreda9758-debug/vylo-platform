@@ -181,6 +181,7 @@ describe("setQuestionStatus - APPROVED / REJECTED transitions", () => {
 
   const readyQuestion = () => ({
     id: "q-1",
+    trackId: "track-1",
     options: five,
     correctOptionId: "opt_0",
     correctStructure: "Primary bronchus",
@@ -192,7 +193,7 @@ describe("setQuestionStatus - APPROVED / REJECTED transitions", () => {
 
   it("approves only when everything the student sees is complete", async () => {
     mem.seedQuestion(readyQuestion());
-    mem.seedImage({ id: "img-clean-9", storageKey: "anatomy/lung-clean.png" });
+    mem.seedImage({ id: "img-clean-9", trackId: "track-1", storageKey: "anatomy/lung-clean.png" });
 
     expect(await setQuestionStatus("q-1", "APPROVED")).toEqual({ ok: true });
     expect(mem.mutations.at(-1)).toMatchObject({ table: "practical_question", values: { status: "APPROVED", reviewStatus: "APPROVED" } });
@@ -203,7 +204,7 @@ describe("setQuestionStatus - APPROVED / REJECTED transitions", () => {
     q.correctStructure = "";
 
     mem.seedQuestion(q);
-    mem.seedImage({ id: "img-clean-9", storageKey: "anatomy/lung-clean.png" });
+    mem.seedImage({ id: "img-clean-9", trackId: "track-1", storageKey: "anatomy/lung-clean.png" });
     expect(await setQuestionStatus("q-1", "APPROVED")).toEqual({ ok: false, reason: "not_approval_ready" });
 
     q.correctStructure = "Primary bronchus";
@@ -214,7 +215,17 @@ describe("setQuestionStatus - APPROVED / REJECTED transitions", () => {
 
   it("refuses approval when the student-facing image has no uploaded clean file", async () => {
     mem.seedQuestion(readyQuestion());
-    mem.seedImage({ id: "img-clean-9", storageKey: "" });
+    mem.seedImage({ id: "img-clean-9", trackId: "track-1", storageKey: "" });
+    expect(await setQuestionStatus("q-1", "APPROVED")).toEqual({ ok: false, reason: "not_approval_ready" });
+  });
+
+  it("refuses approval when question and image disagree on the practical track", async () => {
+    mem.seedQuestion({ ...readyQuestion(), trackId: "track-1" });
+    mem.seedImage({ id: "img-clean-9", trackId: "track-2", storageKey: "anatomy/lung-clean.png" });
+    expect(await setQuestionStatus("q-1", "APPROVED")).toEqual({ ok: false, reason: "not_approval_ready" });
+
+    mem.seedQuestion({ ...readyQuestion(), trackId: "track-1" });
+    mem.seedImage({ id: "img-clean-9", trackId: null, storageKey: "anatomy/lung-clean.png" });
     expect(await setQuestionStatus("q-1", "APPROVED")).toEqual({ ok: false, reason: "not_approval_ready" });
   });
 

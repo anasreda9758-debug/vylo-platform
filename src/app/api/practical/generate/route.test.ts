@@ -255,6 +255,37 @@ describe("POST /api/practical/generate - authoring", () => {
     expect(question.reviewStatus).toBe("NEEDS_REVIEW");
   });
 
+  it("created exam derivative INHERITS the source trackId (no orphan image in the student catalog join)", async () => {
+    const response = await POST(request(validBody()));
+    expect(response.status).toBe(200);
+
+    const [derivative, question] = mem.inserted as Record<string, unknown>[];
+    expect(derivative.trackId).toBe("track-1");
+    expect(question.trackId).toBe("track-1");
+    expect(derivative.moduleId).toBe("module-1");
+    expect(question.moduleId).toBe("module-1");
+  });
+
+  it("a supplied clean exam image must belong to the SAME track as the source (409)", async () => {
+    images.set("img-clean-9", { ...CLEAN, trackId: "track-2" });
+    const response = await POST(request(validBody({ examImageId: "img-clean-9" })));
+    expect(response.status).toBe(409);
+    const body = await response.json();
+    expect(body.error).toMatch(/different practical track/i);
+    expect(mem.inserted.length).toBe(0);
+  });
+
+  it("refuses to author from an untracked source: no orphan derivative is created (409)", async () => {
+    currentSource = { ...SOURCE, trackId: null } as unknown as typeof SOURCE;
+    const response = await POST(request(validBody()));
+    expect(response.status).toBe(409);
+    const body = await response.json();
+    expect(body.error).toMatch(/no practical track/i);
+    expect(mem.inserted.length).toBe(0);
+    expect(mocks.reserve).not.toHaveBeenCalled();
+    expect(mocks.generate).not.toHaveBeenCalled();
+  });
+
   it("rejects duplicate/blank distractor suggestions: fewer than 5 options -> NEEDS_REVIEW", async () => {
     mocks.generate.mockResolvedValue({
       data: { distractors: ["Primary bronchus", "Primary bronchus", "Bronchiole", "", "Bronchiole"], explanation: "x" },

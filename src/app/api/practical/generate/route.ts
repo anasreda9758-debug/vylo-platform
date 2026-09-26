@@ -55,6 +55,11 @@ export async function POST(request: Request) {
     if (!sourceImage) {
       return Response.json({ error: "Source image not found" }, { status: 404, headers: privateHeaders });
     }
+    // Never fabricate a track: an un-tracked source can't produce a derivative that
+    // the student catalog (inner-join on practical_track_id) would ever surface.
+    if (!sourceImage.trackId) {
+      return Response.json({ error: "Source image has no practical track" }, { status: 409, headers: privateHeaders });
+    }
     const track = await db.query.practicalTrack.findFirst({
       where: (pt, { eq: eqT }) => eqT(pt.id, sourceImage.trackId ?? ""),
     });
@@ -72,6 +77,11 @@ export async function POST(request: Request) {
         : null;
     if (body.examImageId && body.examImageId.length > 0 && !examImage) {
       return Response.json({ error: "Exam image not found" }, { status: 404, headers: privateHeaders });
+    }
+    // A pre-supplied clean exam image must belong to the same track as the source,
+    // otherwise the approved artifact would be invisible to every student scope.
+    if (examImage && examImage.trackId !== track.id) {
+      return Response.json({ error: "Exam image belongs to a different practical track" }, { status: 409, headers: privateHeaders });
     }
 
     // Idempotency is user-scoped and bound to feature + source (track). A replayed
@@ -162,6 +172,7 @@ Suggest four plausible distractors and teaching aids.`;
       imageId = randomUUID();
       await db.insert(practicalImage).values({
         id: imageId,
+        trackId: track.id,
         moduleId: sourceImage.moduleId,
         studyYear: sourceImage.studyYear,
         subject: sourceImage.subject,

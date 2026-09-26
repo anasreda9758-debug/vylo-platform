@@ -183,11 +183,14 @@ export async function setQuestionStructure(
 export async function setExamImage(
   questionId: string,
   examImageId: string,
-): Promise<{ ok: boolean; reason?: "not_found" | "exam_image_not_found" }> {
+): Promise<{ ok: boolean; reason?: "not_found" | "exam_image_not_found" | "exam_image_track_mismatch" }> {
   const [question] = await db.select().from(practicalQuestion).where(eq(practicalQuestion.id, questionId)).limit(1);
   if (!question) return { ok: false, reason: "not_found" };
   const [image] = await db.select().from(practicalImage).where(eq(practicalImage.id, examImageId)).limit(1);
   if (!image || !image.storageKey) return { ok: false, reason: "exam_image_not_found" };
+  // The student catalog inner-joins on practical_track_id: an exam image from a
+  // different (or missing) track would silently unbind an approved question.
+  if (!image.trackId || image.trackId !== question.trackId) return { ok: false, reason: "exam_image_track_mismatch" };
   // Students only ever see the CLEAN exam image; the labeled source is never used.
   await db
     .update(practicalQuestion)
@@ -252,6 +255,12 @@ export async function setQuestionStatus(
       examStorageKey: image?.storageKey,
     });
     if (!ready) return { ok: false, reason: "not_approval_ready" };
+    // The approved question must actually be reachable: the question and its
+    // student-facing image share the SAME practical track (store catalog
+    // inner-joins on practical_track_id for both).
+    if (!question.trackId || !image?.trackId || image.trackId !== question.trackId) {
+      return { ok: false, reason: "not_approval_ready" };
+    }
   }
 
   await db

@@ -131,6 +131,11 @@ export async function PATCH(request: Request) {
     case "upload-clean": {
       const source = await db.query.practicalImage.findFirst({ where: eq(practicalImage.id, body.sourceImageId) });
       if (!source) return NextResponse.json({ error: "Source image not found" }, { status: 404 });
+      if (!source.trackId) {
+        // Never fabricate a track: an un-tracked source can't produce a derivative
+        // that the student catalog (inner-join on practical_track_id) would surface.
+        return NextResponse.json({ error: "Source image has no practical track" }, { status: 409 });
+      }
       const ext = path.extname(body.filename).toLowerCase();
       if (!ALLOWED_EXT.includes(ext)) return NextResponse.json({ error: "Unsupported image format" }, { status: 400 });
       let bytes: Buffer;
@@ -150,6 +155,7 @@ export async function PATCH(request: Request) {
       const id = randomUUID();
       await db.insert(practicalImage).values({
         id,
+        trackId: source.trackId,
         moduleId: source.moduleId,
         studyYear: source.studyYear,
         subject: source.subject,
