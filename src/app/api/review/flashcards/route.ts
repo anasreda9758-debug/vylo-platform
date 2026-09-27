@@ -76,13 +76,15 @@ export async function POST(request: NextRequest) {
   }
 
   const body = lectureRow.content.slice(0, 15000);
-  const createLocalCards = async (): Promise<{ count: number; source: string }> => {
-    const cards = createSourceFlashcards(lectureRow.title, body, lectureRow.summaryJson);
+  const createLocalCards = async (): Promise<{ count: number; source: string; warning?: string }> => {
+    const { cards, warning } = createSourceFlashcards(lectureRow.title, body, lectureRow.summaryJson);
     if (cards.length === 0) {
-      throw Object.assign(new Error("no_usable_content"), { status: 400 });
+      // Be explicit about *why* nothing could be made, instead of failing with
+      // a generic error the student cannot act on.
+      throw Object.assign(new Error(warning ?? "no_usable_content"), { status: 400, userMessage: warning });
     }
     const count = await createFlashcards(session.user.id, lectureId, cards);
-    return { count, source: "lecture" };
+    return { count, source: "lecture", warning: warning ?? undefined };
   };
 
   const respond = async (result: { count: number; source?: string; duplicate?: boolean }) => {
@@ -146,17 +148,18 @@ export async function GET() {
   }
   return NextResponse.json({
     cards: cards.map((c) => {
-      // Legacy offline cards used a generic "key point 1" front. Keep their
-      // review schedule intact but present the same stored source through the
-      // clearer question style used by current cards.
+      // Legacy offline cards used a generic "key point 1" front or an
+      // English-only template. Their stored review schedule must stay intact,
+      // so only the displayed text is refreshed. Arabic fronts are kept as-is:
+      // rewriting them into English would change the language of the material
+      // the student is studying.
       const legacyIndex = c.front.match(/\s—\skey point\s(\d+)$/i)?.[1];
-      const needsEnglishFront = /[\u0600-\u06FF]/.test(c.front);
-      const refreshed = c.lecture && (legacyIndex || needsEnglishFront)
+      const refreshed = c.lecture && legacyIndex
         ? createSourceFlashcards(
             c.lecture.title,
             c.lecture.content ?? "",
             c.lecture.summaryJson,
-          )[legacyIndex ? Number(legacyIndex) - 1 : 0]
+          ).cards[Number(legacyIndex) - 1]
         : null;
       return {
         id: c.id,

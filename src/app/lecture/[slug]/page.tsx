@@ -12,6 +12,7 @@ import { Clock, BookOpen, FileText, Lock, MessageCircle, CheckCircle2, Brain, Li
 import { CompleteButton } from "@/components/complete-button";
 import { PdfViewer } from "@/components/pdf-viewer";
 import { MindMap } from "@/components/mind-map";
+import { getLectureAids } from "@/features/curriculum/lecture-aids";
 import { LectureNotes } from "@/components/lecture-notes";
 import { db } from "@/shared/db";
 import { lectureProgress } from "@/features/curriculum/schema";
@@ -61,8 +62,27 @@ export default async function LecturePage({
     : null;
   const quizBank = lectureBank ?? moduleBank;
 
+  const aids = getLectureAids({
+
+    title: lectureRow.title,
+
+    content: lectureRow.content ?? null,
+
+    summaryJson: lectureRow.summaryJson ?? null,
+
+    mindmapJson: (lectureRow.mindmapJson ?? null) as never,
+
+  });
+
+  const derivedSummary = aids.summary;
+
+  const lectureMindMap = aids.mindMap;
+
+  const aidsDerived = aids.derived;
+
+
   return (
-    <div className="flex flex-1">
+    <div className="flex flex-1 flex-col lg:flex-row">
       <Navigation
         user={{ name: session.user.name, email: session.user.email }}
         isAdmin={session.user.role === "admin"}
@@ -155,7 +175,7 @@ export default async function LecturePage({
                 {t("This lecture is locked", "هذه المحاضرة مدفوعة")}
               </h2>
               <p className="mb-6 text-muted-foreground">
-                {t("Purchase the module, term, or academic year to unlock this lecture and its study tutor.", "اشترِ الموديول أو الترم أو السنة لفتح محتوى هذه المحاضرة والمعلم الذكي.")}
+                {t("Purchase the module or term to unlock this lecture and its study tutor.", "اشترِ الموديول أو الترم لفتح محتوى هذه المحاضرة والمعلم الذكي.")}
               </p>
               <Link
                 href="/pricing"
@@ -229,7 +249,90 @@ export default async function LecturePage({
               ) : null}
 
               {/* Summary */}
-              {lectureRow.summaryJson ? (
+              {derivedSummary ? (
+                <div className="mb-6 rounded-2xl border border-primary/20 bg-primary/5 p-6">
+                  <div className="mb-4 flex items-center gap-2">
+                    <Lightbulb className="h-5 w-5 text-primary" />
+                    <h2 className="font-bold text-primary">{t("Lecture summary", "ملخص المحاضرة")}</h2>
+                    {derivedSummary ? (
+                      <span className="ms-auto rounded-full bg-primary/10 px-2 py-0.5 text-[10px] text-primary">
+                        {t("from lecture text", "من نص المحاضرة")}
+                      </span>
+                    ) : null}
+                  </div>
+                  <p className="mb-4 text-sm leading-relaxed text-foreground">{derivedSummary.overview}</p>
+
+                  {derivedSummary.keyConcepts.length > 0 ? (
+                    <div className="mb-4">
+                      <h3 className="mb-2 text-sm font-semibold">{t("Key concepts", "المفاهيم الأساسية")}</h3>
+                      <ul className="space-y-2">
+                        {derivedSummary.keyConcepts.map((c) => (
+                          <li key={c.term} className="rounded-lg bg-background/60 p-2 text-sm">
+                            <span className="font-semibold text-foreground">{c.term}</span>
+                            <span className="ms-2 text-muted-foreground">{c.meaning}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
+
+                  {derivedSummary.causes.length > 0 ? (
+                    <div className="mb-4">
+                      <h3 className="mb-2 text-sm font-semibold">{t("Causes & effects", "الأسباب والنتائج")}</h3>
+                      <ul className="space-y-1.5">
+                        {derivedSummary.causes.map((c, i) => (
+                          <li key={i} className="flex items-start gap-2 text-sm text-muted-foreground">
+                            <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
+                            <span><span className="font-medium text-foreground">{c.cause}</span> &rarr; {c.effect}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
+
+                  {derivedSummary.comparisons.length > 0 ? (
+                    <div className="mb-4">
+                      <h3 className="mb-2 text-sm font-semibold">{t("Comparisons", "مقارنات")}</h3>
+                      <ul className="space-y-1.5">
+                        {derivedSummary.comparisons.map((c, i) => (
+                          <li key={i} className="flex items-start gap-2 text-sm text-muted-foreground">
+                            <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
+                            <span><span className="font-medium text-foreground">{c.a}</span> vs {c.b}{c.note ? ` — ${c.note}` : ""}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
+
+                  {derivedSummary.classifications.length > 0 ? (
+                    <div className="mb-4">
+                      <h3 className="mb-2 text-sm font-semibold">{t("Classifications", "التصنيفات")}</h3>
+                      <ul className="space-y-1.5">
+                        {derivedSummary.classifications.map((c, i) => (
+                          <li key={i} className="flex items-start gap-2 text-sm text-muted-foreground">
+                            <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
+                            <span><span className="font-medium text-foreground">{c.group}</span>: {c.members}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
+
+                  {derivedSummary.takeaways.length > 0 ? (
+                    <div>
+                      <h3 className="mb-2 text-sm font-semibold text-amber-600">{t("Takeaways", "أهم ما يجب تذكره")}</h3>
+                      <ul className="space-y-1.5">
+                        {derivedSummary.takeaways.map((tk, i) => (
+                          <li key={i} className="flex items-start gap-2 text-sm text-muted-foreground">
+                            <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-amber-500" />
+                            {tk}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
+                </div>
+              ) : lectureRow.summaryJson ? (
                 <div className="mb-6 rounded-2xl border border-primary/20 bg-primary/5 p-6">
                   <div className="mb-4 flex items-center gap-2">
                     <Lightbulb className="h-5 w-5 text-primary" />
@@ -238,7 +341,7 @@ export default async function LecturePage({
                   <p className="mb-4 text-sm leading-relaxed text-foreground">
                     {lectureRow.summaryJson.overview}
                   </p>
-                  {lectureRow.summaryJson.keyPoints.length > 0 && (
+                  {lectureRow.summaryJson.keyPoints?.length > 0 ? (
                     <div className="mb-4">
                       <h3 className="mb-2 text-sm font-semibold text-foreground">{t("Key points", "النقاط الرئيسية")}</h3>
                       <ul className="space-y-1.5">
@@ -250,8 +353,8 @@ export default async function LecturePage({
                         ))}
                       </ul>
                     </div>
-                  )}
-                  {lectureRow.summaryJson.clinicalPearls.length > 0 && (
+                  ) : null}
+                  {lectureRow.summaryJson.clinicalPearls?.length > 0 ? (
                     <div>
                       <h3 className="mb-2 text-sm font-semibold text-amber-600">{t("Clinical pearls", "لؤلؤات سريرية")}</h3>
                       <ul className="space-y-1.5">
@@ -263,18 +366,23 @@ export default async function LecturePage({
                         ))}
                       </ul>
                     </div>
-                  )}
+                  ) : null}
                 </div>
               ) : null}
 
               {/* Mind Map */}
-              {lectureRow.mindmapJson ? (
+              {lectureMindMap ? (
                 <div className="mb-6 rounded-2xl border border-border bg-card p-6">
                   <div className="mb-4 flex items-center gap-2">
                     <Brain className="h-5 w-5 text-muted-foreground" />
                     <h2 className="font-semibold">{t("Mind map", "خريطة ذهنية")}</h2>
+                    {aidsDerived ? (
+                      <span className="ms-auto rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground">
+                        {t("built from this lecture", "مبنية من هذه المحاضرة")}
+                      </span>
+                    ) : null}
                   </div>
-                  <MindMap data={lectureRow.mindmapJson} />
+                  <MindMap data={lectureMindMap} />
                 </div>
               ) : null}
 
