@@ -29,6 +29,7 @@ import {
   TrendingUp,
   ChevronLeft,
 } from "lucide-react";
+import WeeklyPlanCard from "@/components/weekly-plan-card";
 
 export default async function DashboardPage() {
   const session = await requireUser();
@@ -170,6 +171,11 @@ export default async function DashboardPage() {
               color="text-blue-600 bg-blue-50 dark:bg-blue-950/40"
               href="/quiz/analytics"
             />
+          </div>
+
+          {/* Weekly study plan */}
+          <div className="mb-8">
+            <WeeklyPlanCard />
           </div>
 
           {/* Quick Actions */}
