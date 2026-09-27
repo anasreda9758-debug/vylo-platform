@@ -1,4 +1,5 @@
 import { extractFacts, buildRichSummary, buildMindMap, type ConceptNode, type RichSummary } from "@/features/review/source-analysis";
+import { cleanedSource } from "@/features/review/source-cleaner";
 
 /** Shape stored in `lecture.summaryJson`. */
 export type StoredSummary = {
@@ -37,7 +38,8 @@ export const getLectureAids = (params: {
   // A stored mind map is always authoritative and must still be rendered.
   if (hasMap) return { summary: null, mindMap: storedMap, derived: false };
 
-  const facts = extractFacts(content, 40);
+  const source = cleanedSource(content);
+  const facts = extractFacts(source, 40);
   if (!facts.length) {
     return { summary: null, mindMap: null, derived: false };
   }

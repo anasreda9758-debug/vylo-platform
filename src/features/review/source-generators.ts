@@ -2,6 +2,7 @@ import {
   extractFacts, buildRichSummary, detectIntent, extractQuotedOrCapitalised, factsAbout,
   rankConcepts, normaliseForCompare, deduplicate, type Fact, type RichSummary, type ConceptNode,
 } from "./source-analysis";
+import { cleanedSource } from "./source-cleaner";
 
 type Summary = {
   overview?: string;
@@ -118,8 +119,9 @@ export type FlashcardResult = { cards: SourceCard[]; warning: string | null };
 
 /** Free, source-grounded flashcards with varied, non-repetitive card types. */
 export function createSourceFlashcards(title: string, content: string, summary: Summary): FlashcardResult {
-  const ar = /[\u0600-\u06FF]/.test(content ?? "");
-  const facts = extractFacts(content ?? "", 40);
+  const source = cleanedSource(content ?? "");
+  const ar = /[\u0600-\u06FF]/.test(source);
+  const facts = extractFacts(source, 40);
   const fromFacts = facts
     .map((f) => cardForFact(f, ar))
     .filter((c): c is SourceCard => c !== null);
@@ -134,7 +136,7 @@ export function createSourceFlashcards(title: string, content: string, summary: 
   }
 
   const trimmed = cards.slice(0, 12);
-  return { cards: trimmed, warning: warnIfWeak(trimmed, content ?? "") };
+  return { cards: trimmed, warning: warnIfWeak(trimmed, source) };
 }
 
 /* ------------------------------------------------------------------ */
@@ -153,8 +155,9 @@ export type SourceCase = {
  * specific fact so answers are actually gradeable.
  */
 export function createSourceClinicalCase(title: string, content: string, summary: Summary): SourceCase {
-  const ar = /[\u0600-\u06FF]/.test(content ?? "");
-  const facts = extractFacts(content ?? "", 24);
+  const source = cleanedSource(content ?? "");
+  const ar = /[\u0600-\u06FF]/.test(source);
+  const facts = extractFacts(source, 24);
   const concepts = rankConcepts(facts).filter((c) => c.detail).slice(0, 4);
 
   if (!concepts.length) {
@@ -211,8 +214,9 @@ export function createSourceTutorReply(
   summary: Summary,
   question: string,
 ): string {
+  const source = cleanedSource(content ?? "");
   const ar = /[\u0600-\u06FF]/.test(question ?? "");
-  const facts = extractFacts(content ?? "", 40);
+  const facts = extractFacts(source, 40);
   const { intent, focusTerms } = detectIntent(question ?? "");
   const focused = factsAbout(facts, focusTerms, intent, question ?? "");
 
