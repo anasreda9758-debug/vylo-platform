@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { requireUser } from "@/shared/session";
 import { getModuleBySlug } from "@/features/curriculum/queries";
 import { getBankForModule } from "@/features/practice/queries";
@@ -8,6 +8,7 @@ import { CompleteButton } from "@/components/complete-button";
 import { Navigation } from "@/components/navigation";
 import { getLocale, localize } from "@/shared/locale";
 import { canAccessModule } from "@/features/access/learning-access";
+import { isHiddenFromStudentCurriculum } from "@/shared/curriculum-copy";
 import { listPracticalTracks } from "@/features/practical/tracks";
 import {
   BookOpen,
@@ -26,6 +27,7 @@ export default async function ModulePage({
   const { slug } = await params;
   const session = await requireUser();
   const locale = await getLocale();
+  if (isHiddenFromStudentCurriculum(slug)) redirect("/curriculum");
   const mod = await getModuleBySlug(session.user.id, slug);
   if (!mod) notFound();
   const bank = await getBankForModule(mod.id);
@@ -34,7 +36,7 @@ export default async function ModulePage({
   const previewLecture = mod.lectures[0] ?? null;
 
   return (
-    <div className="flex flex-1">
+    <div className="flex flex-1 flex-col lg:flex-row">
       <Navigation
         user={{ name: session.user.name, email: session.user.email }}
         isAdmin={session.user.role === "admin"}
@@ -71,15 +73,40 @@ export default async function ModulePage({
                 </span>
               )}
             </div>
-            <div className="mt-4 flex items-center gap-3">
-              <ProgressBar percent={mod.percent} />
-              <span className="shrink-0 text-sm text-muted-foreground">
-                {mod.completedLectures}/{mod.totalLectures} {localize(locale, "completed", "مكتملة")}
-              </span>
-            </div>
+            {mod.totalLectures > 0 ? (
+              <div className="mt-4 flex items-center gap-3">
+                <ProgressBar percent={mod.percent} />
+                <span className="shrink-0 text-sm text-muted-foreground">
+                  {mod.completedLectures}/{mod.totalLectures} {localize(locale, "completed", "مكتملة")}
+                </span>
+              </div>
+            ) : null}
           </div>
 
-          {!access ? (
+          {mod.totalLectures === 0 ? (
+            /* A module with no published lectures must never be shown behind a
+               paywall: there is nothing to unlock, so advertising a paid plan
+               for it would be misleading. */
+            <div className="rounded-2xl border border-dashed border-border bg-card p-10 text-center">
+              <BookOpen className="mx-auto mb-4 h-10 w-10 text-muted-foreground" />
+              <h2 className="mb-2 text-lg font-semibold">
+                {localize(locale, "No lectures published yet", "لا توجد محاضرات منشورة بعد")}
+              </h2>
+              <p className="mx-auto max-w-lg text-sm text-muted-foreground">
+                {localize(
+                  locale,
+                  "This module is part of the curriculum but its lectures have not been published yet. Nothing here is locked — there is simply nothing to study until the material is added.",
+                  "هذا الموديول جزء من المنهج لكن محاضراته لم تُنشر بعد. لا يوجد محتوى مقفل هنا، بل لا يوجد ما يُدرَس حتى إضافة المادة.",
+                )}
+              </p>
+              <Link
+                href="/curriculum"
+                className="mt-5 inline-flex items-center gap-2 rounded-xl border border-border px-5 py-2.5 text-sm font-medium transition-colors hover:bg-accent"
+              >
+                {localize(locale, "Back to curriculum", "العودة إلى المنهج")}
+              </Link>
+            </div>
+          ) : !access ? (
             <div className="space-y-5">
               <div className="rounded-2xl border border-amber-200 bg-amber-50 p-8 text-center dark:border-amber-900 dark:bg-amber-950/20">
                 <Lock className="mx-auto mb-4 h-12 w-12 text-amber-400" />
@@ -87,7 +114,7 @@ export default async function ModulePage({
                   {localize(locale, "This module requires access", "هذا الموديول مدفوع")}
                 </h2>
                 <p className="mb-6 text-muted-foreground">
-                  {localize(locale, "Subscribe to this module, term, or the full year to unlock the full lecture sequence, quizzes, and tutor.", "اشترِ الموديول أو الترم أو السنة بالكامل لفتح تسلسل المحاضرات والاختبارات والمعلم الذكي.")}
+                  {localize(locale, "Subscribe to this module or term to unlock the full lecture sequence, quizzes, and tutor.", "اشترِ الموديول أو الترم لفتح تسلسل المحاضرات والاختبارات والمعلم الذكي.")}
                 </p>
                 <Link
                   href="/pricing"

@@ -4,12 +4,45 @@ import { getCurriculum, getStudyYears } from "@/features/curriculum/queries";
 import { getCachedCurriculum } from "@/shared/query-cache";
 import { ProgressBar } from "@/components/progress-bar";
 import { Navigation } from "@/components/navigation";
-import { BookOpen, Lock, Unlock, Calendar } from "lucide-react";
+import { BookOpen, Lock, Unlock, Calendar, Clock } from "lucide-react";
 import { getLocale, localize } from "@/shared/locale";
 import type { AppLocale } from "@/components/locale-provider";
 import { moduleDescription } from "@/shared/curriculum-copy";
 import { getSelectedStudyYear } from "@/shared/study-year";
 import { AcademicYearSelector } from "@/components/academic-year-selector";
+
+const DEMO_MODULE_SLUGS = new Set(["anatomy-module-1", "respiratory-overview"]);
+
+const TERM_LABELS: Record<number, [string, string]> = {
+  1: ["Term 1", "الترم الأول"],
+  2: ["Term 2", "الترم الثاني"],
+  3: ["Term 3", "الترم الثالث"],
+  4: ["Term 4", "الترم الرابع"],
+  5: ["Term 5", "الترم الخامس"],
+  6: ["Term 6", "الترم السادس"],
+  7: ["Term 7", "الترم السابع"],
+  8: ["Term 8", "الترم الثامن"],
+  9: ["Term 9", "الترم التاسع"],
+  10: ["Term 10", "الترم العاشر"],
+};
+
+const TERM_ACCENTS = [
+  {
+    active: "border-blue-500 bg-blue-50 dark:bg-blue-950/30",
+    idle: "border-border bg-card hover:border-blue-300",
+    icon: "bg-blue-100 text-blue-600 dark:bg-blue-900/50",
+  },
+  {
+    active: "border-purple-500 bg-purple-50 dark:bg-purple-950/30",
+    idle: "border-border bg-card hover:border-purple-300",
+    icon: "bg-purple-100 text-purple-600 dark:bg-purple-900/50",
+  },
+  {
+    active: "border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30",
+    idle: "border-border bg-card hover:border-emerald-300",
+    icon: "bg-emerald-100 text-emerald-600 dark:bg-emerald-900/50",
+  },
+];
 
 function ModuleCard({
   m,
@@ -41,7 +74,14 @@ function ModuleCard({
               </p>
             ) : null}
           </div>
-          {m.isFree ? (
+          {m.totalLectures === 0 ? (
+            /* Content truth: an empty module is not "locked". Badging it as paid
+               implies there is something to buy, which is not the case. */
+            <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
+              <Clock className="h-3 w-3" />
+              {t("Coming soon", "قريبًا")}
+            </span>
+          ) : m.isFree ? (
             <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2.5 py-1 text-xs font-medium text-emerald-600">
               <Unlock className="h-3 w-3" />
               {t("Open", "مجاني")}
@@ -53,12 +93,18 @@ function ModuleCard({
             </span>
           )}
         </div>
-        <div className="mt-3 flex items-center gap-3">
-          <ProgressBar percent={m.percent} />
-          <span className="shrink-0 text-xs text-muted-foreground">
-            {m.completedLectures}/{m.totalLectures}
-          </span>
-        </div>
+        {m.totalLectures > 0 ? (
+          <div className="mt-3 flex items-center gap-3">
+            <ProgressBar percent={m.percent} />
+            <span className="shrink-0 text-xs text-muted-foreground">
+              {m.completedLectures}/{m.totalLectures}
+            </span>
+          </div>
+        ) : (
+          <p className="mt-3 text-xs text-muted-foreground">
+            {t("No lectures published yet", "لا توجد محاضرات منشورة بعد")}
+          </p>
+        )}
       </Link>
     </li>
   );
@@ -77,29 +123,34 @@ export default async function CurriculumPage({
   const availableYears = studyYears.length ? studyYears : [1];
   const savedYear = await getSelectedStudyYear();
   const requestedYear = Number(params.year);
+  const isAdmin = session.user.role === "admin";
   const studyYear = availableYears.includes(requestedYear)
     ? requestedYear
     : availableYears.includes(savedYear)
       ? savedYear
       : availableYears[0];
-  const curriculum = await getCachedCurriculum(session.user.id, studyYear);
+  const loadedCurriculum = await getCachedCurriculum(
+    session.user.id,
+    isAdmin && !params.year ? undefined : studyYear,
+  );
+  const curriculum = isAdmin
+    ? loadedCurriculum
+    : loadedCurriculum.filter((module) => !DEMO_MODULE_SLUGS.has(module.slug));
   const activeTerm = params.term ? Number(params.term) : 0;
 
-  const term1 = curriculum.filter((m) => m.term === 1);
-  const term2 = curriculum.filter((m) => m.term === 2);
-  const filtered =
-    activeTerm === 1 ? term1 : activeTerm === 2 ? term2 : curriculum;
-
-  const term1Done = term1.reduce((s, m) => s + m.completedLectures, 0);
-  const term1Total = term1.reduce((s, m) => s + m.totalLectures, 0);
-  const term2Done = term2.reduce((s, m) => s + m.completedLectures, 0);
-  const term2Total = term2.reduce((s, m) => s + m.totalLectures, 0);
+  const yearTerms = [studyYear * 2 - 1, studyYear * 2];
+  const modulesForTerm = (term: number) => curriculum.filter((m) => m.term === term);
+  const filtered = activeTerm ? modulesForTerm(activeTerm) : curriculum;
+  const activeLabel =
+    activeTerm in TERM_LABELS
+      ? t(TERM_LABELS[activeTerm][0], TERM_LABELS[activeTerm][1])
+      : t("All modules", "جميع الموديولات");
 
   return (
-    <div className="flex flex-1">
+    <div className="flex flex-1 flex-col lg:flex-row">
       <Navigation
         user={{ name: session.user.name, email: session.user.email }}
-        isAdmin={session.user.role === "admin"}
+        isAdmin={isAdmin}
       />
 
       <main className="flex-1 p-6 lg:p-8">
@@ -123,69 +174,47 @@ export default async function CurriculumPage({
             <>
               {/* Term Selector */}
               <div className="mb-8 grid gap-4 sm:grid-cols-2">
-                <Link
-                  href={`/curriculum?year=${studyYear}&term=1`}
-                  className={`group rounded-2xl border-2 p-5 transition-all hover:shadow-md ${
-                    activeTerm === 1
-                      ? "border-blue-500 bg-blue-50 dark:bg-blue-950/30"
-                      : "border-border bg-card hover:border-blue-300"
-                  }`}
-                >
-                  <div className="mb-3 flex items-center gap-3">
-                    <div className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-blue-100 text-blue-600 dark:bg-blue-900/50">
-                      <Calendar className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-bold">{t("Term 1", "الترم الأول")}</h3>
-                      <p className="text-sm text-muted-foreground">
-                        {t("3 modules · 2 subjects", "3 موديولات + مادتين")}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <ProgressBar percent={term1Total > 0 ? Math.round((term1Done / term1Total) * 100) : 0} />
-                    <span className="shrink-0 text-xs">
-                      {term1Done}/{term1Total}
-                    </span>
-                  </div>
-                </Link>
-
-                <Link
-                  href={`/curriculum?year=${studyYear}&term=2`}
-                  className={`group rounded-2xl border-2 p-5 transition-all hover:shadow-md ${
-                    activeTerm === 2
-                      ? "border-purple-500 bg-purple-50 dark:bg-purple-950/30"
-                      : "border-border bg-card hover:border-purple-300"
-                  }`}
-                >
-                  <div className="mb-3 flex items-center gap-3">
-                    <div className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-purple-100 text-purple-600 dark:bg-purple-900/50">
-                      <Calendar className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-bold">{t("Term 2", "الترم الثاني")}</h3>
-                      <p className="text-sm text-muted-foreground">
-                        {t("4 modules · 1 subject", "4 موديولات + مادة")}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <ProgressBar percent={term2Total > 0 ? Math.round((term2Done / term2Total) * 100) : 0} />
-                    <span className="shrink-0 text-xs">
-                      {term2Done}/{term2Total}
-                    </span>
-                  </div>
-                </Link>
+                {yearTerms.map((term) => {
+                  const accent = TERM_ACCENTS[(term - 1) % TERM_ACCENTS.length];
+                  const termModules = modulesForTerm(term);
+                  const done = termModules.reduce((s, m) => s + m.completedLectures, 0);
+                  const total = termModules.reduce((s, m) => s + m.totalLectures, 0);
+                  return (
+                    <Link
+                      key={term}
+                      href={`/curriculum?year=${studyYear}&term=${term}`}
+                      className={`group rounded-2xl border-2 p-5 transition-all hover:shadow-md ${
+                        activeTerm === term ? accent.active : accent.idle
+                      }`}
+                    >
+                      <div className="mb-3 flex items-center gap-3">
+                        <div className={`inline-flex h-10 w-10 items-center justify-center rounded-xl ${accent.icon}`}>
+                          <Calendar className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <h3 className="text-lg font-bold">
+                            {t(TERM_LABELS[term][0], TERM_LABELS[term][1])}
+                          </h3>
+                          <p className="text-sm text-muted-foreground">
+                            {t(`${termModules.length} modules`, `${termModules.length} modules`)}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <ProgressBar percent={total > 0 ? Math.round((done / total) * 100) : 0} />
+                        <span className="shrink-0 text-xs">
+                          {done}/{total}
+                        </span>
+                      </div>
+                    </Link>
+                  );
+                })}
               </div>
 
               {/* Show All / Active Term Label */}
               <div className="mb-4 flex items-center justify-between">
                 <h2 className="text-xl font-bold">
-                  {activeTerm === 1
-                    ? t("Term 1", "الترم الأول")
-                    : activeTerm === 2
-                      ? t("Term 2", "الترم الثاني")
-                      : t("All modules", "جميع الموديولات")}
+                  {activeLabel}
                 </h2>
                 {activeTerm !== 0 && (
                   <Link
