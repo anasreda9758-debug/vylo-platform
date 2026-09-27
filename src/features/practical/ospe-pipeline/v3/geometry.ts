@@ -100,14 +100,27 @@ export function segmentPanels(page: PageDoc, blocks: TextBlock[]): Panel[] {
   const rowGap = page.height * ROW_GAP_RATIO;
   const colGap = page.width * COL_GAP_RATIO;
 
+  // Standalone marker glyphs ("?", "(3)", "b") are ANNOTATIONS, not content.
+  // They are excluded from row/column grouping because on these slides a "?"
+  // frequently sits physically BETWEEN a question and its own answer, which
+  // would otherwise split the pair into two panels and lose the answer.
+  const markerGlyph = (t: string) => /^\s*[?؟]\s*$/.test(t) || /^\s*(?:\(\s*\d{1,2}\s*\)|\d{1,2}\s*[.)]?|[a-eA-E])\s*$/.test(t);
+  const contentBlocks = blocks.filter((b) => !markerGlyph(b.text));
+
   // --- rows: split where the vertical gap is large ---
+  // `lastBottom` MUST reset with each new row: leaving it pinned to the first
+  // block on the page made every subsequent block start its own row, which
+  // split each question away from its own answer.
   const rows: TextBlock[][] = [];
   let cur: TextBlock[] = [];
   let lastBottom = -Infinity;
-  for (const b of blocks) {
-    if (cur.length && lastBottom - b.bbox.y0 > rowGap) {
+  for (const b of contentBlocks) {
+    // Compare BASELINES (`bottom` is the baseline; `bbox.y0` sits a line-height
+    // lower and inflated the gap so closely-spaced Q/A pairs were split).
+    if (cur.length && lastBottom - b.bottom > rowGap) {
       rows.push(cur);
       cur = [];
+      lastBottom = -Infinity;
     }
     cur.push(b);
     lastBottom = Math.max(lastBottom, b.bbox.y1);
@@ -125,6 +138,7 @@ export function segmentPanels(page: PageDoc, blocks: TextBlock[]): Panel[] {
       if (cc.length && b.bbox.x0 - lastRight > colGap) {
         cols.push(cc);
         cc = [];
+        lastRight = -Infinity;
       }
       cc.push(b);
       lastRight = Math.max(lastRight, b.bbox.x1);
@@ -174,6 +188,24 @@ export function segmentPanels(page: PageDoc, blocks: TextBlock[]): Panel[] {
       }
     }
     if (best && bestFrac >= 0.08) best.images.push(img);
+  }
+
+  // Re-attach the excluded marker glyphs to the nearest panel so pointer
+  // detection still sees them, without letting them fragment the layout.
+  for (const b of blocks) {
+    if (!markerGlyph(b.text)) continue;
+    let best: Panel | null = null;
+    let bestD = Infinity;
+    for (const panel of panels) {
+      const dx = Math.max(0, Math.max(panel.bbox.x0 - b.bbox.x1, b.bbox.x0 - panel.bbox.x1));
+      const dy = Math.max(0, Math.max(panel.bbox.y0 - b.bbox.y1, b.bbox.y0 - panel.bbox.y1));
+      const d = Math.hypot(dx, dy);
+      if (d < bestD) {
+        bestD = d;
+        best = panel;
+      }
+    }
+    if (best) best.blocks.push(b);
   }
 
   return panels;

@@ -95,10 +95,13 @@ export function detectV3(page: PageDoc, opts: DetectV3Options): V3Question[] {
       .map((l) => ({ line: l, text: normaliseText(l.text) === l.text.toLowerCase() ? l.text : dedupeRepeatedPhrase(l.text) }))
       .filter((p) => p.text.trim().length > 0);
 
-    // Locate the block that carries a question stem.
+    // Locate the block that carries a question stem, then take the stem from
+    // that block's FIRST line: a block frequently merges "question + answer",
+    // and the question always comes first in reading order.
     for (let i = 0; i < blocks.length; i++) {
       const stemBlock = blocks[i];
-      const stemText = dedupeRepeatedPhrase(stemBlock.text).replace(/\s+/g, " ").trim();
+      const stemLine = stemBlock.lines[0];
+      const stemText = dedupeRepeatedPhrase(stemLine?.text ?? stemBlock.text).replace(/\s+/g, " ").trim();
       const hit = detectQuestionNumber(stemText);
       const family = matchPromptFamily(stemText);
       if (!hit && !family) continue;
@@ -106,20 +109,19 @@ export function detectV3(page: PageDoc, opts: DetectV3Options): V3Question[] {
       const stem = hit ? hit.body : stemText;
       if (stem.length < 3) continue;
 
-      const stemBBox = stemBlock.bbox;
-      // Anchor the answer search on the stem's OWN line, not the block bottom:
-      // a caption and its answer are often merged into one text block, and
-      // using the block bottom would hide the answer from the search.
-      const stemLine = stemBlock.lines[stemBlock.lines.length - 1];
-      const stemLineY = stemLine ? stemLine.y : stemBBox.y1;
-      const stemBottom = stemLineY;
+      const stemBBox: BBox = stemLine
+        ? { x0: stemLine.x, y0: stemLine.y - stemLine.height, x1: stemLine.x + stemLine.width, y1: stemLine.y }
+        : stemBlock.bbox;
+      const stemBottom = stemLine ? stemLine.y : stemBBox.y1;
 
       // ---- answer: ONLY from this panel, below the stem, vertically close ----
       const candidates = panelLines
         .map((p) => ({ ...p, bbox: bboxOfLine(p.line) }))
         .filter((p) => p.bbox.y1 <= stemBottom + 2)
         .filter((p) => p.line !== stemLine)
-        .filter((p) => stemBottom - p.bbox.y0 <= ANSWER_GAP)
+        // Compare BASELINE y, not bbox.y0: the bbox top sits a line-height above
+        // the baseline and inflated the measured gap past the threshold.
+        .filter((p) => stemBottom - p.line.y <= ANSWER_GAP)
         .filter((p) => containment(p.bbox, panel.bbox) > 0.5)
         .filter((p) => !isContinuationFragment(p.text))
         .filter((p) => !matchPromptFamily(p.text))

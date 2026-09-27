@@ -210,6 +210,52 @@ describe("14/15/16/17/18. distractor pools", () => {
   });
 });
 
+describe("CVS regressions found against the real OSPE CVS.pdf", () => {
+  const CVS = { fileName: "OSPE CVS.pdf", subject: "Cardio-Vascular System", pageClass: "QUESTION_SHORT_ANSWER" as PageClass };
+
+  it("keeps a question with its own answer when a title block sits far above", () => {
+    // Real page 2: title "Practical Revision - sem. 2" at the top used to pin
+    // `lastBottom` so that EVERY later block started its own row, leaving one
+    // panel per block and losing every answer.
+    const p = pg([ln("Practical Revision - sem. 2", 105, 574), ln("C.V.S.", 245, 513), ln("1) This artery is a branch from:", 50, 291), ln("Right coronary artery.", 50, 258)]);
+    const q = detectV3(p, CVS)[0];
+    expect(q.sourceQuestionNumber).toBe(1);
+    expect(q.answer).toBe("Right coronary artery");
+  });
+
+  it("keeps a question with its answer when a '?' marker sits between them", () => {
+    // Real page 3: the '?' annotation fell between the question and its answer
+    // and fragmented the row, so the answer landed in a different panel.
+    const p = pg([ln("3) Identify this chamber:", 39, 288), ln("?", 448, 323), ln("Left atrium.", 39, 255)], { imageOps: 1 });
+    const q = detectV3(p, CVS).find((x) => x.sourceQuestionNumber === 3)!;
+    expect(q.answer).toBe("Left atrium");
+  });
+
+  it("uses a baseline gap so a closely spaced Q/A pair is not split", () => {
+    // The row gap compared bbox tops (a line-height below the baseline) and
+    // split pairs only ~5pt apart.
+    const p = pg([ln("4) Identify this vein:", 50, 683), ln("Coronary sinus", 50, 650)], { imageOps: 1 });
+    const q = detectV3(p, CVS)[0];
+    expect(q.answer).toBe("Coronary sinus");
+  });
+
+  it("detects a real '?' marker in the panel as SOURCE_CONFIRMED", () => {
+    const p = pg([ln("Identify this chamber:", 50, 700), ln("?", 300, 690), ln("Left atrium", 50, 672)], { imageOps: 1, vectorOps: 30 });
+    const q = detectV3(p, CVS)[0];
+    expect(q.pointerMode).toBe("SOURCE_CONFIRMED");
+  });
+
+  it("preserves CVS question semantics rather than a generic arrow question", () => {
+    const branch = pg([ln("6 ) This artery is a branch from:", 50, 683), ln("Left coronary artery", 50, 650)], { imageOps: 1 });
+    expect(detectV3(branch, CVS)[0].questionType).toBe("IMAGE_RELATED_STRUCTURE");
+    const chamber = pg([ln("3) Identify this chamber:", 50, 288), ln("Left atrium", 50, 255)], { imageOps: 1 });
+    expect(detectV3(chamber, CVS)[0].questionType).toBe("IMAGE_IDENTIFY_STRUCTURE");
+    const stem = detectV3(chamber, CVS)[0].stem;
+    expect(stem).toBe("Identify this chamber:");
+    expect(stem).not.toMatch(/arrow/i);
+  });
+});
+
 describe("20. benchmark metric calculation", () => {
   it("computes precision/recall from matched predictions", () => {
     type Row = { pdf: string; page: number; number: number | null; stem: string };
