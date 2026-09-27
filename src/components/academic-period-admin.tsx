@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { toDateTimeLocalValue } from "./admin/use-admin-data";
 
 type Period = {
   id: string;
@@ -51,8 +52,8 @@ export function AcademicPeriodAdmin() {
 }
 
 function PeriodRow({ period, onSave }: { period: Period; onSave: (period: Period, startsAt: string, endsAt: string) => Promise<void> }) {
-  const [startsAt, setStartsAt] = useState(period.startsAt.slice(0, 16));
-  const [endsAt, setEndsAt] = useState(period.endsAt.slice(0, 16));
+  const [startsAt, setStartsAt] = useState(toDateTimeLocalValue(period.startsAt));
+  const [endsAt, setEndsAt] = useState(toDateTimeLocalValue(period.endsAt));
   return (
     <div className="grid gap-2 rounded-lg border border-border p-3 sm:grid-cols-[1fr_1fr_1fr_auto] sm:items-end">
       <div><p className="text-xs text-muted-foreground">{period.academicYear}</p><p className="font-medium">{period.type}</p></div>

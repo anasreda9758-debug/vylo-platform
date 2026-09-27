@@ -49,7 +49,7 @@ export function OverviewTab({ onNavigate }: { onNavigate: (tab: string) => void 
           <KpiCard icon={BookOpen} label="المحاضرات" value={data.content.lectures} sub={`${data.content.lecturesWithContent} بمحتوى مكتمل`} color="text-purple-600 bg-purple-50 dark:bg-purple-950/40" onClick={() => onNavigate("content")} />
           <KpiCard icon={BookOpen} label="الموديولات" value={data.content.modules} sub={`${data.content.modulesNoLectures} بدون محاضرات`} color="text-violet-600 bg-violet-50 dark:bg-violet-950/40" onClick={() => onNavigate("content")} />
           <KpiCard icon={FileText} label="أسئلة الاختبارات" value={data.content.questions} sub={`${data.content.banks} بنك أسئلة`} color="text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40" onClick={() => onNavigate("quiz")} />
-          <KpiCard icon={GraduationCap} label="أسئلة عملية" value={data.content.practicalQuestions} sub={`${data.content.tracks} مسار · ${data.content.ospeStations} محطة OSPE`} color="text-cyan-600 bg-cyan-50 dark:bg-cyan-950/40" onClick={() => onNavigate("practical")} />
+          <KpiCard icon={GraduationCap} label="أسئلة عملية" value={data.content.practicalQuestions} sub={`${data.content.tracks} مسار · ${data.content.ospeStations} محطة OSPE مهيأة`} color="text-cyan-600 bg-cyan-50 dark:bg-cyan-950/40" onClick={() => onNavigate("practical")} />
         </div>
       </div>
 

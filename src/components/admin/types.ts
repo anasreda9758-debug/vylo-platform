@@ -28,6 +28,7 @@ export type Overview = {
     tracks: number;
     practicalQuestions: number;
     ospeStations: number;
+    ospeAnswerKeys: number;
     ospeExams: number;
   };
   subscriptions: {
@@ -247,7 +248,11 @@ export type PracticalResponse = {
 };
 
 export type OspeResponse = {
+  /** Real track→station bindings students can be examined on. */
   stationsConfigured: number;
+  /** Reference answer/diagnosis rows for station IMAGES — not live stations. */
+  answerKeyEntries: number;
+  answerKeyFolders: number;
   exams: { status: string; total: number; avgPct: number }[];
   tracks: {
     id: string;
@@ -259,6 +264,28 @@ export type OspeResponse = {
     ospeEnabled: boolean;
     stationBindings: number;
   }[];
+  range: string;
+};
+
+export type AuditRow = {
+  id: string;
+  userId: string;
+  userName: string | null;
+  action: string;
+  entityType: string | null;
+  entityId: string | null;
+  entityName: string | null;
+  createdAt: string;
+};
+
+export type AuditResponse = {
+  logs: AuditRow[];
+  total: number;
+  page: number;
+  limit: number;
+  summary: { action: string; total: number }[];
+  /** Present on the wire from `view=audit` (recent activity feed). */
+  recent?: { type: string; userId: string; userName: string; ts: string; title: string | null; entity: string | null }[];
   range: string;
 };
 

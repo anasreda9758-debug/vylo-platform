@@ -326,7 +326,10 @@ export type Overview = {
     questions: number;
     tracks: number;
     practicalQuestions: number;
+    /** Real track→station bindings students can be examined on. */
     ospeStations: number;
+    /** Reference answer/diagnosis rows for station images — not stations. */
+    ospeAnswerKeys: number;
     ospeExams: number;
   };
   subscriptions: {
@@ -392,7 +395,7 @@ export async function getAttentionWarnings(range: ResolvedRange): Promise<Attent
   const [[lecturesMissing], [modsNoLectures], [bundles], [aiAtLimit], [expiring], , [practicalReview]] = await Promise.all([
     db.execute(sql`SELECT count(*)::int AS c FROM lecture WHERE content IS NULL OR content = ''`),
     db.execute(sql`SELECT count(*)::int AS c FROM module m WHERE NOT EXISTS (SELECT 1 FROM lecture l WHERE l.module_id = m.id)`),
-    db.execute(sql`SELECT (SELECT count(*)::int FROM ospe_answer_key) AS stations, (SELECT count(*)::int FROM practical_track) AS tracks`),
+    db.execute(sql`SELECT (SELECT count(*)::int FROM practical_track_ospe_station) AS stations, (SELECT count(*)::int FROM practical_track) AS tracks`),
     db.execute(sql`SELECT count(*)::int AS c FROM ai_usage_daily WHERE usage_date = ${today} AND bucket = ${STUDY_GENERATION_BUCKET} AND count >= ${FREE_DAILY_LIMIT}`),
     db.execute(sql`SELECT count(*)::int AS c FROM subscription WHERE status = 'active' AND expires_at BETWEEN now() AND now() + interval '7 days'`),
     db.execute(sql`SELECT count(*)::int AS c FROM ospe_answer_key`),
@@ -459,13 +462,16 @@ export async function getAttentionWarnings(range: ResolvedRange): Promise<Attent
     });
   }
 
-  const stations = (bundles as Row | undefined)?.[0]?.stations ?? 0;
+  // `bundles` is already the FIRST ROW (destructured above), not the row array.
+  // Reading `bundles[0]` here always yielded undefined, so this warning fired
+  // unconditionally regardless of the real station count.
+  const stations = int(bundles as Row | undefined, "stations");
   if (Number(stations) === 0) {
     warnings.push({
       id: "ospe-zero-stations",
       severity: "INFO",
       title: "لا توجد محطات OSPE مهيأة",
-      detail: "لم يتم إعداد أي محطة إجابة OSPE بعد — ستظهر نتائج الطلاب فارغة حتى تهيئة المحطات.",
+      detail: "لم يتم ربط أي محطة إجابة OSPE بمسار — ستظهر نتائج الطلاب فارغة حتى تهيئة المحطات.",
       count: 0,
       view: "ospe",
     });
@@ -567,7 +573,8 @@ export async function getOverview(range?: ResolvedRange): Promise<Overview> {
         (SELECT count(*)::int FROM question) AS questions,
         (SELECT count(*)::int FROM practical_track) AS tracks,
         (SELECT count(*)::int FROM practical_question) AS practical_questions,
-        (SELECT count(*)::int FROM ospe_answer_key) AS ospe_stations,
+        (SELECT count(*)::int FROM practical_track_ospe_station) AS ospe_stations,
+        (SELECT count(*)::int FROM ospe_answer_key) AS ospe_answer_keys,
         (SELECT count(*)::int FROM ospe_exam) AS ospe_exams
     `),
     db.execute(sql`
@@ -710,6 +717,7 @@ export async function getOverview(range?: ResolvedRange): Promise<Overview> {
       tracks: int(content as Row | undefined, "tracks"),
       practicalQuestions: int(content as Row | undefined, "practical_questions"),
       ospeStations: int(content as Row | undefined, "ospe_stations"),
+      ospeAnswerKeys: int(content as Row | undefined, "ospe_answer_keys"),
       ospeExams: int(content as Row | undefined, "ospe_exams"),
     },
     subscriptions: {
@@ -1441,8 +1449,13 @@ export async function getPracticalAnalytics(r: ResolvedRange) {
 // ----- OSPE analytics -----
 
 export async function getOspeAnalytics(r: ResolvedRange) {
-  const [stations, exams, tracks] = await Promise.all([
-    db.execute(sql`SELECT count(*)::int AS total FROM ospe_answer_key`),
+  const [stations, answerKeys, exams, tracks] = await Promise.all([
+    // A "configured station" is a track→station binding the student can be
+    // examined on. `practical_track_ospe_station` is the authoritative source.
+    db.execute(sql`SELECT count(*)::int AS total FROM practical_track_ospe_station`),
+    // `ospe_answer_key` rows are the answer/diagnosis reference for station
+    // IMAGES (folder + file_name). They are reference data, NOT live stations.
+    db.execute(sql`SELECT count(*)::int AS total, count(DISTINCT folder)::int AS folders FROM ospe_answer_key`),
     db.execute(sql`
       SELECT status, count(*)::int AS total, COALESCE(AVG(total_score * 1.0 / NULLIF(max_possible_score, 0)), 0)::float8 AS avg_pct
       FROM ospe_exam WHERE ${tsWhere("created_at", r)}
@@ -1457,6 +1470,8 @@ export async function getOspeAnalytics(r: ResolvedRange) {
 
   return {
     stationsConfigured: int((stations as Row[])[0], "total"),
+    answerKeyEntries: int((answerKeys as Row[])[0], "total"),
+    answerKeyFolders: int((answerKeys as Row[])[0], "folders"),
     exams: (exams as Row[]).map((e) => ({
       status: e.status,
       total: int(e, "total"),

@@ -5,26 +5,7 @@ import { useState } from "react";
 import { useAdminData, downloadCsv, formatDate, AUDIT_ACTION_LABELS, AUDIT_ENTITY_LABELS } from "./use-admin-data";
 import { Badge, EmptyState, Pagination, Panel, Spinner, ErrorBox, TableShell } from "./ui";
 import type { RangeValue } from "./use-admin-data";
-
-type AuditRow = {
-  id: string;
-  userId: string;
-  userName: string | null;
-  action: string;
-  entityType: string | null;
-  entityId: string | null;
-  entityName: string | null;
-  createdAt: string;
-};
-
-type AuditResponse = {
-  logs: AuditRow[];
-  total: number;
-  page: number;
-  limit: number;
-  summary: { action: string; total: number }[];
-  range: string;
-};
+import type { AuditResponse } from "./types";
 
 export function AuditTab({ range }: { range: RangeValue }) {
   const [action, setAction] = useState("");

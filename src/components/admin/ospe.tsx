@@ -19,14 +19,24 @@ export function OspeTab({ range }: { range: RangeValue }) {
     <div className="space-y-6">
       {data.stationsConfigured === 0 && (
         <p className="rounded-2xl border border-border bg-card px-4 py-6 text-center text-sm text-muted-foreground">
-          0 محطة مهيأة — لم يتم إعداد أي محطة إجابة OSPE بعد. حتى تكوين المحطات، ستبقى بيانات الاختبارات فارغة.
+          0 محطة مهيأة — لم يتم ربط أي محطة إجابة OSPE بمسار بعد. حتى تكوين المحطات، ستبقى نتائج الطلاب فارغة.
+          {data.answerKeyEntries > 0 && (
+            <> (يوجد {data.answerKeyEntries} مدخل مرجعي في {data.answerKeyFolders} مجلداً، وهي بيانات إجابة وليست محطات مهيأة.)</>
+          )}
         </p>
       )}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <KpiCard icon={MapPin} label="محطات مهيأة" value={data.stationsConfigured} sub="مفاتيح إجابة OSPE" color="text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40" />
+        <KpiCard icon={MapPin} label="محطات مهيأة" value={data.stationsConfigured} sub="ارتباطات مسار ← محطة" color="text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40" />
         <KpiCard icon={Timer} label="امتحانات OSPE" value={examsTotal} sub="إجمالي الجلسات" color="text-blue-600 bg-blue-50 dark:bg-blue-950/40" />
         <KpiCard icon={GraduationCap} label="المسارات" value={data.tracks.length} sub="مسارات مرتبطة بالمحطات" color="text-purple-600 bg-purple-50 dark:bg-purple-950/40" />
       </div>
+
+      <Panel title="مفاتيح الإجابة المرجعية" hint="بيانات مرجعية للإجابات — ليست محطات مهيأة للطلاب">
+        <p className="text-sm text-muted-foreground">
+          {data.answerKeyEntries} مدخل مرجعي موزعة على {data.answerKeyFolders} مجلداً. تُستخدم للإجابة فقط ولا تُحتسب ضمن المحطات المهيأة.
+        </p>
+      </Panel>
+
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Panel title="نتائج الامتحانات حسب الحالة" hint={`خلال ${data.range}`}>

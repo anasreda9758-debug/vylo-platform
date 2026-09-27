@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { formatDate, toDateTimeLocalValue } from "./admin/use-admin-data";
 
 type Promo = {
   id: string;
@@ -79,8 +80,8 @@ export function PromoCodeAdmin() {
       moduleId: code.moduleId ?? "",
       maxUses: code.maxUses === null ? "" : String(code.maxUses),
       maxUsesPerUser: String(code.maxUsesPerUser),
-      startsAt: code.startsAt?.slice(0, 16) ?? "",
-      expiresAt: code.expiresAt?.slice(0, 16) ?? "",
+      startsAt: toDateTimeLocalValue(code.startsAt),
+      expiresAt: toDateTimeLocalValue(code.expiresAt),
       active: code.active,
       academicPeriodId: code.academicPeriodId ?? "",
     });
@@ -154,8 +155,8 @@ export function PromoCodeAdmin() {
                 <td className="p-3">{code.usedCount} / {code.maxUses ?? "∞"} · {code.maxUsesPerUser}/user</td>
                 <td className="p-3">{code.redemptionCount ?? 0}</td>
                 <td className="p-3">{code.active ? "Active" : "Inactive"}</td>
-                <td className="p-3">{code.startsAt ? new Date(code.startsAt).toLocaleString() : "—"}</td>
-                <td className="p-3">{code.expiresAt ? new Date(code.expiresAt).toLocaleString() : "—"}</td>
+                <td className="p-3">{formatDate(code.startsAt)}</td>
+                <td className="p-3">{formatDate(code.expiresAt)}</td>
                 <td className="p-3"><Button size="sm" variant="outline" onClick={() => edit(code)}>تعديل</Button></td>
               </tr>
             ))}

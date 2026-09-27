@@ -102,11 +102,45 @@ export async function downloadCsv(view: string, params: Params = {}): Promise<vo
   URL.revokeObjectURL(url);
 }
 
+/**
+ * Parses the timestamp shapes the admin API actually returns.
+ *
+ * `timestamp without time zone` columns come back as naive strings such as
+ * `"2026-08-15 21:02:45.048"`. Passing that straight to `new Date()` is
+ * non-standard: V8/Chrome accept it, Safari returns Invalid Date. Normalising
+ * the separator to `T` keeps the value in the same (server-local) wall-clock
+ * while making it spec-compliant everywhere.
+ */
+export function parseAdminDate(value: string | Date | null | undefined): Date | null {
+  if (value == null || value === "") return null;
+  if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value;
+  if (typeof value !== "string") return null;
+  const raw = value.trim();
+  // Naive `YYYY-MM-DD HH:MM:SS[.sss]` (space separator, no zone) → ISO local form.
+  const normalized = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(\.\d+)?$/.test(raw)
+    ? raw.replace(" ", "T")
+    : raw;
+  const d = new Date(normalized);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
 export function formatDate(value: string | Date | null | undefined): string {
-  if (!value) return "—";
-  const d = typeof value === "string" ? new Date(value) : value;
-  if (Number.isNaN(d.getTime())) return "—";
+  const d = parseAdminDate(value);
+  if (!d) return "—";
   return d.toLocaleString("ar-EG", { dateStyle: "medium", timeStyle: "short" });
+}
+
+/**
+ * `YYYY-MM-DDTHH:mm` for `<input type="datetime-local">`, in the value's own
+ * wall-clock. Slicing an ISO/UTC string would feed UTC digits into a control
+ * that interprets input as LOCAL time, silently shifting the value by the
+ * browser's UTC offset.
+ */
+export function toDateTimeLocalValue(value: string | Date | null | undefined): string {
+  const d = parseAdminDate(value);
+  if (!d) return "";
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
 }
 
 export function formatCents(cents: number): string {

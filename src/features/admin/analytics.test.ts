@@ -15,7 +15,7 @@ import {
 
 vi.mock("@/shared/db", () => ({
   db: {
-    execute: async () => [],
+    execute: vi.fn(async () => []),
     query: {},
     select: {},
   },
@@ -232,5 +232,53 @@ describe("resolveRange this_term does not throw on driver-shaped rows (regressio
     });
     expect(r.since).toBeInstanceOf(Date);
     expect(r.until).toBeNull();
+  });
+});
+
+/**
+ * `ospe_answer_key` holds the answer/diagnosis for each station IMAGE. It is
+ * reference data, NOT a configured student station. Reporting it as
+ * "stations configured" overstated readiness by 759 while the real binding
+ * table was empty.
+ */
+describe("OSPE station semantics (regression)", () => {
+  const asMock = async () => {
+    const { db } = await import("@/shared/db");
+    return db.execute as unknown as ReturnType<typeof vi.fn>;
+  };
+
+  it("counts configured stations from practical_track_ospe_station, not ospe_answer_key", async () => {
+    const execute = await asMock();
+    execute.mockImplementation(async (q: unknown) => {
+      const sqlText = JSON.stringify(q);
+      if (sqlText.includes("ospe_answer_key")) return [{ total: 759, folders: 4 }];
+      if (sqlText.includes("practical_track_ospe_station") && !sqlText.includes("count(*) FROM practical_track_ospe_station pto")) {
+        return [{ total: 0 }];
+      }
+      return [];
+    });
+
+    const { getOspeAnalytics } = await import("@/features/admin/analytics");
+    const res = await getOspeAnalytics({ key: "30d", since: null, until: null, cairoSince: null, cairoUntil: null, label: "x" });
+
+    expect(res.stationsConfigured).toBe(0);
+    expect(res.answerKeyEntries).toBe(759);
+    expect(res.answerKeyFolders).toBe(4);
+  });
+
+  it("the zero-station warning keys off real configured stations", async () => {
+    const execute = await asMock();
+    execute.mockImplementation(async (q: unknown) => {
+      const sqlText = JSON.stringify(q);
+      // Real binding count is 0 even though 759 answer keys exist.
+      if (sqlText.includes("AS stations")) return [{ stations: 0, tracks: 1 }];
+      if (sqlText.includes("ospe_answer_key")) return [{ c: 759 }];
+      return [];
+    });
+
+    const { getAttentionWarnings } = await import("@/features/admin/analytics");
+    const warnings = await getAttentionWarnings({ key: "30d", since: null, until: null, cairoSince: null, cairoUntil: null, label: "x" });
+
+    expect(warnings.map((w) => w.id)).toContain("ospe-zero-stations");
   });
 });
