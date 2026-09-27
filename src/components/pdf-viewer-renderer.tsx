@@ -1,14 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Document, Page, pdfjs } from "react-pdf";
-import type { PDFDocumentProxy } from "pdfjs-dist";
-import "react-pdf/dist/Page/AnnotationLayer.css";
-import "react-pdf/dist/Page/TextLayer.css";
+import * as pdfjs from "pdfjs-dist";
+import type { PDFDocumentProxy, PDFPageProxy, RenderTask } from "pdfjs-dist";
 import { Button } from "@/components/ui/button";
 import {
   ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Download, Maximize2, Minimize2,
-  Search, X, PanelLeftClose, PanelLeftOpen, AlertTriangle, FileWarning, Loader2, RotateCcw,
+  Search, X, PanelLeftClose, PanelLeftOpen, FileWarning, Loader2, RotateCcw,
 } from "lucide-react";
 import { useLocale } from "@/components/locale-provider";
 import {
@@ -17,7 +15,8 @@ import {
 } from "./pdf-reader-logic";
 
 // Browser-only: pdf.js relies on DOMMatrix and other DOM globals.
-pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+// The worker is self-hosted from public/ so the reader never depends on a CDN.
+pdfjs.GlobalWorkerOptions.workerSrc = "/pdfjs/pdf.worker.min.mjs";
 
 type FitState = {
   width: number;
@@ -72,6 +71,34 @@ const SearchPanel = ({
   </div>
 );
 
+function Thumb({ pdf, pageNumber }: { pdf: PDFDocumentProxy | null; pageNumber: number }) {
+  const ref = useRef<HTMLCanvasElement | null>(null);
+  useEffect(() => {
+    if (!pdf) return;
+    let cancelled = false;
+    let task: RenderTask | null = null;
+    (async () => {
+      try {
+        const page = await pdf.getPage(pageNumber);
+        const viewport = page.getViewport({ scale: 0.22 });
+        const canvas = ref.current;
+        if (!canvas || cancelled) return;
+        canvas.width = Math.max(1, Math.floor(viewport.width));
+        canvas.height = Math.max(1, Math.floor(viewport.height));
+        task = page.render({ canvas, viewport });
+        await task.promise;
+      } catch {
+        /* thumbnail render cancelled */
+      }
+    })();
+    return () => {
+      cancelled = true;
+      task?.cancel();
+    };
+  }, [pdf, pageNumber]);
+  return <canvas ref={ref} className="block h-auto w-full" aria-label={`Page ${pageNumber}`} />;
+}
+
 export function PdfViewerRenderer({
   lectureId,
   title,
@@ -85,11 +112,32 @@ export function PdfViewerRenderer({
 }) {
   const { t } = useLocale();
   const pdfUrl = `/api/content/pdf/${lectureId}`;
-  // react-pdf v10 does not export usePDF, so the document proxy is captured from
-  // <Document onLoadSuccess>, which is the same PDFDocumentProxy.
   const [pdf, setPdf] = useState<PDFDocumentProxy | null>(null);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
+  const [firstPaint, setFirstPaint] = useState(false);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const renderTaskRef = useRef<RenderTask | null>(null);
+
+  // Load the document once. pdf.js renders through the self-hosted worker.
+  useEffect(() => {
+    let cancelled = false;
+    const task = pdfjs.getDocument({ url: pdfUrl });
+    task.promise
+      .then((doc) => {
+        if (cancelled) {
+          void doc.destroy();
+          return;
+        }
+        setPdf(doc);
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) setError(err instanceof Error ? err : new Error(String(err)));
+      });
+    return () => {
+      cancelled = true;
+      void task.destroy();
+    };
+  }, [pdfUrl]);
 
   const numPages = pdf?.numPages ?? 0;
   const { min: minPage, max: maxPage, hasRange } = useMemo(
@@ -133,7 +181,47 @@ export function PdfViewerRenderer({
     return clampScale(customScale);
   }, [fitMode, fit.width, fit.height, effectivePageW, effectivePageH, customScale]);
 
-  const goTo = useCallback((p: number) => setPageNumber((cur) => clampPage(p, minPage, maxPage)), [minPage, maxPage]);
+  // Draw the active page into a canvas whenever the page or zoom changes.
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!pdf || !canvas) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const page: PDFPageProxy = await pdf.getPage(pageNumber);
+        if (cancelled) return;
+        const base = page.getViewport({ scale: 1 });
+        const viewport = page.getViewport({ scale });
+        const ratio = Math.min(window.devicePixelRatio || 1, 3);
+        canvas.width = Math.max(1, Math.floor(viewport.width * ratio));
+        canvas.height = Math.max(1, Math.floor(viewport.height * ratio));
+        canvas.style.width = `${Math.floor(viewport.width)}px`;
+        canvas.style.height = `${Math.floor(viewport.height)}px`;
+        const task = page.render({
+          canvas,
+          viewport,
+          transform: ratio !== 1 ? [ratio, 0, 0, ratio, 0, 0] : undefined,
+        });
+        renderTaskRef.current = task;
+        await task.promise;
+        if (cancelled) return;
+        setFirstPaint(true);
+        setPageSize((prev) =>
+          prev && prev.width === base.width && prev.height === base.height
+            ? prev
+            : { width: base.width, height: base.height },
+        );
+      } catch {
+        /* superseded by a newer render, or the page failed; keep the last canvas */
+      }
+    })();
+    return () => {
+      cancelled = true;
+      renderTaskRef.current?.cancel();
+    };
+  }, [pdf, pageNumber, scale]);
+
+  const goTo = useCallback((p: number) => setPageNumber(() => clampPage(p, minPage, maxPage)), [minPage, maxPage]);
 
   // Search the text layer lazily, and only while the panel is open.
   useEffect(() => {
@@ -324,9 +412,7 @@ export function PdfViewerRenderer({
                     aria-current={p === pageNumber ? "page" : undefined}
                     className={`w-full overflow-hidden rounded-lg border-2 transition ${p === pageNumber ? "border-primary" : "border-transparent hover:border-border"}`}
                   >
-                    <Document file={pdfUrl}>
-                      <Page pageNumber={p} scale={0.22} renderAnnotationLayer={false} renderTextLayer={false} loading={<div className="h-24 w-full animate-pulse bg-muted" />} />
-                    </Document>
+                    <Thumb pdf={pdf} pageNumber={p} />
                     <span className="block bg-card py-0.5 text-[10px] text-muted-foreground">{p}</span>
                   </button>
                 </li>
@@ -337,51 +423,20 @@ export function PdfViewerRenderer({
 
         <div
           ref={scrollRef}
-          className="min-h-[60vh] flex-1 overflow-auto bg-muted p-2 sm:p-4"
+          className="relative min-h-[60vh] flex-1 overflow-auto bg-muted p-2 sm:p-4"
           style={focus ? { height: "calc(100vh - 7rem)" } : undefined}
         >
-          {loading ? (
-            <div className="flex min-h-72 items-center justify-center gap-2 text-sm text-muted-foreground">
+          {(pdf === null || !firstPaint) && !error ? (
+            <div className="absolute inset-0 z-10 flex min-h-72 items-center justify-center gap-2 bg-muted text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
               {t("Loading document…", "جارٍ تحميل المستند…")}
             </div>
-          ) : (
-            <div className="flex justify-center">
-              <div className="overflow-hidden rounded-lg shadow-lg" style={{ background: "#fff" }}>
-                <Document
-                  file={pdfUrl}
-                  onLoadSuccess={(doc: PDFDocumentProxy) => {
-                    setPdf(doc);
-                    setLoading(false);
-                    setError(null);
-                  }}
-                  onLoadError={(e: Error) => {
-                    setLoading(false);
-                    setError(e);
-                  }}
-                >
-                  <Page
-                    pageNumber={clampPage(pageNumber, minPage, maxPage)}
-                    scale={scale}
-                    renderAnnotationLayer
-                    renderTextLayer
-                    onLoadSuccess={(p: { width: number; height: number }) => setPageSize({ width: p.width, height: p.height })}
-                    loading={
-                      <div className="flex h-96 w-[70vw] items-center justify-center" style={{ background: "#fff" }}>
-                        <Loader2 className="h-6 w-6 animate-spin text-neutral-400" />
-                      </div>
-                    }
-                    error={
-                      <div className="flex h-96 w-[70vw] flex-col items-center justify-center gap-2 text-center" style={{ background: "#fff" }}>
-                        <AlertTriangle className="h-6 w-6 text-amber-500" />
-                        <span className="text-sm text-neutral-700">{t("This page could not be displayed", "تعذر عرض هذه الصفحة")}</span>
-                      </div>
-                    }
-                  />
-                </Document>
-              </div>
+          ) : null}
+          <div className="flex justify-center">
+            <div className="overflow-hidden rounded-lg shadow-lg" style={{ background: "#fff" }}>
+              <canvas ref={canvasRef} className="block" aria-label={title} />
             </div>
-          )}
+          </div>
         </div>
       </div>
 
