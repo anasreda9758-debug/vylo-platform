@@ -34,7 +34,45 @@ import {
 
 export const dynamic = "force-dynamic";
 
+/**
+ * Hard ceiling for any admin analytics request. Guarantees the client always
+ * receives a response (data, partial data, or an explicit timeout error)
+ * instead of spinning forever on a stuck DB call or a runaway query.
+ * Read per-call so tests can shorten it.
+ */
+function requestTimeoutMs(): number {
+  const raw = Number(process.env.ADMIN_ANALYTICS_TIMEOUT_MS);
+  return Number.isFinite(raw) && raw > 0 ? raw : 15000;
+}
+
 const VALID_ROLE = new Set(["student", "admin"]);
+
+class AnalyticsTimeoutError extends Error {
+  constructor(label: string) {
+    super(`admin analytics timed out: ${label}`);
+    this.name = "AnalyticsTimeoutError";
+  }
+}
+
+/**
+ * Races `work` against a hard deadline. A stuck DB call or an unbounded query
+ * must never leave the admin UI spinning: the caller always settles, either
+ * with the real result or with an explicit timeout error (HTTP 504).
+ */
+async function withTimeout<T>(work: Promise<T>, label: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const ms = requestTimeoutMs();
+  try {
+    return await Promise.race([
+      work,
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new AnalyticsTimeoutError(label)), ms);
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
 
 function csvDownload(payload: Record<string, unknown>[], filename: string) {
   return new NextResponse(toCsv(payload), {
@@ -72,12 +110,17 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "invalid role" }, { status: 400 });
   }
 
-  const range = await resolveRange(rangeKey as RangeKey, {
-    from: rangeKey === "custom" ? from : null,
-    to: rangeKey === "custom" ? to : null,
-  });
+  const range = await withTimeout(
+    resolveRange(rangeKey as RangeKey, {
+      from: rangeKey === "custom" ? from : null,
+      to: rangeKey === "custom" ? to : null,
+    }),
+    "resolveRange",
+  );
 
   try {
+    return await withTimeout(
+      (async () => {
     switch (view) {
       case "overview": {
         const data = await getOverview(range);
@@ -255,11 +298,20 @@ export async function GET(request: NextRequest) {
       default:
         return NextResponse.json({ error: "unknown view" }, { status: 400 });
     }
+      })(),
+      view,
+    );
   } catch (error) {
-    console.error("[admin/analytics]", error);
+    const timedOut = error instanceof AnalyticsTimeoutError;
+    if (!timedOut) console.error("[admin/analytics]", error);
     return NextResponse.json(
-      { error: "analytics_failed", view, range: range.label },
-      { status: 500 },
+      {
+        error: timedOut ? "analytics_timeout" : "analytics_failed",
+        view,
+        range: range.label,
+        ...(timedOut ? { message: `تجاوز الاستعلام الحد الأقصى للزمن (${requestTimeoutMs()}ms)` } : {}),
+      },
+      { status: timedOut ? 504 : 500 },
     );
   }
 }

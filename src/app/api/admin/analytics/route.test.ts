@@ -122,3 +122,141 @@ describe("GET /api/admin/analytics", () => {
     expect(text).not.toMatch(/(?:re_|sk-|pk_test_|pk_live_|AIza)[A-Za-z0-9_]{10,}/i);
   });
 });
+
+describe("admin overview: no infinite loading", () => {
+  it("resolves the overview even when every table is empty (0 rows is not a hang)", async () => {
+    mocks.session.mockResolvedValue({ user: { id: "admin-1", role: "admin" } });
+    const response = await GET(request("/api/admin/analytics?view=overview"));
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.users.total).toBe(0);
+    expect(body.payments).toBeDefined();
+    // Zero rows resolve to a real, settled payload — including a genuine
+    // "no OSPE stations" advisory, never a permanently pending request.
+    expect(body.warnings.map((w: { id: string }) => w.id)).toContain("ospe-zero-stations");
+  });
+
+  it("zero OSPE stations and zero payments resolve to an empty state, not a pending request", async () => {
+    mocks.session.mockResolvedValue({ user: { id: "admin-1", role: "admin" } });
+    const ospe = await GET(request("/api/admin/analytics?view=ospe"));
+    expect(ospe.status).toBe(200);
+    expect((await ospe.json()).stationsConfigured).toBe(0);
+
+    const payments = await GET(request("/api/admin/analytics?view=payments"));
+    expect(payments.status).toBe(200);
+    expect((await payments.json()).byStatus).toEqual([]);
+  });
+
+  it("a failing secondary analytics section does not block the overview", async () => {
+    const original = mem.db.execute;
+    (mem.db.execute as unknown as (s: unknown) => Promise<unknown[]>) = async (s: unknown) => {
+      const { query } = parse(s);
+      // Simulate ONLY the AI feature-breakdown section failing.
+      if (query.includes("ai_generation_request")) throw new Error("ai section down");
+      return original(s);
+    };
+    mocks.session.mockResolvedValue({ user: { id: "admin-1", role: "admin" } });
+    const response = await GET(request("/api/admin/analytics?view=overview"));
+    (mem.db.execute as unknown) = original;
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.ai.featureBreakdown).toEqual([]);
+    expect(body.users).toBeDefined();
+  });
+
+  it("a failing attention-warnings section does not block the overview", async () => {
+    const original = mem.db.execute;
+    (mem.db.execute as unknown as (s: unknown) => Promise<unknown[]>) = async (s: unknown) => {
+      const { query } = parse(s);
+      if (query.includes("lecture WHERE content IS NULL")) throw new Error("warnings down");
+      return original(s);
+    };
+    mocks.session.mockResolvedValue({ user: { id: "admin-1", role: "admin" } });
+    const response = await GET(request("/api/admin/analytics?view=overview"));
+    (mem.db.execute as unknown) = original;
+
+    expect(response.status).toBe(200);
+    expect((await response.json()).warnings).toEqual([]);
+  });
+
+  it("a hung query is cut off by the server timeout and returns 504 instead of hanging", async () => {
+    const original = mem.db.execute;
+    (mem.db.execute as unknown as (s: unknown) => Promise<unknown[]>) = () =>
+      new Promise(() => {}) as Promise<unknown[]>;
+    const prevTimeout = process.env.ADMIN_ANALYTICS_TIMEOUT_MS;
+    process.env.ADMIN_ANALYTICS_TIMEOUT_MS = "50";
+    mocks.session.mockResolvedValue({ user: { id: "admin-1", role: "admin" } });
+
+    let response: Response;
+    try {
+      response = await GET(request("/api/admin/analytics?view=overview"));
+    } finally {
+      (mem.db.execute as unknown) = original;
+      if (prevTimeout === undefined) delete process.env.ADMIN_ANALYTICS_TIMEOUT_MS;
+      else process.env.ADMIN_ANALYTICS_TIMEOUT_MS = prevTimeout;
+    }
+
+    expect(response!.status).toBe(504);
+    expect((await response!.json()).error).toBe("analytics_timeout");
+  });
+
+  it("admin-only authorization remains enforced on every view", async () => {
+    mocks.session.mockResolvedValue({ user: { id: "u1", role: "student" } });
+    for (const view of ["overview", "users", "ai", "system", "practical", "ospe"]) {
+      const res = await GET(request(`/api/admin/analytics?view=${view}`));
+      expect(res.status).toBe(403);
+    }
+  });
+
+  it("detailed users table is paginated and bounded", async () => {
+    mocks.session.mockResolvedValue({ user: { id: "admin-1", role: "admin" } });
+    const res = await GET(request("/api/admin/analytics?view=users&page=1&limit=25"));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.limit).toBe(25);
+    expect(body.page).toBe(1);
+    expect(Array.isArray(body.users)).toBe(true);
+  });
+
+  it("leaks no secrets in a system-health payload", async () => {
+    mocks.session.mockResolvedValue({ user: { id: "admin-1", role: "admin" } });
+    const res = await GET(request("/api/admin/analytics?view=system"));
+    const text = await res.text();
+    expect(text).not.toMatch(/(?:re_|sk-|pk_test_|pk_live_|AIza)[A-Za-z0-9_]{10,}/i);
+  });
+
+  it("overview issues a bounded number of queries (no per-user N+1 explosion)", async () => {
+    const original = mem.db.execute;
+    let count = 0;
+    (mem.db.execute as unknown as (s: unknown) => Promise<unknown[]>) = async (s: unknown) => {
+      count += 1;
+      return original(s);
+    };
+    mocks.session.mockResolvedValue({ user: { id: "admin-1", role: "admin" } });
+    const res = await GET(request("/api/admin/analytics?view=overview"));
+    (mem.db.execute as unknown) = original;
+
+    expect(res.status).toBe(200);
+    // Two bounded aggregate batches. The count is independent of how many users
+    // / lectures / AI requests exist — that is the anti-N+1 guarantee.
+    expect(count).toBeGreaterThan(0);
+    expect(count).toBeLessThanOrEqual(30);
+  });
+
+  it("users view query count does not scale with total user rows", async () => {
+    const original = mem.db.execute;
+    let count = 0;
+    (mem.db.execute as unknown as (s: unknown) => Promise<unknown[]>) = async (s: unknown) => {
+      count += 1;
+      return original(s);
+    };
+    mocks.session.mockResolvedValue({ user: { id: "admin-1", role: "admin" } });
+    const res = await GET(request("/api/admin/analytics?view=users&page=1&limit=25"));
+    (mem.db.execute as unknown) = original;
+
+    expect(res.status).toBe(200);
+    // 2 queries: the paginated page + the count. Not 2 x N.
+    expect(count).toBe(2);
+  });
+});

@@ -6,6 +6,13 @@ export type RangeValue = "today" | "7d" | "30d" | "90d" | "this_term" | "custom"
 
 type Params = Record<string, string | number | undefined | null>;
 
+/**
+ * Client-side safety net. The server already caps each analytics request, but a
+ * dropped connection or a wedged dev server must never leave a tab spinning on
+ * "جاري التحميل..." forever — the loading state always settles.
+ */
+const CLIENT_TIMEOUT_MS = 20000;
+
 function buildQuery(view: string, params: Params, extra?: Params): string {
   const qs = new URLSearchParams();
   qs.set("view", view);
@@ -27,11 +34,13 @@ export function useAdminData<T>(view: string, params: Params = {}, deps: unknown
 
   const load = useCallback(
     (unmounted?: { current: boolean }) => {
-      fetch(buildQuery(view, params))
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), CLIENT_TIMEOUT_MS);
+      fetch(buildQuery(view, params), { signal: controller.signal })
         .then((res) => {
           if (unmounted?.current) return undefined;
           if (!res.ok) {
-            setError(`HTTP ${res.status}`);
+            setError(res.status === 504 ? "timeout" : `HTTP ${res.status}`);
             setData(null);
             return undefined;
           }
@@ -44,12 +53,13 @@ export function useAdminData<T>(view: string, params: Params = {}, deps: unknown
             setError(null);
           }
         })
-        .catch(() => {
+        .catch((e) => {
           if (unmounted?.current) return;
-          setError("network_error");
+          setError(e?.name === "AbortError" ? "timeout" : "network_error");
           setData(null);
         })
         .finally(() => {
+          clearTimeout(timer);
           if (unmounted?.current) return;
           setLoading(false);
         });

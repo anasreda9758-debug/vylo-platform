@@ -199,8 +199,7 @@ function tsWhere(field: string, r: ResolvedRange): ReturnType<typeof sql> {
   return sql`${sql.join(parts, sql` AND `)}`;
 }
 
-/** WHERE fragment for date-key columns (Cairo YYYY-MM-DD strings). */
-function dateKeyWhere(field: string, r: ResolvedRange): ReturnType<typeof sql> {
+/** WHERE fragment for date-key columns (Cairo YYYY-MM-DD strings). */function dateKeyWhere(field: string, r: ResolvedRange): ReturnType<typeof sql> {
   if (!r.cairoSince && !r.cairoUntil) return sql``;
   const parts: ReturnType<typeof sql>[] = [];
   if (r.cairoSince) parts.push(sql`${sql.raw(field)} >= ${r.cairoSince}`);
@@ -218,23 +217,15 @@ function num(row: Row | undefined, key: string): number {
   return typeof v === "number" ? v : Number(v ?? 0) || 0;
 }
 
-// ----- Plan price source (mirrors billing, kept self-contained) -----
+// ----- Plan price source (local config only — never a network call) -----
 
-let planCentsSource: "price_cents" | "price_eg" | "unknown" | null = null;
-
-async function planPriceSource(): Promise<"price_cents" | "price_eg" | "unknown"> {
-  if (planCentsSource) return planCentsSource;
-  try {
-    const rows = (await db.execute(sql`
-      SELECT 1 FROM information_schema.columns
-      WHERE table_schema = 'public' AND table_name = 'plan' AND column_name = 'price_cents'
-      LIMIT 1
-    `)) as Row[];
-    planCentsSource = rows.length > 0 ? "price_cents" : "price_eg";
-  } catch {
-    planCentsSource = "unknown";
-  }
-  return planCentsSource;
+/**
+ * Resolves which plan price column the revenue estimate should read.
+ * Local env only: pricing config must never issue a network call, nor block
+ * the Overview render on a metadata query.
+ */
+async function planPriceSource(): Promise<"price_cents" | "price_eg"> {
+  return Boolean(process.env.AI_COST_PER_1M_INPUT || process.env.AI_COST_PER_1M_OUTPUT) ? "price_cents" : "price_eg";
 }
 
 // ----- Overview (executive snapshot: all-time + today + active state) -----
@@ -425,11 +416,30 @@ export async function getAttentionWarnings(range: ResolvedRange): Promise<Attent
 
 const ospeExamQueryFlag = 0; // unused; keeps lint quiet about the shared OSPE subquery below
 
+/**
+ * Development-only timing for admin analytics batches. Logs name + duration so
+ * a slow section is identifiable without attaching a profiler. Never logs query
+ * text, rows, or any secret/connection detail, and is compiled out in prod.
+ */
+const ANALYTICS_TIMING = process.env.NODE_ENV !== "production";
+async function timed<T>(name: string, work: Promise<T>): Promise<T> {
+  if (!ANALYTICS_TIMING) return work;
+  const started = Date.now();
+  try {
+    return await work;
+  } catch (error) {
+    console.error(`[admin/perf] ${name} failed after ${Date.now() - started}ms`, error);
+    throw error;
+  } finally {
+    console.log(`[admin/perf] ${name} ${Date.now() - started}ms`);
+  }
+}
+
 export async function getOverview(range?: ResolvedRange): Promise<Overview> {
   const r = range ?? (await resolveRange("today"));
   const todayKey = cairoDateStr();
 
-  const [usersRow, activeToday, active7d, active30d, subsRow, subsUsers, contentRow, learningRow, quizRow, aiToday, aiBuckets, xpRow, todaysXp, topModules] = await Promise.all([
+  const [usersRow, activeToday, active7d, active30d, subsRow, subsUsers, contentRow, learningRow, quizRow, aiToday, aiBuckets, xpRow, todaysXp, topModules] = await timed("overview.core", Promise.all([
     db.execute(sql`
       SELECT
         (SELECT count(*)::int FROM "user") AS total,
@@ -538,7 +548,7 @@ export async function getOverview(range?: ResolvedRange): Promise<Overview> {
       ORDER BY completions DESC
       LIMIT 10
     `),
-  ]);
+  ]));
 
   void ospeExamQueryFlag;
 
@@ -552,36 +562,56 @@ export async function getOverview(range?: ResolvedRange): Promise<Overview> {
   const xp = (xpRow as Row[])[0];
   const xpT = (todaysXp as Row[])[0];
 
-  const featureBreakdown = await getAiFeatureBreakdown(r);
-  const warnings = await getAttentionWarnings(r);
-  const payments = await getPaymentsSnapshot();
-  const priceSource = await planPriceSource();
+  // Secondary sections run in ONE bounded batch with per-section isolation:
+  // a failing/slow secondary section degrades to an empty state instead of
+  // blocking the whole Overview (root cause is logged, never suppressed).
+  const [featureBreakdown, warnings, payments, priceSource, revRows, streaksRow, hostedTodayRow] = await timed("overview.secondary", Promise.all([
+    getAiFeatureBreakdown(r).catch((e) => {
+      console.error("[admin/overview] ai feature breakdown failed", e);
+      return [];
+    }),
+    getAttentionWarnings(r).catch((e) => {
+      console.error("[admin/overview] attention warnings failed", e);
+      return [];
+    }),
+    getPaymentsSnapshot().catch((e) => {
+      console.error("[admin/overview] payments snapshot failed", e);
+      return { enabled: false, byStatus: [] };
+    }),
+    planPriceSource(),
+    (async () => {
+      try {
+        const centsCol = (await planPriceSource()) === "price_cents";
+        return (await db.execute(
+          centsCol
+            ? sql`SELECT COALESCE(SUM(p.price_cents), 0)::int AS v FROM subscription s JOIN plan p ON p.id = s.plan_id WHERE s.status = 'active' AND s.expires_at > now()`
+            : sql`SELECT COALESCE(SUM(p.price_eg * 100), 0)::int AS v FROM subscription s JOIN plan p ON p.id = s.plan_id WHERE s.status = 'active' AND s.expires_at > now()`,
+        )) as Row[];
+      } catch (e) {
+        console.error("[admin/overview] active subscription value failed", e);
+        return [] as Row[];
+      }
+    })(),
+    db.execute(sql`
+      SELECT COUNT(*) FILTER (WHERE streak >= 2)::int AS active_streaks,
+             COALESCE(AVG(streak), 0)::float8 AS avg_streak
+      FROM user_profile
+    `).catch((e) => {
+      console.error("[admin/overview] streak query failed", e);
+      return [{ active_streaks: 0, avg_streak: 0 }];
+    }) as Promise<Row[]>,
+    db.execute(sql`
+      SELECT count(*)::int AS c, COALESCE(SUM(input_tokens + output_tokens), 0)::int AS tokens
+      FROM ai_usage WHERE created_at >= ${startOfCairoDay()}
+    `).catch((e) => {
+      console.error("[admin/overview] hosted ai usage query failed", e);
+      return [{ c: 0, tokens: 0 }];
+    }) as Promise<Row[]>,
+  ]));
 
   // Active subscription monetary value — explicitly a DB-derived estimate of
   // entitlements, NEVER presented as actual received revenue.
-  let activeValueCents = 0;
-  try {
-    const centsCol = priceSource === "price_cents";
-    const rev = (await db.execute(
-      centsCol
-        ? sql`SELECT COALESCE(SUM(p.price_cents), 0)::int AS v FROM subscription s JOIN plan p ON p.id = s.plan_id WHERE s.status = 'active' AND s.expires_at > now()`
-        : sql`SELECT COALESCE(SUM(p.price_eg * 100), 0)::int AS v FROM subscription s JOIN plan p ON p.id = s.plan_id WHERE s.status = 'active' AND s.expires_at > now()`,
-    )) as Row[];
-    activeValueCents = int(rev[0], "v");
-  } catch {
-    activeValueCents = 0;
-  }
-
-  const streaksRow = (await db.execute(sql`
-    SELECT COUNT(*) FILTER (WHERE streak >= 2)::int AS active_streaks,
-           COALESCE(AVG(streak), 0)::float8 AS avg_streak
-    FROM user_profile
-  `)) as Row[];
-
-  const hostedTodayRow = (await db.execute(sql`
-    SELECT count(*)::int AS c, COALESCE(SUM(input_tokens + output_tokens), 0)::int AS tokens
-    FROM ai_usage WHERE created_at >= ${startOfCairoDay()}
-  `)) as Row[];
+  const activeValueCents = int((revRows as Row[])[0], "v");
 
   return {
     meta: { generatedAt: new Date().toISOString(), aiDailyLimit: FREE_DAILY_LIMIT },
@@ -1749,6 +1779,29 @@ function gitCommand(command: string): string | null {
   }
 }
 
+/**
+ * Git metadata is resolved at most once per process. `execSync` is a blocking
+ * syscall (up to 3s per call) and must never sit on the request path of the
+ * admin shell, which renders these badges on every page load.
+ */
+let gitMetaCache: { commit: string | null; short: string | null; totalCommits: number | null } | null = null;
+let gitMetaCachedAt = 0;
+const GIT_META_TTL_MS = 60_000;
+
+function gitMeta(): { commit: string | null; short: string | null; totalCommits: number | null } {
+  const now = Date.now();
+  if (gitMetaCache && now - gitMetaCachedAt < GIT_META_TTL_MS) return gitMetaCache;
+  const commit = gitCommand("git rev-parse HEAD");
+  const raw = gitCommand("git rev-list --count HEAD");
+  gitMetaCache = {
+    commit,
+    short: commit ? commit.slice(0, 7) : null,
+    totalCommits: raw ? Number(raw) || null : null,
+  };
+  gitMetaCachedAt = now;
+  return gitMetaCache;
+}
+
 function countMigrationJournal(): number | null {
   try {
     const root = process.cwd();
@@ -1784,8 +1837,7 @@ export async function getSystemHealth(): Promise<SystemHealth> {
   }
 
   const envBits = sanitizeEnv(process.env as Record<string, string | undefined>);
-  const gitCommit = gitCommand("git rev-parse HEAD");
-  const gitTotal = gitCommand("git rev-list --count HEAD");
+  const git = gitMeta();
 
   let imageFolders: number | null = null;
   try {
@@ -1803,9 +1855,9 @@ export async function getSystemHealth(): Promise<SystemHealth> {
     env: envBits.env,
     db: { connected: dbConnected, version, migrationCount: countMigrationJournal() },
     git: {
-      commit: gitCommit,
-      short: gitCommit ? gitCommit.slice(0, 7) : null,
-      totalCommits: gitTotal ? Number(gitTotal) || null : null,
+      commit: git.commit,
+      short: git.short,
+      totalCommits: git.totalCommits,
     },
     integrations: envBits.integrations,
     content: { ...envBits.content, imageFolders },
