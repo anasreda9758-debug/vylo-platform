@@ -3,7 +3,7 @@ import {
   rankConcepts, normaliseForCompare, deduplicate, type Fact, type RichSummary, type ConceptNode,
 } from "./source-analysis";
 import { cleanedSource } from "./source-cleaner";
-import { resolveConversationalFocus, type HistoryMessage } from "./tutor-context";
+import { resolveConversationalFocus, subjectNoun, type HistoryMessage } from "./tutor-context";
 
 type Summary = {
   overview?: string;
@@ -120,7 +120,7 @@ export type FlashcardResult = { cards: SourceCard[]; warning: string | null };
 
 /** Free, source-grounded flashcards with varied, non-repetitive card types. */
 export function createSourceFlashcards(title: string, content: string, summary: Summary): FlashcardResult {
-  const source = cleanedSource(content ?? "");
+  const source = cleanedSource(content ?? "", { title });
   const ar = /[\u0600-\u06FF]/.test(source);
   const facts = extractFacts(source, 40);
   const fromFacts = facts
@@ -156,7 +156,7 @@ export type SourceCase = {
  * specific fact so answers are actually gradeable.
  */
 export function createSourceClinicalCase(title: string, content: string, summary: Summary): SourceCase {
-  const source = cleanedSource(content ?? "");
+  const source = cleanedSource(content ?? "", { title });
   const ar = /[\u0600-\u06FF]/.test(source);
   const facts = extractFacts(source, 24);
   const concepts = rankConcepts(facts).filter((c) => c.detail).slice(0, 4);
@@ -219,7 +219,7 @@ export function createSourceTutorReply(
   question: string,
   context?: { history?: HistoryMessage[] },
 ): string {
-  const source = cleanedSource(content ?? "");
+  const source = cleanedSource(content ?? "", { title });
   const ar = /[\u0600-\u06FF]/.test(question ?? "");
   const facts = extractFacts(source, 40);
 
@@ -231,42 +231,70 @@ export function createSourceTutorReply(
   }
 
   const { intent, focusTerms } = detectIntent(question ?? "");
-  const effectiveTerms = focusTerms.length ? focusTerms : focus ? [focus] : [];
+  // "What is acute pericarditis?" names its term in lower case, so capitalised
+  // detection finds nothing; the noun after the question word is the real term.
+  const namedTerm = focusTerms.length ? null : subjectNoun(question ?? "");
+  // "ما هي أنواع التهاب التامور؟" asks about the condition, not about the word
+  // "types", so the list word is not part of the term.
+  const stripListWord = (t: string): string => {
+    const stripped = t
+      .replace(/^(?:أنواع|انواع|نوع|انواع من)\s+(?:من|of)?\s*/u, "")
+      .replace(/^(?:types?|kinds?|categories|forms?)\s+(?:of)?\s*/i, "")
+      .trim();
+    return stripped.length > 2 ? stripped : t;
+  };
+  const effectiveTerms = (
+    focusTerms.length
+      ? focusTerms
+      : namedTerm
+        ? [namedTerm]
+        : focus
+          ? [focus]
+          : []
+  )
+    .map(stripListWord)
+    .filter(Boolean);
   const focused = factsAbout(facts, effectiveTerms, intent, question ?? "");
 
+  // The tutor panel renders the reply as plain text, so labels must not carry
+  // markdown syntax: a literal "**" is what a student sees.
   const L = ar
     ? {
-        explain: "**الشرح:**",
-        key: "**أهم النقاط:**",
-        terms: "**المصطلحات المهمة:**",
-        q: "**سؤال للمراجعة:**",
+        explain: "الشرح:",
+        key: "أهم النقاط:",
+        terms: "المصطلحات المهمة:",
+        q: "سؤال للمراجعة:",
         none: "هذه المعلومة غير متوفرة في محتوى المحاضرة الحالية.",
         short: "إجابة موجزة",
         summaryTitle: `ملخص "${title}"`,
+        cause: "السبب والنتيجة:",
+        compare: "مقارنات:",
       }
     : {
-        explain: "**Explanation:**",
-        key: "**Key points:**",
-        terms: "**Key terms:**",
-        q: "**Check yourself:**",
+        explain: "Explanation:",
+        key: "Key points:",
+        terms: "Key terms:",
+        q: "Check yourself:",
         none: "This point is not covered in the current lecture material.",
         short: "Short answer",
         summaryTitle: `Summary of “${title}”`,
+        cause: "Cause & effect:",
+        compare: "Comparisons:",
       };
 
   if (intent === "SUMMARY") {
     const rich = summary?.richSummary ?? buildRichSummary(facts, legacy(summary)?.overview ?? "", title);
-    const lines: string[] = [`**${L.summaryTitle}**`, "", rich.overview];
+    const lines: string[] = [L.summaryTitle, "", rich.overview];
     if (rich.keyConcepts.length) {
       lines.push("", L.key);
       for (const c of rich.keyConcepts.slice(0, 6)) lines.push(bullet(`${c.term} — ${c.meaning}`));
     }
     if (rich.causes.length) {
-      lines.push("", ar ? "**السبب والنتيجة:**" : "**Cause & effect:**");
+      lines.push("", L.cause);
       for (const c of rich.causes.slice(0, 4)) lines.push(bullet(ar ? `${c.cause} ← ${c.effect}` : `${c.cause} → ${c.effect}`));
     }
     if (rich.comparisons.length) {
-      lines.push("", ar ? "**مقارنات:**" : "**Comparisons:**");
+      lines.push("", L.compare);
       for (const c of rich.comparisons.slice(0, 3)) lines.push(bullet(ar ? `${c.a} مقابل ${c.b}` : `${c.a} vs ${c.b}`));
     }
     return lines.join("\n");
@@ -276,9 +304,60 @@ export function createSourceTutorReply(
     return L.none;
   }
 
-  // Directly answer from the focused facts, filtered to the asked relation.
-  const wanted = intent === "GENERAL" ? [] : focused.filter((f) => f.kind === intent);
-  const answerPool = (wanted.length ? wanted : focused.length ? focused : facts).slice(0, 4);
+  // A term the student named that this lecture never mentions must be reported
+  // as such. Answering with whatever matched weakly is what made "describe the
+  // pericardium" in a cardiovascular lecture reply about the ventricles.
+  const sourceKey = normaliseForCompare(source);
+  // Matched on the term's own words rather than the whole phrase: a slide writes
+  // "4 chambers: the 2 atria ..." and never the phrase "chambers of the heart"
+  // the student typed.
+  const GRAMMAR_WORDS =
+    /^(?:what|which|where|when|who|why|how|is|are|was|were|the|a|an|of|in|on|for|with|from|to|and|or|do|does|did|that|this|these|those|it|its|about|tell|me|us|you|please|can|could|would|should)$/;
+  const termAppears = (t: string): boolean => {
+    const key = normaliseForCompare(t);
+    if (!key) return false;
+    if (sourceKey.includes(key)) return true;
+    return t
+      .split(/\s+/)
+      .map((w) => normaliseForCompare(w))
+      .some((w) => w.length >= 4 && !GRAMMAR_WORDS.test(w) && sourceKey.includes(w));
+  };
+  const namedOutsideLecture = effectiveTerms.filter((t) => !termAppears(t));
+  if (effectiveTerms.length && namedOutsideLecture.length === effectiveTerms.length) {
+    const covered = rankConcepts(facts)
+      .slice(0, 4)
+      .map((c) => c.label);
+    return [
+      ar
+        ? `المصطلح "${effectiveTerms[0]}" غير مذكور في محاضرة "${title}".`
+        : `"${effectiveTerms[0]}" is not covered in the lecture "${title}".`,
+      "",
+      ar ? `تغطي هذه المحاضرة: ${covered.join("، ")}.` : `This lecture covers: ${covered.join(", ")}.`,
+    ].join("\n");
+  }
+
+  // Answer from the facts that are actually about the asked term, ranked by
+  // relevance. Term relevance comes first and the relation the student asked
+  // about only re-orders that short list: preferring a well-matching fact of
+  // another kind is what made "what is pericarditis" answer with the
+  // pericardium.
+  const topFocused = focused.slice(0, 4);
+  const isAboutTerm = (f: Fact): boolean =>
+    effectiveTerms.some((t) => {
+      const key = normaliseForCompare(t);
+      const subj = normaliseForCompare(f.subject);
+      return !!key && (subj === key || subj.includes(key) || key.includes(subj));
+    });
+  // A fact whose subject *is* the asked term outranks one that merely contains
+  // it ("التامور" must win over "التهاب التامور الحاد").
+  const onTerm = topFocused.filter(isAboutTerm).sort((a, b) => {
+    const exact = (f: Fact): number =>
+      effectiveTerms.some((t) => normaliseForCompare(f.subject) === normaliseForCompare(t)) ? 0 : 1;
+    return exact(a) - exact(b);
+  });
+  const aboutTerm = onTerm.length ? onTerm : topFocused;
+  const wanted = intent === "GENERAL" ? [] : aboutTerm.filter((f) => f.kind === intent);
+  const answerPool = (wanted.length ? wanted : aboutTerm.length ? aboutTerm : facts).slice(0, 4);
 
   const labelFor = (kind: Fact["kind"]): string => {
     if (ar) {
@@ -291,11 +370,15 @@ export function createSourceTutorReply(
   const phrase = (f: Fact): string => {
     if (f.kind === "COMPARISON" && f.counterpart) {
       return ar
-        ? `${f.subject} يختلف عن ${f.counterpart}${f.detail ? `،namely ${f.detail}` : ""}.`
+        ? `${f.subject} يختلف عن ${f.counterpart}${f.detail ? `، ${f.detail}` : ""}.`
         : `${f.subject} differs from ${f.counterpart}${f.detail ? ` — ${f.detail}` : ""}.`;
     }
     const d = f.detail;
     if (!d) return "";
+    // "Chambers is characterised by carry oxygenated blood" is not English: when
+    // the detail is already a predicate, present the pair instead of a template.
+    const startsWithVerb = /^(?:is|are|was|were|has|have|carries|carry|carrying|contains|contain|pumps?|pump|returns?|supplies?|receives?|sends?|forms?|occurs?|causes?|produces?|acts?|serves?|means?|refers?|lies?|extend|surround|surrounds|separates?|flows?|which|that|it|they|he|she|there|these|those)\b/i.test(d);
+    if (startsWithVerb) return ar ? `${f.subject}: ${d}.` : `${f.subject} — ${d}.`;
     switch (f.kind) {
       case "CAUSE":
         return ar ? `${f.subject} يسبب ${d}.` : `${f.subject} causes ${d}.`;
@@ -306,7 +389,7 @@ export function createSourceTutorReply(
       case "PURPOSE":
         return ar ? `${f.subject} يُستخدم في ${d}.` : `${f.subject} is used to ${d}.`;
       case "PROCESS":
-        return ar ? `${f.subject} involves ${d}.` : `${f.subject} involves ${d}.`;
+        return ar ? `آلية ${f.subject} تقوم على ${d}.` : `${f.subject} involves ${d}.`;
       default:
         return ar ? `${f.subject}: ${d}.` : `${f.subject} — ${d}.`;
     }
@@ -316,7 +399,7 @@ export function createSourceTutorReply(
   const focusLabel = effectiveTerms[0];
 
   if (focusLabel) {
-    lines.push(ar ? `**${focusLabel}:**` : `**${focusLabel}**`);
+    lines.push(ar ? `${focusLabel}:` : focusLabel);
     lines.push("");
   }
   lines.push(L.explain);
@@ -328,17 +411,19 @@ export function createSourceTutorReply(
     if (text) lines.push(text);
   }
 
+  // Extra facts are only padding for an open question. When the student asked
+  // about one term, unrelated lecture lines are noise, not help.
   const shown = new Set(answerPool.map((f) => `${f.subject}|${f.detail}`));
   const others = facts
     .filter((f) => f.detail && !shown.has(`${f.subject}|${f.detail}`))
     .slice(0, 3);
-  if (others.length >= 2) {
+  if (!effectiveTerms.length && others.length >= 2) {
     lines.push("", L.key);
     for (const f of others) lines.push(bullet(`${f.subject}: ${f.detail}`));
   }
 
   const termLine = facts.find((f) => f.kind === "DEFINITION" && f.detail && !answerPool.includes(f));
-  if (termLine) {
+  if (termLine && !effectiveTerms.length) {
     lines.push("", L.terms, bullet(`${termLine.subject} = ${termLine.detail}`));
   }
 

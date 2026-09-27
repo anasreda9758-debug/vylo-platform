@@ -38,6 +38,20 @@ describe("isAnaphoric", () => {
     expect(isAnaphoric("اذكر أنواعه؟")).toBe(true);
   });
 
+  it("detects an object pronoun attached to an Arabic verb", () => {
+    // "اوصفه" is a verb plus a pronoun, not a noun stem plus a suffix.
+    expect(isAnaphoric("اوصفه باختصار")).toBe(true);
+    expect(isAnaphoric("اشرحها")).toBe(true);
+    expect(isAnaphoric("وضحهم")).toBe(true);
+  });
+
+  it("does not treat an Arabic copula question as a reference", () => {
+    // The "ه" of "هو" is followed by another letter, so "ما هو" is not a
+    // pronoun reference and must not swallow a self-contained question.
+    expect(isAnaphoric("ما هو التامور؟")).toBe(false);
+    expect(isAnaphoric("ما هي انواع الالتهاب؟")).toBe(false);
+  });
+
   it("leaves self-contained questions untouched", () => {
     expect(isAnaphoric("What is the pericardium?")).toBe(false);
     expect(isAnaphoric("What causes hypertrophy?")).toBe(false);

@@ -66,6 +66,8 @@ export default async function LecturePage({
 
     title: lectureRow.title,
 
+    moduleTitle: lectureRow.module?.name ?? undefined,
+
     content: lectureRow.content ?? null,
 
     summaryJson: lectureRow.summaryJson ?? null,
@@ -332,7 +334,7 @@ export default async function LecturePage({
                     </div>
                   ) : null}
                 </div>
-              ) : lectureRow.summaryJson ? (
+              ) : !aidsDerived && lectureRow.summaryJson ? (
                 <div className="mb-6 rounded-2xl border border-primary/20 bg-primary/5 p-6">
                   <div className="mb-4 flex items-center gap-2">
                     <Lightbulb className="h-5 w-5 text-primary" />

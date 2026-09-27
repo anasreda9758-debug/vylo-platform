@@ -32,6 +32,18 @@ const AR_SUFFIX = /(?:أسباب|اسباب|علاج|وظيفة|وظيفه|دو�
 const AR_COPULA_REF = /^(?:ما هو|ما هي)\s*(هذا|هذه|ده|دي|دا|ذا|ذلك|تلك|هو|هي)\s*[؟?.!]?\s*$/u;
 
 /**
+ * Arabic object pronouns on a verb: "اوصفه" (describe it), "اشرحها" (explain
+ * it).
+ *
+ * The guard is a negative lookahead rather than `\b`: `\b` is defined over
+ * [A-Za-z0-9_], and a space next to an Arabic letter is not a word boundary, so
+ * `\b` would make this rule dead. The lookahead also keeps "ما هو" out, because
+ * the "ه" of "هو" is followed by another letter.
+ */
+const AR_VERB_REF =
+  /^(?:اوصف|أوصف|إوصاف|تصف|اشرح|فسر|وضح|عرف|اذكر|بيّن|بين|ما)\s*(?:ل[يم]?[تك]?)?\s*(?:ه|ها|هم|هن|ذلك|هذه)(?![؀-ۿ])/u;
+
+/**
  * True when the question references a previously-discussed topic instead of
  * naming a term of its own.
  */
@@ -50,6 +62,9 @@ export const isAnaphoric = (question: string): boolean => {
 
   if (EN_REF.test(q)) return true;
 
+  // "اوصفه" / "اشرحها" carry a pronoun on the verb.
+  if (AR_VERB_REF.test(q)) return true;
+
   // Arabic referent, but never when "هو/هي" is a copula after "ما".
   const arMatch = q.match(AR_REF);
   if (arMatch && !/^(?:ما هو|ما هي)(?:\s|$)/.test(q)) return true;
@@ -58,7 +73,7 @@ export const isAnaphoric = (question: string): boolean => {
 };
 
 /** Extracts a concrete subject noun from a prior message, or null. */
-const subjectNoun = (content: string): string | null => {
+export const subjectNoun = (content: string): string | null => {
   const en = content.match(
     /\b(?:what is|what are|what was|define|what causes|cause of|explain)\s+(?:the\s+)?([A-Za-z][A-Za-z0-9'\-]*(?:\s+[A-Za-z][A-Za-z0-9'\-]*){0,4})/i,
   );
@@ -78,11 +93,58 @@ const stripBoldLabel = (raw: string): string =>
   raw.replace(/\*\*/g, "").replace(/[:：].*$/, "").trim();
 
 /**
+ * Section labels a tutor reply can open with. They describe the shape of the
+ * answer, never the concept, so they must not become the follow-up topic.
+ */
+const REPLY_SECTION_LABELS = new Set([
+  "explanation",
+  "key points",
+  "key terms",
+  "check yourself",
+  "cause & effect",
+  "cause and effect",
+  "comparisons",
+  "short answer",
+  "summary",
+  "الشرح",
+  "أهم النقاط",
+  "المصطلحات المهمة",
+  "سؤال للمراجعة",
+  "السبب والنتيجة",
+  "مقارنات",
+  "إجابة موجزة",
+  "ملخص",
+]);
+
+const normaliseLabelKey = (s: string): string => s.replace(/^ال/, "").trim().toLowerCase();
+
+/**
+ * The topic line of a plain-text reply.
+ *
+ * The tutor writes the concept it is answering as its own first line
+ * ("Acute pericarditis:"). Only that line qualifies, and only when it is not a
+ * section label.
+ */
+const topicFromReply = (content: string): string | null => {
+  const first = (content.split("\n").find((l) => l.trim()) ?? "").trim();
+  if (!first || first.length > 70) return null;
+  if (first.includes("\n")) return null;
+  const label = stripBoldLabel(first);
+  if (label.length < 2) return null;
+  if (REPLY_SECTION_LABELS.has(normaliseLabelKey(label))) return null;
+  if (label.split(/\s+/).length > 6) return null;
+  // A full sentence is a fact, not a topic label.
+  if (/[.!?،,;]\s*$/.test(label)) return null;
+  return label;
+};
+
+/**
  * Finds the most recent topic from history.
  *
- * Assistant replies from the source tutor always label the concept they answer
- * with a bold header (e.g. `**Pericardium**`), which is the most reliable
- * signal. Falling back to named terms in earlier user questions.
+ * A tutor reply names the concept it is answering on its first line. Replies
+ * written before the plain-text change used a bold header (`**Pericardium**`),
+ * which is still read so existing chats keep working. Failing both, a named
+ * term from an earlier user question is used.
  */
 export const lastTopicFromHistory = (history: HistoryMessage[]): string | null => {
   const messages = history ?? [];
@@ -91,13 +153,17 @@ export const lastTopicFromHistory = (history: HistoryMessage[]): string | null =
     if (!content.trim()) continue;
     const role = (messages[i]?.role ?? "").toLowerCase();
     if (role === "assistant") {
+      const fromReply = topicFromReply(content);
+      if (fromReply) return fromReply;
       const bolds = content.match(/\*\*([^*]{2,70})\*\*/g) ?? [];
       if (bolds.length) {
         const label = stripBoldLabel(bolds[0] ?? "");
-        if (label.length > 1) return label;
+        if (label.length > 1 && !REPLY_SECTION_LABELS.has(normaliseLabelKey(label))) return label;
       }
     }
-    const terms = extractQuotedOrCapitalised(content);
+    const terms = extractQuotedOrCapitalised(content).filter(
+      (t) => !REPLY_SECTION_LABELS.has(normaliseLabelKey(t)),
+    );
     if (terms.length) return terms[0];
     const noun = subjectNoun(content);
     if (noun) return noun;

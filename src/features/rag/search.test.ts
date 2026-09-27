@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { BM25Index } from "./search";
-import type { Chunk } from "./chunker";
+import { chunkText, type Chunk } from "./chunker";
 
 describe("BM25 Search Index", () => {
   function makeChunks(texts: string[]): Chunk[] {
@@ -91,5 +91,36 @@ describe("BM25 Search Index", () => {
     const index = new BM25Index();
     index.build(chunks);
     expect(index.size).toBe(3);
+  });
+});
+
+describe("chunkText", () => {
+  const text = Array.from(
+    { length: 40 },
+    (_, i) => `Sentence ${i} describes the vascular anatomy of the human heart in detail.`,
+  ).join(" ");
+
+  it("never cuts a word in half at a chunk boundary", () => {
+    const words = new Set(text.split(" ").map((w) => w.replace(/[.,]/g, "").toLowerCase()));
+    for (const chunk of chunkText(text, { chunkSize: 200, overlap: 60 })) {
+      const first = chunk.split(" ")[0].replace(/[.,]/g, "").toLowerCase();
+      const last = chunk.trim().split(" ").pop()!.replace(/[.,]/g, "").toLowerCase();
+      expect(words.has(first)).toBe(true);
+      expect(words.has(last)).toBe(true);
+    }
+  });
+
+  it("keeps every sentence in some chunk and never loops", () => {
+    const chunks = chunkText(text, { chunkSize: 200, overlap: 60 });
+    expect(chunks.length).toBeGreaterThan(0);
+    for (let i = 0; i < 40; i++) {
+      expect(chunks.some((c) => c.includes(`Sentence ${i} `))).toBe(true);
+    }
+  });
+
+  it("handles a tiny overlap without stalling", () => {
+    const chunks = chunkText(text, { chunkSize: 120, overlap: 119 });
+    expect(chunks.length).toBeGreaterThan(1);
+    expect(chunks.join(" ")).toContain("Sentence 39");
   });
 });

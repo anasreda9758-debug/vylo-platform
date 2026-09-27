@@ -1,6 +1,7 @@
 import postgres from "postgres";
 import { chunkText, type Chunk } from "./chunker";
 import { BM25Index } from "./search";
+import { cleanedSource } from "../review/source-cleaner";
 
 let globalIndex: BM25Index | null = null;
 let indexBuiltAt = 0;
@@ -29,7 +30,14 @@ export async function rebuildIndex(): Promise<BM25Index> {
     const [row] = await client`SELECT content FROM lecture WHERE id = ${m.lid}`;
     if (!row?.content) continue;
 
-    const content = (row.content as string).replace(/\x00/g, "").slice(0, 8000);
+    // Index only study content. Raw slide text carries bibliography, department
+    // furniture and learning objectives, and a retrieval hit must never quote
+    // them back to a student.
+    const content = cleanedSource((row.content as string).replace(/\x00/g, "").slice(0, 8000), {
+      title: (m.ltitle as string) ?? "",
+    });
+    if (!content) continue;
+
     const pieces = chunkText(content, { chunkSize: 600, overlap: 100 });
     for (const piece of pieces) {
       allChunks.push({

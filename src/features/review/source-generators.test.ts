@@ -115,10 +115,92 @@ describe("tutor answers the actual question", () => {
     expect(reply).toMatch(/not covered|غير متوفرة/i);
   });
 
+  it("reports a named term that this lecture never mentions, in the asked language", () => {
+    const en = createSourceTutorReply("Cardiovascular", CONTENT, null, "What is the glomerulus?");
+    expect(en).toMatch(/not covered in the lecture/i);
+    expect(en).toMatch(/This lecture covers:/i);
+    const ar = createSourceTutorReply("القلب", CONTENT, null, "ما هو التامور؟");
+    expect(ar).toMatch(/غير مذكور في محاضرة/);
+  });
+
+  it("still answers a term the lecture covers even when the wording differs", () => {
+    const reply = createSourceTutorReply("Cardiovascular", CONTENT, null, "What are the chambers of the heart?");
+    expect(reply).not.toMatch(/not covered/i);
+    expect(reply).toMatch(/chambers/i);
+  });
+
+  it("does not build an ungrammatical sentence from a verb-initial detail", () => {
+    const content = "Chambers of the heart: carry oxygenated blood: Left ventricle (LV).";
+    const reply = createSourceTutorReply("Cardiovascular", content, null, "What are the chambers of the heart?");
+    expect(reply).not.toMatch(/is characterised by (?:carry|holds|contains|receives|pumps)\b/i);
+  });
+
   it("answers an Arabic question in Arabic", () => {
     const reply = createSourceTutorReply("التامور", AR_CONTENT, null, "ما هو التامور؟");
     expect(reply).toMatch(/[\u0600-\u06FF]/);
     expect(reply).toMatch(/ليفي|التامور/);
+  });
+
+  it("never emits markdown syntax, because the tutor panel renders plain text", () => {
+    const questions = [
+      "What is the pericardium?",
+      "What causes reduced cardiac output?",
+      "Summarize this lecture",
+      "What is acute pericarditis?",
+    ];
+    for (const q of questions) {
+      const reply = createSourceTutorReply("Cardiovascular", CONTENT, null, q);
+      expect(reply).not.toMatch(/\*\*/);
+      expect(reply).not.toMatch(/^#+/m);
+    }
+  });
+
+  it("answers about the term the student asked for", () => {
+    // The term is lower case, so capitalised-term detection finds nothing and
+    // the answer must still be about pericarditis, not the pericardium.
+    const reply = createSourceTutorReply("Cardiovascular", CONTENT, null, "What is acute pericarditis?");
+    expect(reply).toMatch(/pericarditis/i);
+    expect(reply).toMatch(/serous|fibrinous|purulent/i);
+  });
+
+  it("does not pad a specific question with unrelated lecture facts", () => {
+    const reply = createSourceTutorReply("Cardiovascular", CONTENT, null, "What is acute pericarditis?");
+    expect(reply).not.toMatch(/hypertrophy|papillary muscle/i);
+  });
+
+  it("keeps a follow-up on the topic the previous answer discussed", () => {
+    const first = createSourceTutorReply("Cardiovascular", CONTENT, null, "What is acute pericarditis?");
+    const followUp = createSourceTutorReply("Cardiovascular", CONTENT, null, "What causes it?", {
+      history: [
+        { role: "user", content: "What is acute pericarditis?" },
+        { role: "assistant", content: first },
+      ],
+    });
+    expect(followUp).toMatch(/pericarditis|pericardium/i);
+    // The reply's own section label is not a topic.
+    expect(followUp).not.toMatch(/^Explanation\s*$/m);
+  });
+
+  it("answers 'اوصفه باختصار' about the topic just discussed", () => {
+    const first = createSourceTutorReply("التامور", AR_CONTENT, null, "ما هو التامور؟");
+    const followUp = createSourceTutorReply("التامور", AR_CONTENT, null, "اوصفه باختصار", {
+      history: [
+        { role: "user", content: "ما هو التامور؟" },
+        { role: "assistant", content: first },
+      ],
+    });
+    expect(followUp).toMatch(/ليفي/);
+    expect(followUp).not.toMatch(/\*\*/);
+  });
+
+  it("answers an Arabic 'what is X' with the Arabic definition", () => {
+    const reply = createSourceTutorReply("التامور", AR_CONTENT, null, "ما هو التامور؟");
+    expect(reply).toMatch(/ليفي/);
+  });
+
+  it("answers an Arabic 'what are the types of X' with the classification", () => {
+    const reply = createSourceTutorReply("التامور", AR_CONTENT, null, "ما هي أنواع التهاب التامور؟");
+    expect(reply).toMatch(/مصلي|تليفي|صديدي/);
   });
 });
 

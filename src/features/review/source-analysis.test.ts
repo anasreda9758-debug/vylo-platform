@@ -72,6 +72,54 @@ describe("sentence splitting", () => {
     const s = splitSentences("القلب يضخ الدم؟ نعم. الرئة تؤكسجين الدم.");
     expect(s.length).toBeGreaterThanOrEqual(2);
   });
+
+  it("does not split a statement at an anatomical abbreviation", () => {
+    const s = splitSentences(
+      "Blood pumped from left side of the heart (Lt. ventricle, aorta, all tissues) to supply all tissues of the body.",
+    );
+    expect(s).toHaveLength(1);
+    expect(s[0]).toContain("all tissues");
+  });
+
+  it("does not split inside an unclosed bracket", () => {
+    const s = splitSentences("The blood returns to the right atrium (veins and Rt. atrium).");
+    expect(s).toHaveLength(1);
+  });
+});
+
+describe("fact extraction from plain statements", () => {
+  it("keeps a statement that matches no relation pattern", () => {
+    const facts = extractFacts(
+      "Oxygenated blood returns to the left atrium through the four pulmonary veins.",
+    );
+    expect(facts.length).toBeGreaterThan(0);
+    expect(facts.some((f) => f.detail.toLowerCase().includes("pulmonary veins"))).toBe(true);
+  });
+
+  it("builds a whole-lecture summary from statement-only text", () => {
+    const raw = [
+      "Oxygenated blood returns to the left atrium through the four pulmonary veins.",
+      "Deoxygenated blood enters the right atrium through the superior vena cava.",
+      "The left ventricle pumps oxygenated blood into the aorta.",
+      "The right ventricle pumps deoxygenated blood into the pulmonary trunk.",
+      "Chambers carry deoxygenated blood.",
+    ].join("\n");
+    const facts = extractFacts(raw);
+    expect(facts.length).toBeGreaterThanOrEqual(4);
+    const summary = buildRichSummary(facts, "", "CVS");
+    expect(summary.keyConcepts.length).toBeGreaterThanOrEqual(3);
+    expect(summary.overview.length).toBeGreaterThan(40);
+  });
+
+  it("never turns a question into a fact", () => {
+    const facts = extractFacts("Regarding the heart, which of the following is correct about valves?");
+    expect(facts).toHaveLength(0);
+  });
+
+  it("never keeps an interrogative word as a concept", () => {
+    const facts = extractFacts("Which of the following is not a component of the cardiovascular system?");
+    expect(facts.filter((f) => /which|following|regarding/i.test(f.subject))).toHaveLength(0);
+  });
 });
 
 describe("fact extraction (English)", () => {
@@ -148,6 +196,58 @@ describe("concepts and summary", () => {
     const s = buildRichSummary([], "", "Empty lecture");
     expect(s.overview).toMatch(/too limited/i);
     expect(s.keyConcepts).toHaveLength(0);
+  });
+});
+
+describe("clause fragments are not concepts", () => {
+  const TABLEISH = `
+    Gram negative bacteria: Composed of peptidoglycan which lies outside the cytoplasmic membrane.
+    determination of: creatinine clearance is the gold standard for renal function.
+    Cytoplasmic membrane: composed of phospholipids and proteins.
+    Peptidoglycan: a polymer of sugars that provides cell wall rigidity.
+    Based on the cell wall: Gram positive and negative bacteria differ in staining.
+    There are two types of bacterial cell wall: thick and thin.
+    The cytoplasmic membrane: controls transport of substances.
+    In the provided test the colour changes from blue to purple.
+  `;
+
+  const facts = extractFacts(TABLEISH);
+  const terms = buildRichSummary(facts, "", "Bacteria").keyConcepts.map((c) => c.term);
+
+  it("keeps real cell structures", () => {
+    expect(terms).toContain("Peptidoglycan");
+    expect(terms).toContain("Cytoplasmic membrane");
+  });
+
+  it("keeps a multi-word subject whole instead of its first word", () => {
+    expect(facts.some((f) => f.subject === "Gram negative bacteria")).toBe(true);
+    expect(terms).not.toContain("Gram");
+    expect(terms).not.toContain("Cytoplasmic");
+  });
+
+  it("drops subjects that are clause fragments", () => {
+    expect(terms).not.toContain("determination of");
+    expect(terms.some((t) => /^(?:Composed|Based on|There are|In the)\b/i.test(t))).toBe(false);
+  });
+});
+
+describe("imperative method steps are not concepts", () => {
+  const PRACTICAL = `
+    Protein estimation: the biuret method measures total protein in a sample.
+    Biuret reagent: an alkaline copper sulphate solution.
+    Principle of the biuret method: based on the binding of copper ions to peptide bonds.
+    Add a few drops of reagent to the test tube.
+    Place the tube in a water bath for five minutes.
+    Urinary protein: detected by the dipstick method.
+  `;
+  const terms = buildRichSummary(extractFacts(PRACTICAL), "", "Practical 2").keyConcepts.map((c) => c.term);
+
+  it("keeps the named principles", () => {
+    expect(terms).toContain("Principle of the biuret method");
+  });
+
+  it("does not promote a lab instruction to a concept", () => {
+    expect(terms.some((t) => /^(?:Add|Place|Use|Mix|Heat|Record)\b/i.test(t))).toBe(false);
   });
 });
 
