@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
+import { VyloLogo, VyloMark } from "@/components/vylo-logo";
 import {
   BookOpen,
   LayoutDashboard,
@@ -60,14 +61,14 @@ export function Navigation({
       <aside className="hidden lg:fixed lg:inset-y-0 lg:start-0 lg:z-50 lg:flex lg:w-72 lg:flex-col">
         <div className="flex grow flex-col gap-y-6 overflow-y-auto border-e border-border bg-card px-6 pb-4 pt-8">
           {/* Logo */}
-          <Link href="/dashboard" className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-              <GraduationCap className="h-5 w-5" />
-            </div>
-            <div>
-              <h1 className="text-lg font-bold">VYLO</h1>
-              <p className="text-xs text-muted-foreground">{t("Medical learning platform", "منصة الطب الذكية")}</p>
-            </div>
+          <Link href="/dashboard" className="flex items-center gap-3 text-foreground">
+            <VyloMark className="h-9 w-9 text-primary" />
+            <span className="text-lg font-bold tracking-tight">
+              VYLO
+              <span className="ms-1.5 align-middle text-[10px] font-medium text-muted-foreground">
+                {t("smart learning", "منصة تعلّم ذكية")}
+              </span>
+            </span>
           </Link>
 
           {/* Nav links */}
@@ -138,7 +139,7 @@ export function Navigation({
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
             <GraduationCap className="h-4 w-4" />
           </div>
-          <span className="font-bold">VYLO</span>
+          <VyloLogo compact className="text-primary" />
         </Link>
         <div className="ms-auto">
           <PreferenceControls compact />
@@ -164,12 +165,14 @@ export function Navigation({
               className="mb-6 flex items-center gap-3"
               onClick={() => setMobileOpen(false)}
             >
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-                <GraduationCap className="h-5 w-5" />
-              </div>
-              <div>
-                <h1 className="text-lg font-bold">VYLO</h1>
-                <p className="text-xs text-muted-foreground">{t("Medical learning platform", "منصة الطب الذكية")}</p>
+              <div className="flex items-center gap-3 text-foreground">
+                <VyloMark className="h-9 w-9 text-primary" />
+                <span className="text-lg font-bold tracking-tight">
+                  VYLO
+                  <span className="ms-1.5 align-middle text-[10px] font-medium text-muted-foreground">
+                    {t("smart learning", "منصة تعلّم ذكية")}
+                  </span>
+                </span>
               </div>
             </Link>
             <div className="mb-4">
