@@ -56,10 +56,10 @@ function PlanBody({ onRetry }: { onRetry: () => void }) {
       })
       .finally(() => clearTimeout(timer));
 
-    return () => {
-      clearTimeout(timer);
-      controller.abort();
-    };
+    // The request is deliberately NOT aborted on unmount. React StrictMode mounts,
+    // unmounts and remounts, and aborting here turned the dev overlay's second
+    // mount into a net::ERR_ABORTED console error. A late resolution on an
+    // unmounted component is harmless in React 19, so the fetch is left to finish.
   }, []);
 
   if (state.status === "loading") {

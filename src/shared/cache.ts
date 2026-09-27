@@ -11,13 +11,20 @@
 import { Redis } from "@upstash/redis";
 
 let redis: Redis | null = null;
+let warnedNoRedis = false;
 
 function getRedis(): Redis | null {
   if (redis) return redis;
   const url = process.env.UPSTASH_REDIS_REST_URL;
   const token = process.env.UPSTASH_REDIS_REST_TOKEN;
   if (!url || !token) {
-    console.warn("[cache] No Redis configured — using in-memory fallback");
+    // Warn once per process. Repeated warnings on every cache read showed up in
+    // the dev overlay as a standing "issue" even though the in-memory fallback
+    // is the intended, working behaviour when Redis is simply not configured.
+    if (!warnedNoRedis) {
+      warnedNoRedis = true;
+      console.info("[cache] No Redis configured — using in-memory fallback (this is expected without REDIS_URL).");
+    }
     return null;
   }
   redis = new Redis({ url, token });
