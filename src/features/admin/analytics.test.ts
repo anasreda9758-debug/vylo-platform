@@ -9,6 +9,8 @@ import {
   gradeSeverity,
   sanitizeEnv,
   parseUserSort,
+  tsParam,
+  toDate,
 } from "@/features/admin/analytics";
 
 vi.mock("@/shared/db", () => ({
@@ -149,5 +151,86 @@ describe("csvFilename", () => {
   it("prefixes with the Cairo date", () => {
     const name = csvFilename("users");
     expect(name).toMatch(/^users-\d{4}-\d{2}-\d{2}\.csv$/);
+  });
+});
+
+/**
+ * Regression cover for the three runtime defects found during end-to-end
+ * verification against the live dev database. Each of these returned HTTP 500
+ * on a real /admin request.
+ */
+describe("tsParam — Date bind parameters (regression)", () => {
+  it("emits a naive `YYYY-MM-DD HH:MM:SS` literal, never a Date object", () => {
+    const out = tsParam(new Date("2026-09-26T21:00:00.000Z"));
+    expect(typeof out).toBe("string");
+    expect(out).toMatch(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/);
+    expect(out).not.toContain("Z");
+    expect(out).not.toContain("+");
+  });
+
+  it("renders Cairo midnight as 00:00:00 on the Cairo calendar day", () => {
+    // startOfCairoDay() yields the instant of Cairo 00:00; tsParam must render
+    // that as Cairo wall-clock midnight, which is what `timestamp without time
+    // zone` columns store.
+    expect(tsParam(startOfCairoDay(new Date("2026-09-26T21:00:00.000Z")))).toBe("2026-09-27 00:00:00");
+  });
+
+  it("does not shift the boundary the way toISOString() would", () => {
+    const d = new Date("2026-09-26T21:00:00.000Z");
+    // toISOString() carries Z, which PostgreSQL re-interprets in the session
+    // timezone — this is precisely the bug tsParam exists to avoid.
+    expect(d.toISOString()).not.toBe(tsParam(d));
+  });
+});
+
+describe("toDate — DB timestamp coercion (regression)", () => {
+  it("accepts a Date unchanged", () => {
+    const d = new Date("2026-01-02T03:04:05.000Z");
+    expect(toDate(d)?.toISOString()).toBe(d.toISOString());
+  });
+
+  it("parses the naive strings drizzle actually returns for timestamp columns", () => {
+    // Drizzle returns `timestamp without time zone` as e.g. '2027-07-01 00:00:00'.
+    // This is the exact shape that made range=this_term throw
+    // `period.endsAt.getTime is not a function`.
+    const parsed = toDate("2027-07-01 00:00:00");
+    expect(parsed).toBeInstanceOf(Date);
+    expect(parsed?.getTime()).toBe(startOfCairoDay(new Date("2027-06-30T21:00:00.000Z")).getTime());
+  });
+
+  it("respects an explicit offset when present", () => {
+    expect(toDate("2026-09-26T21:00:00.000Z")?.toISOString()).toBe("2026-09-26T21:00:00.000Z");
+  });
+
+  it("returns null for null/undefined/garbage instead of throwing", () => {
+    expect(toDate(null)).toBeNull();
+    expect(toDate(undefined)).toBeNull();
+    expect(toDate("")).toBeNull();
+    expect(toDate("   ")).toBeNull();
+    expect(toDate({})).toBeNull();
+  });
+
+  it("keeps a millisecond-precision naive timestamp usable", () => {
+    expect(toDate("2026-09-14 16:07:44.757")?.getMilliseconds()).toBe(757);
+  });
+});
+
+describe("resolveRange this_term does not throw on driver-shaped rows (regression)", () => {
+  it("resolves an active period whose bounds arrive as naive strings", async () => {
+    const r = await resolveRange("this_term", {
+      activePeriod: { startsAt: new Date("2026-08-31T21:00:00.000Z"), endsAt: new Date("2027-02-28T21:59:59.999Z") },
+    });
+    expect(r.key).toBe("this_term");
+    expect(r.since).toBeInstanceOf(Date);
+    expect(r.until).toBeInstanceOf(Date);
+    expect(cairoDateStr(r.since as Date)).toBe("2026-09-01");
+  });
+
+  it("tolerates a null ends_at", async () => {
+    const r = await resolveRange("this_term", {
+      activePeriod: { startsAt: new Date("2026-08-31T21:00:00.000Z"), endsAt: null },
+    });
+    expect(r.since).toBeInstanceOf(Date);
+    expect(r.until).toBeNull();
   });
 });

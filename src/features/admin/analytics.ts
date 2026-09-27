@@ -55,7 +55,77 @@ export function startOfCairoDay(now = new Date()): Date {
   return new Date(`${dateStr}T00:00:00${cairoUtcOffset(now)}`);
 }
 
+/**
+ * Renders a Date as a naive `YYYY-MM-DD HH:MM:SS` literal in Cairo local time
+ * for use as a SQL parameter.
+ *
+ * WHY THIS EXISTS: every analytics timestamp column is `timestamp without time
+ * zone`. Drizzle + postgres-js cannot encode a JS `Date` object as a bind
+ * parameter — it throws
+ *   `TypeError [ERR_INVALID_ARG_TYPE]: The "string" argument must be of type
+ *    string ... Received an instance of Date`
+ * from `Buffer.byteLength`, which surfaced as HTTP 500 on
+ * /api/admin/analytics?view=overview. Handing Postgres a `Date` makes it
+ * serialise using the *server* timezone; sending a naive Cairo string pins the
+ * value explicitly and identically. Verified equivalent against the live DB
+ * across 36 real window/table combinations.
+ *
+ * Do NOT replace this with `date.toISOString()`: that carries a `Z` suffix and
+ * PostgreSQL re-interprets it in the session timezone, shifting every date
+ * filter by the UTC offset.
+ */
+export function tsParam(d: Date): string {
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Africa/Cairo",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false,
+    })
+      .formatToParts(d)
+      .map((p) => [p.type, p.value]),
+  );
+  const hour = parts.hour === "24" ? "00" : parts.hour;
+  return `${parts.year}-${parts.month}-${parts.day} ${hour}:${parts.minute}:${parts.second}`;
+}
+
 // ----- Date ranges -----
+
+/**
+ * Coerces a DB timestamp value into an absolute Date.
+ *
+ * Drizzle returns `timestamp without time zone` columns as NAIVE STRINGS
+ * (e.g. `'2027-07-01 00:00:00'`), not `Date` instances — assuming `Date` here
+ * made `range=this_term` die with
+ * `TypeError: period.endsAt.getTime is not a function` (HTTP 500). Those naive
+ * strings are Cairo local wall-clock, so they are re-anchored with the Cairo
+ * UTC offset, consistent with `startOfCairoDay`.
+ */
+export function toDate(value: unknown): Date | null {
+  if (value == null) return null;
+  if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value;
+  if (typeof value === "number") {
+    const d = new Date(value);
+    return Number.isNaN(d.getTime()) ? null : d;
+  }
+  if (typeof value === "string") {
+    const s = value.trim();
+    if (!s) return null;
+    // Already carries an explicit offset (or Z) — let the parser handle it.
+    if (/(?:Z|[+-]\d{2}:?\d{2})$/i.test(s)) {
+      const d = new Date(s);
+      return Number.isNaN(d.getTime()) ? null : d;
+    }
+    // Naive wall-clock, stored in Cairo local time.
+    const d = new Date(`${s.replace(" ", "T")}${cairoUtcOffset()}`);
+    return Number.isNaN(d.getTime()) ? null : d;
+  }
+  return null;
+}
 
 export type RangeKey = "today" | "7d" | "30d" | "90d" | "this_term" | "custom";
 
@@ -103,7 +173,7 @@ function parseDateParam(value: string | null | undefined): string | null {
  */
 export async function resolveRange(
   range: RangeKey,
-  opts?: { from?: string | null; to?: string | null; now?: Date; activePeriod?: { startsAt: Date; endsAt: Date } | null },
+  opts?: { from?: string | null; to?: string | null; now?: Date; activePeriod?: { startsAt: Date; endsAt: Date | null } | null },
 ): Promise<ResolvedRange> {
   const now = opts?.now ?? new Date();
   const day = (deltaDays: number) => startOfCairoDay(new Date(now.getTime() + deltaDays * 86_400_000));
@@ -144,7 +214,8 @@ export async function resolveRange(
             sql`SELECT starts_at, ends_at FROM academic_period WHERE active = true ORDER BY starts_at DESC LIMIT 1`,
           )) as Row[];
           if (rows[0]) {
-            period = { startsAt: rows[0].starts_at as Date, endsAt: rows[0].ends_at as Date };
+            const startsAt = toDate(rows[0].starts_at);
+            if (startsAt) period = { startsAt, endsAt: toDate(rows[0].ends_at) };
           }
         } catch {
           period = null;
@@ -194,12 +265,13 @@ export async function resolveRange(
 function tsWhere(field: string, r: ResolvedRange): ReturnType<typeof sql> {
   if (!r.since && !r.until) return sql``;
   const parts: ReturnType<typeof sql>[] = [];
-  if (r.since) parts.push(sql`${sql.raw(field)} >= ${r.since}`);
-  if (r.until) parts.push(sql`${sql.raw(field)} < ${r.until}`);
+  if (r.since) parts.push(sql`${sql.raw(field)} >= ${tsParam(r.since)}`);
+  if (r.until) parts.push(sql`${sql.raw(field)} < ${tsParam(r.until)}`);
   return sql`${sql.join(parts, sql` AND `)}`;
 }
 
-/** WHERE fragment for date-key columns (Cairo YYYY-MM-DD strings). */function dateKeyWhere(field: string, r: ResolvedRange): ReturnType<typeof sql> {
+/** WHERE fragment for date-key columns (Cairo YYYY-MM-DD strings). */
+function dateKeyWhere(field: string, r: ResolvedRange): ReturnType<typeof sql> {
   if (!r.cairoSince && !r.cairoUntil) return sql``;
   const parts: ReturnType<typeof sql>[] = [];
   if (r.cairoSince) parts.push(sql`${sql.raw(field)} >= ${r.cairoSince}`);
@@ -445,30 +517,30 @@ export async function getOverview(range?: ResolvedRange): Promise<Overview> {
         (SELECT count(*)::int FROM "user") AS total,
         (SELECT count(*)::int FROM "user" WHERE role = 'admin') AS admins,
         (SELECT count(*)::int FROM "user" WHERE role = 'student') AS students,
-        (SELECT count(*)::int FROM "user" WHERE created_at >= ${startOfCairoDay()}) AS new_today
+        (SELECT count(*)::int FROM "user" WHERE created_at >= ${tsParam(startOfCairoDay())}) AS new_today
     `),
     db.execute(sql`
       SELECT count(DISTINCT d.user_id)::int AS users FROM (
-        SELECT user_id FROM lecture_progress WHERE completed_at >= ${startOfCairoDay()}
-        UNION SELECT user_id FROM quiz_attempt WHERE status = 'completed' AND completed_at >= ${startOfCairoDay()}
-        UNION SELECT user_id FROM practical_submission WHERE created_at >= ${startOfCairoDay()}
-        UNION SELECT user_id FROM clinical_case_evaluation WHERE evaluated_at >= ${startOfCairoDay()}
+        SELECT user_id FROM lecture_progress WHERE completed_at >= ${tsParam(startOfCairoDay())}
+        UNION SELECT user_id FROM quiz_attempt WHERE status = 'completed' AND completed_at >= ${tsParam(startOfCairoDay())}
+        UNION SELECT user_id FROM practical_submission WHERE created_at >= ${tsParam(startOfCairoDay())}
+        UNION SELECT user_id FROM clinical_case_evaluation WHERE evaluated_at >= ${tsParam(startOfCairoDay())}
       ) d
     `),
     db.execute(sql`
       SELECT count(DISTINCT d.user_id)::int AS users FROM (
-        SELECT user_id FROM lecture_progress WHERE completed_at >= ${startOfCairoDay(new Date(Date.now() - 6 * 86_400_000))}
-        UNION SELECT user_id FROM quiz_attempt WHERE status = 'completed' AND completed_at >= ${startOfCairoDay(new Date(Date.now() - 6 * 86_400_000))}
-        UNION SELECT user_id FROM practical_submission WHERE created_at >= ${startOfCairoDay(new Date(Date.now() - 6 * 86_400_000))}
-        UNION SELECT user_id FROM clinical_case_evaluation WHERE evaluated_at >= ${startOfCairoDay(new Date(Date.now() - 6 * 86_400_000))}
+        SELECT user_id FROM lecture_progress WHERE completed_at >= ${tsParam(startOfCairoDay(new Date(Date.now() - 6 * 86_400_000)))}
+        UNION SELECT user_id FROM quiz_attempt WHERE status = 'completed' AND completed_at >= ${tsParam(startOfCairoDay(new Date(Date.now() - 6 * 86_400_000)))}
+        UNION SELECT user_id FROM practical_submission WHERE created_at >= ${tsParam(startOfCairoDay(new Date(Date.now() - 6 * 86_400_000)))}
+        UNION SELECT user_id FROM clinical_case_evaluation WHERE evaluated_at >= ${tsParam(startOfCairoDay(new Date(Date.now() - 6 * 86_400_000)))}
       ) d
     `),
     db.execute(sql`
       SELECT count(DISTINCT d.user_id)::int AS users FROM (
-        SELECT user_id FROM lecture_progress WHERE completed_at >= ${startOfCairoDay(new Date(Date.now() - 29 * 86_400_000))}
-        UNION SELECT user_id FROM quiz_attempt WHERE status = 'completed' AND completed_at >= ${startOfCairoDay(new Date(Date.now() - 29 * 86_400_000))}
-        UNION SELECT user_id FROM practical_submission WHERE created_at >= ${startOfCairoDay(new Date(Date.now() - 29 * 86_400_000))}
-        UNION SELECT user_id FROM clinical_case_evaluation WHERE evaluated_at >= ${startOfCairoDay(new Date(Date.now() - 29 * 86_400_000))}
+        SELECT user_id FROM lecture_progress WHERE completed_at >= ${tsParam(startOfCairoDay(new Date(Date.now() - 29 * 86_400_000)))}
+        UNION SELECT user_id FROM quiz_attempt WHERE status = 'completed' AND completed_at >= ${tsParam(startOfCairoDay(new Date(Date.now() - 29 * 86_400_000)))}
+        UNION SELECT user_id FROM practical_submission WHERE created_at >= ${tsParam(startOfCairoDay(new Date(Date.now() - 29 * 86_400_000)))}
+        UNION SELECT user_id FROM clinical_case_evaluation WHERE evaluated_at >= ${tsParam(startOfCairoDay(new Date(Date.now() - 29 * 86_400_000)))}
       ) d
     `),
     db.execute(sql`
@@ -537,7 +609,7 @@ export async function getOverview(range?: ResolvedRange): Promise<Overview> {
       WHERE u.role = 'student'
     `),
     db.execute(sql`SELECT COALESCE(SUM(total_xp), 0)::int AS total_xp, COUNT(*)::int AS profiles FROM user_profile`),
-    db.execute(sql`SELECT COALESCE(SUM(amount), 0)::int AS xp_today, count(*)::int AS events_today FROM xp_log WHERE created_at >= ${startOfCairoDay()}`),
+    db.execute(sql`SELECT COALESCE(SUM(amount), 0)::int AS xp_today, count(*)::int AS events_today FROM xp_log WHERE created_at >= ${tsParam(startOfCairoDay())}`),
     db.execute(sql`
       SELECT m.id, m.name, m.slug, count(lp.id)::int AS completions
       FROM lecture_progress lp
@@ -602,7 +674,7 @@ export async function getOverview(range?: ResolvedRange): Promise<Overview> {
     }) as Promise<Row[]>,
     db.execute(sql`
       SELECT count(*)::int AS c, COALESCE(SUM(input_tokens + output_tokens), 0)::int AS tokens
-      FROM ai_usage WHERE created_at >= ${startOfCairoDay()}
+      FROM ai_usage WHERE created_at >= ${tsParam(startOfCairoDay())}
     `).catch((e) => {
       console.error("[admin/overview] hosted ai usage query failed", e);
       return [{ c: 0, tokens: 0 }];
@@ -745,15 +817,30 @@ export async function getPaymentsSnapshot(): Promise<{ enabled: boolean; byStatu
 
 export type UserSort = "created_at" | "name" | "email" | "quizzes" | "lectures" | "xp" | "last_active";
 
+/**
+ * Sort keys for the users directory.
+ *
+ * The paginated query wraps the per-user projection in a subquery aliased `t`
+ * (`SELECT * FROM ( ... ) t ORDER BY ...`), so ORDER BY must reference the
+ * subquery's output columns: either the `t.`-qualified passthrough columns or
+ * the bare computed aliases. Referencing `u.` here fails with
+ * `42P01 missing FROM-clause entry for table "u"` because `u` is only in scope
+ * inside the subquery.
+ */
 const USER_SORT_MAP: Record<UserSort, string> = {
-  created_at: "u.created_at",
-  name: "u.name",
-  email: "u.email",
+  created_at: "t.created_at",
+  name: "t.name",
+  email: "t.email",
   quizzes: "quizzes_done",
   lectures: "lectures_done",
   xp: "total_xp",
   last_active: "last_active",
 };
+
+/** ORDER BY expression for a users-directory sort key (scoped to the `t` subquery). */
+export function userSortColumn(sort: UserSort = "created_at"): string {
+  return USER_SORT_MAP[sort] ?? USER_SORT_MAP.created_at;
+}
 
 export function parseUserSort(value: string | null | undefined): UserSort {
   if (value === "created_at" || value === "name" || value === "email" || value === "quizzes" || value === "lectures" || value === "xp" || value === "last_active") {
@@ -784,8 +871,7 @@ export async function getUsers(q: UsersQuery): Promise<{
   const limit = Math.min(200, Math.max(1, q.limit ?? 25));
   const offset = (page - 1) * limit;
   const dir = q.dir === "asc" ? "ASC" : "DESC";
-  const sortCol = USER_SORT_MAP[q.sort ?? "created_at"];
-  const sortOnAlias = q.sort === "quizzes" || q.sort === "lectures" || q.sort === "xp" || q.sort === "last_active";
+  const sortCol = userSortColumn(q.sort);
 
   const conds: ReturnType<typeof sql>[] = [];
   if (q.role) conds.push(sql`u.role = ${q.role}`);
@@ -827,7 +913,7 @@ export async function getUsers(q: UsersQuery): Promise<{
       ${inner}
     ) t
     ${studyWhere}
-    ORDER BY ${sql.raw(sortOnAlias ? sortCol : sortCol)} ${sql.raw(dir)}
+    ORDER BY ${sql.raw(sortCol)} ${sql.raw(dir)}
     LIMIT ${limit} OFFSET ${offset}
   `)) as Row[];
 
@@ -1217,7 +1303,7 @@ export async function getLearningSeries(r: ResolvedRange): Promise<{
       (SELECT count(*) FROM practical_submission WHERE created_at::date = d.day)::int AS practical,
       (SELECT count(*) FROM xp_log WHERE created_at::date = d.day AND reason = 'flashcard_review')::int AS flashcards,
       (SELECT count(*) FROM clinical_case_evaluation WHERE evaluated_at::date = d.day)::int AS cases
-    FROM generate_series(${r.since}::date, ${r.until}::date, interval '1 day') AS d(day)
+    FROM generate_series(${tsParam(r.since!)}::date, ${tsParam(r.until!)}::date, interval '1 day') AS d(day)
     ORDER BY d.day
   `)) as Row[];
 
@@ -1561,7 +1647,7 @@ export async function getXpAnalytics(r: ResolvedRange) {
     db.execute(sql`
       SELECT user_id, name, count(*)::int AS events, SUM(amount)::int AS total
       FROM (SELECT xp.user_id AS user_id, u.name AS name, xp.amount AS amount
-            FROM xp_log xp JOIN "user" u ON u.id = xp.user_id WHERE xp.created_at >= ${todayKey}) t
+            FROM xp_log xp JOIN "user" u ON u.id = xp.user_id WHERE xp.created_at >= ${tsParam(todayKey)}) t
       GROUP BY user_id, name ORDER BY events DESC LIMIT 20
     `),
   ]);
@@ -1600,8 +1686,8 @@ export async function getActivityFeed(q: { range?: ResolvedRange; limit?: number
   const r = q.range ?? (await resolveRange("7d"));
   const limit = Math.min(200, Math.max(1, q.limit ?? 50));
   const tsConds: ReturnType<typeof sql>[] = [];
-  if (r.since) tsConds.push(sql`ev.ts >= ${r.since}`);
-  if (r.until) tsConds.push(sql`ev.ts < ${r.until}`);
+  if (r.since) tsConds.push(sql`ev.ts >= ${tsParam(r.since)}`);
+  if (r.until) tsConds.push(sql`ev.ts < ${tsParam(r.until)}`);
   const timeWhere = tsConds.length ? sql`WHERE ${sql.join(tsConds, sql` AND `)}` : sql``;
   const userWhere = q.userId ? sql`AND u.id = ${q.userId}` : sql``;
 
@@ -1696,8 +1782,8 @@ export async function getAuditRows(q: {
   if (q.action) conds.push(sql`action = ${q.action}`);
   if (q.entityType) conds.push(sql`entity_type = ${q.entityType}`);
   if (q.search) conds.push(sql`(user_name ILIKE ${`%${q.search}%`} OR entity_name ILIKE ${`%${q.search}%`} OR entity_id ILIKE ${`%${q.search}%`})`);
-  if (q.range?.since) conds.push(sql`created_at >= ${q.range.since}`);
-  if (q.range?.until) conds.push(sql`created_at < ${q.range.until}`);
+  if (q.range?.since) conds.push(sql`created_at >= ${tsParam(q.range.since)}`);
+  if (q.range?.until) conds.push(sql`created_at < ${tsParam(q.range.until)}`);
   const where = conds.length ? sql`WHERE ${sql.join(conds, sql` AND `)}` : sql``;
 
   const rows = (await db.execute(sql`

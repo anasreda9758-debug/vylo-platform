@@ -47,6 +47,7 @@ vi.mock("@/shared/db", () => ({ db: mem.db }));
 vi.mock("@/shared/session", () => ({ getSession: mocks.session }));
 
 import { GET } from "./route";
+import { userSortColumn } from "@/features/admin/analytics";
 
 function request(url: string) {
   return new NextRequest(`http://localhost${url}`);
@@ -258,5 +259,71 @@ describe("admin overview: no infinite loading", () => {
     expect(res.status).toBe(200);
     // 2 queries: the paginated page + the count. Not 2 x N.
     expect(count).toBe(2);
+  });
+
+  it("users view does not reference the inner `u` alias in the outer ORDER BY (42P01 regression)", async () => {
+    // The paginated users query wraps its projection in a subquery aliased `t`,
+    // so ORDER BY must use `t.*` or a bare computed alias — never `u.*`.
+    // Default sort is created_at, which used to emit `ORDER BY u.created_at`
+    // and fail with `42P01 missing FROM-clause entry for table "u"`.
+    expect(userSortColumn("created_at")).toBe("t.created_at");
+    expect(userSortColumn("name")).toBe("t.name");
+    expect(userSortColumn("email")).toBe("t.email");
+    for (const sort of ["created_at", "name", "email", "quizzes", "lectures", "xp", "last_active"] as const) {
+      expect(userSortColumn(sort), `sort=${sort}`).not.toMatch(/^u\./);
+    }
+    expect(userSortColumn("quizzes")).toBe("quizzes_done");
+    expect(userSortColumn("xp")).toBe("total_xp");
+
+    mocks.session.mockResolvedValue({ user: { id: "admin-1", role: "admin" } });
+    const res = await GET(request("/api/admin/analytics?view=users"));
+    expect(res.status).toBe(200);
+  });
+
+  it("every user sort key resolves without a scoping error", async () => {
+    mocks.session.mockResolvedValue({ user: { id: "admin-1", role: "admin" } });
+    for (const sort of ["created_at", "name", "email", "quizzes", "lectures", "xp", "last_active"]) {
+      const res = await GET(request(`/api/admin/analytics?view=users&sort=${sort}`));
+      expect(res.status, `sort=${sort}`).toBe(200);
+    }
+  });
+
+  it("range=this_term resolves even when the driver returns naive timestamp strings", async () => {
+    mocks.session.mockResolvedValue({ user: { id: "admin-1", role: "admin" } });
+    const original = mem.db.execute;
+    (mem.db.execute as unknown as (s: unknown) => Promise<unknown[]>) = async (s: unknown) => {
+      const { query } = parse(s);
+      // Exactly the shape drizzle returns for `timestamp without time zone`.
+      if (query.includes("academic_period")) {
+        return [{ starts_at: "2027-07-01 00:00:00", ends_at: "2027-09-15 23:59:59.999" }];
+      }
+      return original(s);
+    };
+    const res = await GET(request("/api/admin/analytics?view=overview&range=this_term"));
+    (mem.db.execute as unknown) = original;
+
+    expect(res.status).toBe(200);
+    expect((await res.json()).users).toBeDefined();
+  });
+
+  it("a failing range resolution still yields a populated overview body", async () => {
+    const original = mem.db.execute;
+    (mem.db.execute as unknown as (s: unknown) => Promise<unknown[]>) = async (s: unknown) => {
+      const { query } = parse(s);
+      if (query.includes("academic_period")) throw new Error("period lookup exploded");
+      return original(s);
+    };
+    mocks.session.mockResolvedValue({ user: { id: "admin-1", role: "admin" } });
+    const res = await GET(request("/api/admin/analytics?view=overview&range=this_term"));
+    (mem.db.execute as unknown) = original;
+
+    // Must degrade to the "no active period" range and still return real data,
+    // never an empty-bodied 500 from an unhandled rejection.
+    expect(res.status).toBe(200);
+    const text = await res.text();
+    expect(text.length).toBeGreaterThan(0);
+    const body = JSON.parse(text);
+    expect(body.users).toBeDefined();
+    expect(body.warnings).toBeDefined();
   });
 });

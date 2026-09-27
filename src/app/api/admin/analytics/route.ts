@@ -110,15 +110,22 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "invalid role" }, { status: 400 });
   }
 
-  const range = await withTimeout(
-    resolveRange(rangeKey as RangeKey, {
-      from: rangeKey === "custom" ? from : null,
-      to: rangeKey === "custom" ? to : null,
-    }),
-    "resolveRange",
-  );
+  // `range` is declared up-front so the catch block can always reference it for
+  // diagnostics, but resolution itself happens INSIDE the try so that a failure
+  // (e.g. a bad custom range) returns a structured JSON error rather than an
+  // empty-bodied 500 from an unhandled rejection.
+  let range: Awaited<ReturnType<typeof resolveRange>> | null = null;
 
   try {
+    range = await withTimeout(
+      resolveRange(rangeKey as RangeKey, {
+        from: rangeKey === "custom" ? from : null,
+        to: rangeKey === "custom" ? to : null,
+      }),
+      "resolveRange",
+    );
+    const r = range;
+
     return await withTimeout(
       (async () => {
     switch (view) {
@@ -128,7 +135,7 @@ export async function GET(request: NextRequest) {
       }
       case "warnings": {
         const warnings = await getAttentionWarnings(range);
-        return NextResponse.json({ warnings: warnings as AttentionWarning[], range: range.label });
+        return NextResponse.json({ warnings: warnings as AttentionWarning[], range: r.label });
       }
       case "users": {
         const data = await getUsers({
@@ -230,39 +237,39 @@ export async function GET(request: NextRequest) {
       }
       case "learning": {
         const series = await getLearningSeries(range);
-        return NextResponse.json({ ...series, range: range.label });
+        return NextResponse.json({ ...series, range: r.label });
       }
       case "quiz": {
         const data = await getQuizAnalytics(range);
-        return NextResponse.json({ ...data, range: range.label });
+        return NextResponse.json({ ...data, range: r.label });
       }
       case "practical": {
         const data = await getPracticalAnalytics(range);
-        return NextResponse.json({ ...data, range: range.label });
+        return NextResponse.json({ ...data, range: r.label });
       }
       case "ospe": {
         const data = await getOspeAnalytics(range);
-        return NextResponse.json({ ...data, range: range.label });
+        return NextResponse.json({ ...data, range: r.label });
       }
       case "review": {
         const data = await getReviewAnalytics(range);
-        return NextResponse.json({ ...data, range: range.label });
+        return NextResponse.json({ ...data, range: r.label });
       }
       case "ai": {
         const data = await getAiAnalytics(range);
-        return NextResponse.json({ ...data, range: range.label });
+        return NextResponse.json({ ...data, range: r.label });
       }
       case "xp": {
         const data = await getXpAnalytics(range);
-        return NextResponse.json({ ...data, range: range.label });
+        return NextResponse.json({ ...data, range: r.label });
       }
       case "activity": {
         const data = await getActivityFeed({ range, limit });
-        return NextResponse.json({ ...data, range: range.label });
+        return NextResponse.json({ ...data, range: r.label });
       }
       case "payments": {
         const data = await getPaymentsAdmin(range);
-        return NextResponse.json({ ...data, range: range.label });
+        return NextResponse.json({ ...data, range: r.label });
       }
       case "audit": {
         const [rows, summary, activityRange] = await Promise.all([
@@ -289,7 +296,7 @@ export async function GET(request: NextRequest) {
             csvFilename("audit"),
           );
         }
-        return NextResponse.json({ ...rows, summary, recent: activityRange.events, range: range.label });
+        return NextResponse.json({ ...rows, summary, recent: activityRange.events, range: r.label });
       }
       case "system": {
         const data = await getSystemHealth();
@@ -308,7 +315,7 @@ export async function GET(request: NextRequest) {
       {
         error: timedOut ? "analytics_timeout" : "analytics_failed",
         view,
-        range: range.label,
+        range: range?.label ?? null,
         ...(timedOut ? { message: `تجاوز الاستعلام الحد الأقصى للزمن (${requestTimeoutMs()}ms)` } : {}),
       },
       { status: timedOut ? 504 : 500 },
