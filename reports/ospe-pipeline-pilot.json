@@ -1,0 +1,176 @@
+{
+  "generatedAt": "2026-09-27T00:26:31.577Z",
+  "pipeline": "source-grounded practical ospe pipeline",
+  "summary": {
+    "totalDiscovered": 21,
+    "requested": 7,
+    "delivered": 7
+  },
+  "questions": [
+    {
+      "kind": "IMAGE_IDENTIFY_STRUCTURE",
+      "prompt": "Identify structure number 2.",
+      "answer": "Psoas major",
+      "options": [
+        "Psoas major"
+      ],
+      "traceability": {
+        "sourcePdf": "OSPE RENAL.pdf",
+        "sourcePage": 0,
+        "sourceQuestionNumber": null
+      },
+      "needsReview": false,
+      "reviewReasons": []
+    },
+    {
+      "kind": "IMAGE_IDENTIFY_STRUCTURE",
+      "prompt": "Identify structure number 3.",
+      "answer": "Quadratus lumborum",
+      "options": [
+        "Quadratus lumborum"
+      ],
+      "traceability": {
+        "sourcePdf": "OSPE RENAL.pdf",
+        "sourcePage": 0,
+        "sourceQuestionNumber": null
+      },
+      "needsReview": false,
+      "reviewReasons": []
+    },
+    {
+      "kind": "IMAGE_RELATED_STRUCTURE",
+      "prompt": "Identify the structure related to this area.",
+      "answer": "Left suprarenal gland",
+      "options": [
+        "Left suprarenal gland",
+        "Stomach",
+        "Spleen"
+      ],
+      "traceability": {
+        "sourceQuestionNumber": null
+      },
+      "needsReview": false,
+      "reviewReasons": []
+    },
+    {
+      "kind": "IMAGE_IDENTIFY_STRUCTURE",
+      "prompt": "Identify the labeled structure.",
+      "answer": "Thymus gland",
+      "options": [
+        "Thymus gland",
+        "Palatine tonsil.",
+        "Pharyngeal tonsil",
+        "Lingual tonsil",
+        "Palatine tonsil",
+        "Spleen"
+      ],
+      "traceability": {
+        "sourcePdf": "OSPE IBL.pdf",
+        "sourcePage": 0,
+        "sourceQuestionNumber": null
+      },
+      "needsReview": false,
+      "reviewReasons": []
+    },
+    {
+      "kind": "IMAGE_DIAGNOSIS",
+      "prompt": "Identify the diagnosis shown.",
+      "answer": "",
+      "options": [
+        ""
+      ],
+      "traceability": {
+        "sourcePdf": "Ospe module 2 EB.pdf",
+        "sourcePage": 0,
+        "sourceQuestionNumber": null
+      },
+      "needsReview": false,
+      "reviewReasons": []
+    },
+    {
+      "kind": "IMAGE_LAB_IDENTIFICATION",
+      "prompt": "Gram stain.",
+      "answer": "Gram stain",
+      "options": [
+        "Gram stain"
+      ],
+      "traceability": {
+        "sourcePdf": "OSPE RENAL.pdf",
+        "sourcePage": 0,
+        "sourceQuestionNumber": null
+      },
+      "needsReview": false,
+      "reviewReasons": []
+    },
+    {
+      "kind": "TEXT_OR_IMAGE_MCQ",
+      "prompt": "Diaphragm\n2\n?\nPsoas major \n3\n?\nQuadratus lumborum\n4\n?\nTransversus abdominis\nPsoas major \nPsoas major \nIliacus \nIliacus \nIliacus \nQuadratus lumborum\nQuadratus lumborum\nDiaphragm\nDiaphragm\nIdentify the structure related to \nthis area:\nLeft suprarenal gland\nIdentify the structure related to this \narea:\nStomach\nIdentify the structure related to \nthis area:\nSpleen\nIdentify the structure related to \nthis area:\nPancreas  \nIdentify the structure related to \nthis area:\nLeft colic flexure\nIdentify the structure related to \nthis area:\nDescending colon\nIdentify the structure related to \nthis area:\nLoops of the jejunum \nIdentify the structure related to \nthis area:\nRight suprarenal gland\nIdentify the structure related to \nthis area:\nRight lobe of the liver\nIdentify the structure related to \nthis area:\n2\nnd\npart of the duodenum\nIdentify the structure related to \nthis area:\nRight colic flexure\nIdentify the structure related to \nthis area:\nLoops of the jejunum \n11\nth\nrib\nIdentify the structure related to \nthis area:\n12\nth\nrib\nIdentify the structure related to \nthis area:\nDiaphragm\nIdentify the structure related to \nthis area:\nQuadratus lumborum\nIdentify the structure related to \nthis area:\nTransversus abdominis \nIdentify the structure related to \nthis area:\nPsoas major \nIdentify the labeled structure:\nRenal fascia\nIdentify the labeled structure:\nPerinephric fat\nIdentify the labeled structure:\nParanephric fat\nIdentify the labeled structure:\nPsoas major\nIdentify the labeled structure:\nQuadratus lumborum\nIdentify the labeled structure:\nInferior vena cava \nQ38: Identify the labeled structure:\nKidney \nIdentify the labeled structure:\nTransversalis fascia\nIdentify the labeled structure:\nPeritoneum\nIdentify the labeled structure:\nAnterolateral abdominal wall \nmuscles\nRenal artery\nRenal vein\nRenal pelvis\nUreter\nAbdominal aorta\nRenal artery\nA.Renal artery\nRenal vein\nRenal vein\nAbdominal aorta\nInferior vena cava \nIdentify this structure:\nSuperior suprarenal artery \nIdentify this structure:\nMiddle suprarenal artery \nIdentify this structure:\nInferior suprarenal artery\nIdentify this structure:\nLeft suprarenal gland\nLeft suprarenal vein \nInferior phrenic artery \nInferior vena cava \nLeft suprarenal gland\nRight suprarenal gland\nUreter\nUrinary bladder\nA.Abdominal aorta\nUreter\nRenal artery\nRenal artery\nUreters \nIdentify the part of this structure:\nTrigone \nIdentify the part of this structure:\nBase of urinary bladder \nUrethra\nIdentify the part of this structure:\nApex of urinary bladder\nIdentify the part of this structure:\nInferolateral surfaces \nIdentify the part of this structure:\nSuperior surface\nIdentify the part of this structure:\nMedian umbilical ligament\nIdentify the part of this structure:\nMedian umbilical ligament\nPubovesicalligament\nPuboprostatic ligament\nProstate\nUreters \nOpenings of Ureters \nInternal urethral orifice\nTrigone \nUrethra \nUrinary bladder\nUrethra\nInternal urethral sphincter\nExternal urethral sphincter  \nUrinary bladder\n?\n?\nUrinary bladder\n?\nFemale UrethraFemale Urethra\nUrinary bladder\nProstatic urethra\nInternal urethral sphincter\nExternal urethral sphincter  \nProstate \nInternal Urethral orifice \nMembranous urethra\nSpongy urethra  \nNavicular fossae \nExternal Urethral orifice \nProstatic urethra\n?\n?\nSpongy urethra  \nProstatic sinus\nUrethral crest\nSeminal colliculus\nProstatic utricle\nOpenings of ejaculatory ducts\nProstate \nProstatic ducts\nInternal urethral sphincter\nKIDNEY \n& \nURINARY PASSAGES \n \nKIDNEY \nRenal Cortex \n•Glomeruli \n•Renal tubules \n•Glomerulus (G) \n•Parietal layer \n(capsular epithelium) \n•Podocyte nuclei \n•Capsular space (S) \n•Proximal tubules (P) \n•Distal tubules (D) \n•Glomerulus \n•Parietal layer \n(capsular epithelium) \n•Podocyte nuclei \n•Capsular space \n•Proximal tubules \n•Distal tubules \n•Glomerulus \n•Parietal layer \n(capsular epithelium) \n•Podocyte nuclei \n•Capsular space \n•Proximal tubules \n•Distal tubules \nRenal Corpuscle \n•Glomerulus \n•Parietal layer \n(capsular epithelium) \n•Podocyte nuclei \n•Capsular space \n•Glomerulus \n•Parietal layer \n(capsular \nepithelium) \n•Podocyte nuclei \n•Proximal tubules \n•Collecting tubules \n(C) \n•Macula densa (MD) \n•Glomerulus \n•Parietal layer \n(capsular epithelium) \n•Podocyte nuclei \n•Proximal tubules \n•Distal tubules \n•Macula densa (MD) \n•Glomerulus \n•Proximal tubules \n•Macula densa \nRenal Medulla \nRenal Medulla \n•Cell body (C) \n•Primary process (1) \n•Secondary processes (2) \nPodocytes \n•Cell body (C) \n•Primary process (1) \n•Secondary processes (2) \nPodocytes \nBlood \nRenal \nBarrier \nBlood \nRenal \nBarrier \nGlomerular \nbasement \nmembrane \nPodocyte feet \nprocesses \nFenestrated \ncapillary \nendothelium \nBlood \nRenal \nBarrier \nGlomerular \nbasement \nmembrane \nFenestrated \ncapillary \nendothelium \nUrinary \nBladder \nMucosa \nTransitional epithelium \nCorium \nMusculosa \nInner longitudinal \nMiddle circular \nOuter longitudinal \nAdventitia \nUrinary \nBladder \nMucosa \nTransitional epithelium \nCorium \nMusculosa \nInner longitudinal \nMiddle circular \nOuter longitudinal \nAdventitia \nUrinary \nBladder \nMucosa \nTransitional epithelium \nCorium \nMusculosa \nInner longitudinal \nMiddle circular \nOuter longitudinal \nAdventitia \nUrinary \nBladder \nUreter \nUreter \nMucosa \nCorium \n Musculosa \nInner longitudinal \nOuter Circular \nAdventitia \nTransitional epithelium \nUreter \nMucosa \nCorium \n Musculosa \nInner longitudinal \nOuter Circular \nAdventitia \nTransitional epithelium \nLaboratory Diagnosis of UTI \nPractical Sem 2 \nMedical Microbiology and Immunology Department, Faculty \nof Medicine, Horus University \n1-Sample collection \n Mid-stream urine sample: \nLaboratory diagnosis of UTI \n Adhesive bags: \n Supra-pubic aspiration:  Catheterized patients: \nSample collection \n Mid-stream urine sample: is collected \naseptically in universal sterile container with \nwide mouth. \n In case of suspected urinary tuberculosis: \nThe first morning urine sample for 3-5 \nsuccessive days is the most suitable \nspecimen. \nSample collection \n Catheter: \nIf urine sample should be taken from \ncatheterized patient, it must be taken from \nthe catheter itself using a sterile syringe \nthrough the ‘collection port’ after its wiping \nwith alcohol-soaked cotton, not from urine \nbag. \n \nSample transportation \nRapid transport of urine \nsamples is important. \nIf delay: samples can be \nstored for 24 hours at 4°C \nor addition of boric aci",
+      "answer": "2- Direct film: \nDirect wet film examination for pus cells \ncount (per high power field). \nSemi-quantitative culture: on CLED \nmedium to detect colony count.  \nSignificant bacteruria > 100.000 \nCFUs/ml \n3- Culture: \nPlating and interpreting a Semi- quantitative urine cultur",
+      "options": [
+        "2- Direct film: \nDirect wet film examination for pus cells \ncount (per high power field). \nSemi-quantitative culture: on CLED \nmedium to detect colony count.  \nSignificant bacteruria > 100.000 \nCFUs/ml \n3- Culture: \nPlating and interpreting a Semi- quantitative urine cultur",
+        "4- Identification of growth  \n•Colony morphology. \n•Gram stained film \n•Biochemical reactions according to the \nreaction of the isolated organism on \nCLED medium (LF: Yellow colonies / \nNLF: Pale colonies) \nBR \nYellow colonies (LF) \nPale colonies (NLF)",
+        "Coli \nKlebsiella  \nProteus \nPseudomonas  \nIMVC test  \nProteus: \nSwarming  \nUrease + \nH\n2\nS production \nPseudomonas: \nExopigment \nOxidase + \nFerment no suger \nCultivating LF (",
+        "Coli / Klebsiella)  \nInterpreting results \nCulture conditions  Culture media   \nOrdinary media: \n * can grow \nIndicator media: \n *MacConkey’s agar \n *CLED agar \nIdentification",
+        "Coli Klebsiella  \n(LF colonies)  \n*Rose pink on \nMacConkey’s  \n*Yelow on CLED \n+++ Klebsiella have \nLarge, mucoid \ncolonies  \nColony morphology \nIdentification",
+        "Coli Klebsiella  \nGram negative bacilli  \nnon spore forming, \nmotile, some strains \nare capsulated \nGram negative bacilli  \nnon spore forming, \nnon motile, and \ncapsulated \nGram stained film \nIdentification",
+        "Coli Klebsiella  \nFerment glucose, Lactose, maltose, mannite and sucrose with \nacid and gas production  \nBiochemical reaction \nIMVC test  \nSugar test \nSugar media \n Peptone water + 1% of the sugar tested + 1% \nAndrade’s indicator (pH indicator). \n A small inverted tube (Durham's) is immersed \nin the tube containing the medium.  \n Acid production changes the color of the \nmedium while gas production is detected by the \ncollection of bubble of gas in the Durham’s \ntub",
+        "IMVC test \n Indole test: \nDemonstrates the ability of the bacteria to \ndecompose the amino acid ‘tryptophan’ present in \npeptone to indol",
+        "IMVC test \n Methyl Red  Voges Proskauer  \n Glucose \n Mixed acids  \n    pH less than 4 \n Acetyl methyl         \n       carbinol \n Red color  Red color \nIMVC test \n Citrate test: \nDemonstrates the ability of the bacteria to \nutilize Na citrate as the only carbon sourc",
+        "Coli Klebsiella  \nIMVC test  \nCultivating of (NLF) Proteus/ Pseudomonas  \nInterpreting results \nCulture conditions  Culture media   \nOrdinary media: \n * can grow \nIndicator media: \n *MacConkey’s agar \n *CLED agar \nIdentification \nProteus Pseudomonas  \n \n(NLF colonies)  \n*Pale yellow on MacConkey’s  \n*Pale on CLED \n+++ proteus show swarming  \n+++ Pseudomonas show \ngreenish exopigment, Fruity \nodor at 42°C  \n \nColony morphology \nIdentification \nProteus Pseudomonas \npleomorphic Gram \nnegative bacilli, \nmotile by peritrichous \nflagell",
+        "Gram-negative rods.  \nMotile by means of a \nsingle polar flagellum \nGram stained film \nIdentification \nProteus Pseudomonas \nBiochemical reaction \n H2S: positive   \n Urease: positive \n Tube motility test \n Oxidase: positive  \n ferments no sugar \nUrease test \n Urease test: \nProteus produce urease \nenzyme, which can be \ndetected by alkalinity \nand increase pH of the \nsurrounding medium.  \nOxidase test \n Oxidase test: \nPseudomonas, produce \noxidase enzyme, which \ncan reduce oxidase \nreagent to a deep purple \ncolor.  \nSemester 2\nMedical Biochemistry\nPractical\n2- Urine analysis\nUrine analysis (Urinalysis) (Urine test)\n•It is a test that examines the visual, chemical \nand microscopic aspects of urin",
+        "•It can include a variety of tests that detect and \nmeasure various compounds that pass \nthrough your urine using a single sample of \nurin",
+        "Types of urine samples\nSample type Sampling purpose\nMorning sample\nFirst urine in the morning\n most concentrated\n•Most of tests\n•Pregnancy test\n•Microscopic test \nClean catch midstream \nDiscard few mls, \ncollect the rest.\n•Urine culture\n24 hours collection\nAll urine passed during the day and \nnight,\nand the next day 1\nst\n sample is \ncollected  \nEg. 8 am-8 am next day\n•Quantitative and \nqualitative \nanalysis of \nsubstances.\nUrine \nanalysis\nUrinalysis; What to look for?\nComponents of Urinalysis\n1.Physical (Macroscopic)  examination \n2.Chemical examination \n3.Microscopic examination of the \nsediment \n4.+/- Urine culture (microbiology)\n1- Physical \nexamination \nof urine\n1.Volume\n2.Color\n3.Odor\n4.pH\n5.Specific gravity\n1- Volume\nAnuria\n< 100ml/day.\n(Renal failure)\nOliguria:\n< 400ml/day. \n(Dehydration, Shock \nAcute glomerulonephritis \nRenal Failure) \nPolyuria:\n> 2.5 L/day.\n(Increased water ingestion.\nDiabetes Mellitus and Diabetes \nInsipidus)\nNormal urine volume: 1- 2.5 L/day.\n2- Color:\nNormalpale yellow due to pigments \nurochrome, urobilin and \nuroerythrin\nColorlessOverhydrated, Diuretics\nDiabetes insipidus\nDeep Yellow:•Concentrated urine (dehydrated)\n•Excess bile pigments; jaundice\nBrownHemolytic diseases\nReddishBlood\nGreenishBacterial infection\n3- Odor:\nOdor\n \nNormal odour\nCharacteristic \naromatic odor\nOn long standing\nAmmoniacal \n(urea decompose to \nammonia)\nAbnormal odour\nFoul / offensive: \nPus or inflammation \nSweet smell: \nDiabetes, metabolic disorders \nFruity smell: \nKetonuria \nNormal pH: 6 - 6.5  (slightly acidic)\nTested by: – litmus paper – pH paper – dipsticks \nLitmus paper\nPH meter\nDipsticks\n4- pH: \nAcidic urineAlkaline urine\n1.Ketosis(diabetes, starvation)\n2.Systemic acidosis\n3.Acidification therapy\n1.Kidney stones.\n2.Urinary tract infection\n•It is measurement of urine density \n•It reflects the ability of the kidney to concentrate or dilute the urine\n•Measured by: \n1.Urinometer \n2.Dipsticks\n•Normal S.G.: 1005- 1030\n5- Specific gravity (SG)\nIncrease in S.G.\nDecrease in S.G.\n1.Low water intake\n2.Diabetes mellitus\n3.Albuminuruia\n1.Overhydration\n2.Diabetes insipidus (Absence of ADH)\n3.Renal tubular damage\n2- Chemical \nanalysis of \nurine\n1.Glucose \n2.Ketones\n3.Protein  \n4.Bilirubin \n5.Urobilinogen \n6.Blood \n7.Leukocyte\n8.Nitrites\n9.SG\n10.pH\nChemical analysis of urine\n•The presence of normal and abnormal chemical \nelements in the urine are detected using dry \nreagent strips called dipsticks. \n•Dipping  the test strip into urine →  activation \nof the reagents → chemical reaction occurs→ \nspecific color chang",
+        "•Comparing this color change against a \nreference color chart provided by the \nsupplier→ indicate the presence (-,+,++,+++) or \nabsence of the tested element.\nDipstick chart\nNegative\nTrace (100 mg/dL)\n+ (250 mg/dL)\n++ (500 mg/dL)\n+++ (1000 mg/dL)\n++++ (2000+ mg/dL)\nThe Urine Dipstick:\n1-Glucose:\nSignificance: if +ve→\n▪Diabetes mellitus.\n▪Renal glycosuri",
+        "Limitations:\n▪Only measures glucose and not other sugars.\n▪Renal threshold (180 mg/dl) must be passed in \norder for glucose to spill into the urin",
+        "The Urine Dipstick:\n2-Ketones:\nSignificance: if +Ve→\n▪Diabetic ketoacidosis\n▪Prolonged fasting\nLimitations:\n▪Only measures acetoacetate not other ketone \nbodies.\nNegative\nTrace (5 mg/dL)\n+ (15 mg/dL)\n++ (40 mg/dL)\n+++ (80 mg/dL)\n++++ (160+ mg/dL)\nThe Urine Dipstick:\n3-Protein:\nCauses of proteinuria:\nRenal (Functional): \n1.Glomerulonephritis\n2.Pregnancy  \n3.Nephrotic syndrome\n4.Renal tumor or infection\nPre-renal:\n1.Fever         \n2.Hypertension  \nPost-Renal: \n1.Cystitis      \n2. Urethritis  \nThe Urine Dipstick:\n4-Bilirubin:\nSignificance:\n▪Increased direct bilirubin --> \nObstructive jaundice\nNegative\n+ (weak)\n++ (moderate)\n+++ (strong)\nThe Urine Dipstick:\n5-Urobilinogen:\nSignificance:\n▪High: Liver disease as hepatitis and cirrhosis \n▪Low: bile obstruction\nThe Urine Dipstick:\n6- Blood:\nSignificance: if +Ve→\n▪Hematuria (ie, RBCs in urine→ nephritis, trauma, etc)\n▪Hemoglobinuria (ie, HB in urine → hemolysis, etc)\nLimitations:\n▪Cannot distinguish between the above diseases\n Differentiate by another test:\n▪Urine microscopic examination.\nThe Urine Dipstick:\n7-Leukocyte esterase:\nSignificance:\n▪Pyuria (pus in urine)\n▪Acute inflammation\nNegative\nTrace\n+ (weak)\n++ (moderate)\n+++ (strong)\nThe Urine Dipstick:\n8-Nitrite:\nSignificance:\n▪Gram negative bacteriuria\nNegative\nPositive\nThe Urine Dipstick:\n9-Specific gravity:\nSignificance:\n▪Very low:→?? Diabetes insipidus (low ADH)\n1.000\n1.005\n1.010\n1.015\n1.020\n1.025\n1.030\nThe Urine Dipstick:\n10-pH:\nSignificance:\n1.Acidic (less than 4.5):  \n✓Metabolic acidosis\n✓Diabetic ketoacidosis\n2. Alkaline (greater than 8.0)\n✓Infection with a urea-splitting organism\n          ( Proteus mirabilis).\n✓Alkali therapy\n✓Diet (vegetarian)\n5.0\n6.0\n6.5\n7.0\n7.5\n8.0\n8.5\nUrine analysis procedure\n3- Microscopic \nexamination of \nurine\n1.Procedure\n2.Findings\nMicroscopic examination of urine\n❖Procedure:\n✓10-15 ml urine→ mix well → centrifuged \nin a test tube at relatively low speed (about \n2000-3000 rpm) for 5-10 minutes.\n✓A concentration of sediment (cellular matter)  \nwill form at the bottom of the tub",
+        "✓A drop of sediment is poured onto a glass \nslide→ cover it by a coverslip → observe \nunder microscop",
+        "❖Findings of microscopic examination\n✓Cells:\n•Red blood cells \n•White blood cells \n•Epithelial cells \n✓ Casts\n•Acelluar cast: Hayaline, granular,waxy, fatty, crystal casts \n•Cellular cast: RBCs, WBCs, epithelial casts\n✓ Crystals  \n•Calcium oxalate crystals \n•Uric acid crystals \n•Triple phosphate crystals\n✓ Bacteria\n✓ Mucous\n1.Red blood cells in urine appear\n•Normal: 0-4 RBCs/ HPF\n•Increased in \n✓Glomerular damage\n✓Kidney trauma\n✓Urinary tract stones\n✓Urinary tract infections (UTI)\n✓Tumor → erode the UT anywhere\n2.White blood cells in urine\n•Normal: 0- 5 WBCs/ HPF\n•Increased in \n✓Inflammation \n✓Infection along UT/genital tract \nrefractile discs\nHematuria : abnormal numbers of RBCs in urinePus in urine\n1- Cells\n•Definition:\nThey are cylindrical aggregations of particles that form in the distal nephron, dislodge, and \npass into the urin",
+        "•Significance:\nIts presence in urine→  indicate kidney diseas",
+        "•Types:\n2- Casts\nCasts\nAcellular castsCellular casts\n1.Hyaline casts  (most common)\n2.Granular casts \n3.Waxy casts\n4.Fatty casts \n5.Crystal casts\n1.Red cell casts\n2.White cell casts\n3.Epithelial cell casts \nMost common type\nfever, vigorous exercise damage to the \nglomerular capillary. \nindicative of glomerulonephritis\nNot indicate the type of kidney damage\ntypical for acute pyelonephritis\nUrinary Casts under microscope\n✓Urine crystalsform when there are too many minerals in \nthe urin",
+        "✓Excessive increase in one or more minerals→ urine crystal \ncan form into ston",
+        "✓urine crystals will cause limited signs and symptoms unless \nlarge enough stones develop.\n✓A variety of crystals may be present in the urine sediment.\n✓ Types of urinary crystals: many types, the commonest are:\n1.Calcium oxalate crystals (60-80%)\n2.Uric acid crystals (10%)\n3.Triple phosphate crystals (5-7%)\n3- Crystals:\n•Most common\n•Shape: dumbbell, envelop, long, Ovi",
+        "•Found in : acidic urine < 6\n•Significance:\n✓Found in low urine volume,\n✓High oxalate intake (foods as spinach)\n✓Commonly form kidney stone\n1- Calcium oxalate crystals\nDumbbell\nEnvelop\n•Shape: different shapes: barrel, plate-like, or diamon",
+        "•Found in: abnormally acidic urine\n•Significance:\n✓In  normal urine:  caused by a protein-rich diet \ndue to increase inuric acid in urin",
+        "✓In disease : Gout, kidney stone, chemotherapy. \n2- Uric acid crystals:\n•Shape: rectangular prisms, coffin-lid appearanc",
+        "•Found in: Alkaline urine\n•Significance:\n✓Significant for urinary tract infection (UTI)\n✓In  low urine volume: \n✓Bacteria in urine (UTI) producing ammonia and \nincreasing the urine pH.\n3- Triple phosphate crystals: \n(= magnesium ammonium phosphate crystals) \nRenal practical (I)\nBY\nDr. Dina AbdallahEl Nady\nAssistantprofesor of \npathology\nMansourauniversty\nKIDNEY ANATOMY: NEPHRONS\nNEPHRONS\n•FUNCTIONAL UNITS OF KIDNEY\n•~1.2 MILLION PER KIDNEY\n•THREE MAIN PARTS\n–BLOOD VESSELS\n–RENAL CORPUSCLE\n–RENAL TUBULE\nHistology\nAcute Pyelonephritis\nSpecimen: kidney \n-Size\n: \nIncreased\n-Surface\n: \nSuppurative \npatchy foci surrounded by \nhyperemi",
+        "-Capsule\n: \nStrips easily\n-Cut surface\nCalyces and pelvis\n•\nOut lines: Distorted by \nedem",
+        "•\nMucosa:Hyperemic\n•\nContents\n: \nFull of pus\nAcute Pyelonephritis\nTubules\nNeutrophil casts.\nIntertitium\n•Focal infiltration with \nacute inflammatory \ncells.\nChronic Pyelonephritis\nSpecimen: Section of  kidney\n-Size : Decreased\n-Outer surface : Irregular \ncoarsely granular due to \nunderlying coarse irregular \nscarring.\n-Capsule: adherent\n-C/S :\nRenal calyces: \nOutlines: Deformed by scarring\nMucosa: Rough thick and \nmildly hyperemic\nContent: Some pus\nChronic Pyelonephritis\n-Glomeruli\nPeriglomerular fibrosis. Some totally \nsclerotic glomeruli (Black arrow).\n-Tubules\nGroups of atrophic tubules \n(thyriodizationi.",
+        "dilated and lined by \nflattened epithelium and contain \nhyaline casts picture simulating thyroid \nfollicles) (Green arrow)\nSome tubules contain neutrophil casts.\n-Intertitium\nFocal fibrosis and chronic suppurative  \ninflammation.\n-Blood vessels\nHypertensive changes\nHydronephrosis\nSpecimen: Section of  \nkidney & ureter.\n-Size : Enlarge",
+        "-Outer surface : Lobulate",
+        "-C/S :\n•Renal calyces: Are dilated \nto form thin walled sacs \n& variable in size and \nshape size \n-Communicate with each \nother and the renal pelvis. \n•Renal tissue :in between: \nAtrophied & appears as \nthin rim. \nPyonephrosis\nSpecimen: Section of  kidney \n-Size: increase\n-Capsule:Thick and adherent \nwith decortication.\n-Outer surface:Irregular due \nto underlying locules of pus.\n-Cut surface:\nThin atrophic cortex\nDilated calyces \ncommunicating with each \nother and with dilated pelvis \nforming locules of pus.\nRenal practical (II)\nBY\nDr. Dina AbdallahEl Nady\nAssistantprofesor of \npathology\nMansourauniversty\nBenign tumors",
+        "Renal Adenoma / Tubuloadenom",
+        "•Main characteristic :\nsmall Pale nodule on the\nrenal cortex\n•Microscopically :\nBenign tubular cells \nthat can appear as Papillom",
+        "•It is not critical \n(LEAVE ME ALONE lesion)\nBenign tumors",
+        "Angiomyolipoma\nAngio = vascular , myo= smooth muscle cells , \nlipoma= lipomatous lesion.\n-It can be large and bilateral \ncompresses the kidney \n-It is very vascular \ncan cause hemorrhag",
+        "Benign tumors\nC-Oncocytoma\n-Similar to tubuloadenoma(but much bigger in size).\n-Microscope \n:benign cells are called Oncocytes\n(reddish granular cells which\nare rich in mitochondria)\n-Main characteristic :\nLarge tumor with a central scar \n(black arrow)\nwhich could be seen in imaging).\nMalignant tumors\nHypernephroma(Renal cell carcinoma)\n•Specimen: kidney.\n•Description: \n▪Kidney tissue is compressed at one \npol",
+        "▪The other pole is replaced by mass:\n-It is pseudocapsulate",
+        "-Cut surface shows variable colors:\n*Golden yellow due to excess lipid \ncontents of the cells. \n*Brownish red due to excess \nvascularity and hemorrhag",
+        "*Whitish due to bands and patches \nof fibrous tissu",
+        "* Cysts containing serous, \nmucinous, hemorrhagic or necrotic \nmaterial may be seen\nHypernephroma(Renal cell \ncarcinoma)\nSection in kidney showing malignant \ntumorformed of:\n•Cell arrangement: Cells are \narranged either in tubules & \npapilla",
+        "•Stroma: Delicate, thin vascular.\n•Cells: -Clear cells: This is the \ncommonest. \n-They are large, uniform, rounded \nor polyhedral with well defined \nborder\n-Clear abundant cytoplasm (due \nto its content of lipids and \nglycogen)\n-The nucleus is small, rounded \nand central.\nWilm’stumor \n(Nephroblastoma)\n•Specimen: Half of child \nkidney.\n•Description: \n▪Kidney tissue is \ncompressed at one pol",
+        "▪The other pole is replaced \nby mass:\n-Shape: oval & well-\ncircumscribe",
+        "-Size: 12x8 cm in \ndiameter.\n-Consistency: soft and \nfleshy.\n-C/S: homogeneous grey\nWilm’stumor \n(Nephroblastoma)\n❖Section in kidney showing \nmalignant tumorformed of:\n-Sarcomatous\nelements: \n*Blastemalcomponent\n(Short, spindle or rounded \nembryonaldark cells)\n-Carcinomatous \nelements: \n*Imperfect (Abortive) \ntubules and glomerulus like \nstructures.\nAbortive tubules\nBlastemal \ncomponent\nUrothelial(Transitional cell) \ncarcinoma\n➢The tumor is formed of \npapillary structures with \nthin fibrovascularstromal \ncor",
+        "➢They are lined by multiple \nlayers of malignant \nurothelialcells.\n➢The cells have large \npleomorphic \nhyperchromaticnuclei.\nRENAL FUNCTION TESTS\nThetestswhichassesstheefficiencyofrenalfunctionscanbe\nclassifiedintothefollowing5groups:\n1-Urine tests\n2-Blood tests \n3-Combined urine and blood tests \n4-Radiological tests \n5-Other tests \n(1) URINE TESTS\nThepresenceofblood,proteinorpusintheurineasdetectedbyroutine\nurineanalysisisoftenindicativeofarenaldisease.Inaddition,the\nfollowingtestsestimaterenaltubularfunction:\n1-Urine dilution test (investigate ability of the kidney to diluteurine) \n2-Urine concentration tests (investigate ability of the kidney to \nconcentrateurine) \n3-Urine acidification test (investigate ability of the kidney to acidifyurine) \n4-Urea concentration test (investigates the reabsorptivecapacity of the \nrenal tubules)\n5-Phenolsulphonephthalein (PSP) excretion test\n(1) Urine dilution test\nMethod:The patient evacuates the bladder, and then drinks 1.5 liters water. Urine \nis  collected  every  one  hour  for 5 hours  to  determine  the  volume  and  specific \ngravity of each sampl",
+        "Normally,not less than 800 ml of dilute urine are voided with an osmolality below \n80 mOsm/litreand  a  specific  gravity  as  low  as 1003.Impairment  of  water \nexcretion  indicates  renal  insufficiency.  However,  this  test is  not  specificfor \nestimating  renal  functions  because  it  is  also  altered  in  other  conditions  (e.g. \nadrenal hypofunction).\nThe normal volume of urine is 1 mL/min. The average normal osmolality is 400 \nmOsm/L. The normal specific gravity is    1015 -1020.\n(2) Urine concentration test\nMethod:Thepatientevacuatesthebladderthenstopstakingfluidsfor\n12hours.\nUrineisthencollectedtodetermineitsspecificgravity.\nNormallyasmallvolume,ofconcentratedurineisvoidedwithan\nosmolalitynotlessthan900mOsm/Landaspecificgravity1020-1030.\nItisimportanttestbecauseitisalteredearlyinrenaldiseas",
+        "(3) Urine acidification test\nMethod:patientingestsNH\n4\nClatadoseof0.1gm/Kgbodyweight,and\nurineiscollectedwithinthenext8hourstodetermineitspH.\nNormally,theurinepHdropstoabout5.3orlower.\n(4) Urea concentration test\nMethod:The  patient  evacuates  the  bladder,  and  then  ingests 15 gm  urea \ndissolved in 100 ml water. Urine is collected after 1 and 2 hours and the urea \nconcentration  in  the  second  sample  is  measured (the  first  sample  is \ndiscarded because of the osmotic diuretic effect of urea).\nNormally,the urea concentration in the second sample should be  2 gm% \nor  more.(Lower  concentrations  indicate  defective reabsorptivecapacity  of \nthe renal tubules).\n(5) Phenolsulphonephthalein (PSP) excretion test\nMethod:smalldoseofPSPisi.v.\ninjectedandurineisthencollecte",
+        "Normally,theurineacquiresapurple\ncolourwithin8minutes,andabout70\n%ofthegivendoseshouldbe\nexcretedintheurinewithin2hours.\nThisisdelayedincasesofrenal\ninsufficiency.\n(2) BLOOD TESTS\nThese include determination of the blood level of each of the following:\n•Blood urea:normally 8 -25 mg %.\n•Serum creatinine:normally 0.6 -1.6 mg %.\n•Serum uric acid:normally 2.3 -6.6 mg % in females and 3.6 -8.5 mg % in males.\n•Blood pH:normally 7.4 in arterial blood and 7.36 in venous bloo",
+        "•Serum inorganic phosphate:normally 2.5 -4.5 mg %.\n•Serum potassium ions:normally 3.5 -5 mEq/litre).\n•Alkali reserve:(normally 24 -28 mEq/litre).\nInrenalinsufficiency,theaboveparametersincreasedexceptthebloodpHandalkali\nreservewhicharetendtodecrease(duetoacidosis)particularlyinchroniccases(see\nrenalfailure).\n(3) COMBINED URINE AND BLOOD\nTESTS\nThesetestsoftenbecomeabnormalattheearlystagesofrenalfailure\n(whenbloodcompositionisstillnormal),informingaboutthedegreeof\nrenaldysfunction.Theyincludethefollowing:\n1.TubularTransportMaximumofGlucose(TmG):\nThistestisusedto(assesstheabsorptivecapacityofthekidney)\nNormally,TmGisabout375mg/min.\n2.TubularTransportMaximumofPAHA(TmPAHA):\nThistestisusedto(assessthesecretorycapacityofthekidney)\nNormally,TmPAHAisabout80mg/min.\n3.Plasmaclearancetests:\nThese tests can be made using various substances. Each substance gives a \ncertain indication as follow:\na.InulinclearancetestformeasurementoftheGFR(normally,itis\nabout125mL/min).\nb.PAHAclearancetestformeasurementoftherenalbloodflow\n(normally,itisabout600mL/min).\nc.Determinationofcreatinineclearance:Thisisreliableforassessing\nrenaltubularfunction,andisalsousedformeasuringtheGFR.\nd.Determinationofureaclearance:Thisisalsoreliableforinvestigating\nrenaltubularfunction.\n(4) RADIOLOGICALTESTS\n1.Plain  x-ray  of  the  urinary  tract:\nHelps   in   detecting   radio opaque\ncalculi (stones).\n2.  Intravenous  pyelography  (IVP):\nIn   this   test,   iodinatedradio-opaque \ndye  which  is  extracted  by  the  kidney \nand  excreted  in  urine  isi.v.injected, \nand   serial   urinary   tract   x-rays   are \ntaken.\nDelayed  appearance  of  this  dye  in  the \nrenal  pelvis  of  one  kidney  indicates \nimpaired functions of that kidney.\nIVP  is  also  helpful  in  detecting non-\nopaquecalculi,  strictures  of  the  ureter \nand other renal diseases.\n(5) OTHERTESTS\nTheseincludeultrasonography,arteriographyandisotopeperfusion\nstudies.However,suchproceduresaswellasexaminationofrenalbiopsies\nareusedonlyinspecialcases."
+      ],
+      "traceability": {
+        "sourcePdf": "OSPE RENAL.pdf",
+        "sourcePage": 0,
+        "sourceQuestionNumber": null
+      },
+      "needsReview": false,
+      "reviewReasons": []
+    }
+  ],
+  "byKind": {
+    "IMAGE_IDENTIFY_STRUCTURE": 10,
+    "TEXT_OR_IMAGE_MCQ": 6,
+    "IMAGE_LAB_IDENTIFICATION": 3,
+    "IMAGE_DIAGNOSIS": 1,
+    "IMAGE_IDENTIFY_PART": 1
+  },
+  "note": "Deterministic extraction from real OSPE PDFs. Source wording preserved. Questions flagged NEEDS_REVIEW where format is ambiguous."
+}

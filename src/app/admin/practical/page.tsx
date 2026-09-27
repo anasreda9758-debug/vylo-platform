@@ -1,6 +1,7 @@
 import { requireAdmin } from "@/shared/session";
 import { Navigation } from "@/components/navigation";
 import { PracticalAuthoringAdmin } from "@/components/practical-authoring-admin";
+import { PracticalContentReview } from "@/components/practical-content-review";
 import Link from "next/link";
 
 export default async function PracticalAdminPage() {
@@ -29,6 +30,9 @@ export default async function PracticalAdminPage() {
             </Link>
           </div>
           <PracticalAuthoringAdmin />
+          <div className="mt-12">
+            <PracticalContentReview />
+          </div>
         </div>
       </main>
     </div>

@@ -18,14 +18,17 @@ export const PRACTICAL_SUBJECT_CONFIG = [
 ] as const;
 export const practicalTrackStatusSchema = z.enum(["DRAFT", "PUBLISHED", "ARCHIVED"]);
 export const statusSchema = z.enum(["DRAFT_AI", "REVIEWED", "APPROVED"]);
-export const reviewStatusSchema = z.enum(["DRAFT", "NEEDS_REVIEW", "APPROVED", "REJECTED"]);
+export const reviewStatusSchema = z.enum(["DRAFT", "NEEDS_REVIEW", "AUTO_VERIFIED_SOURCE", "APPROVED", "REJECTED"]);
 const english = z.string().min(1).max(4000).refine((s) => !/[\u0600-\u06ff]/u.test(s), "Learning content must be English");
+const bilingual = z.string().min(1).max(4000);
 export const sourceSchema = z.object({
   title: english,
   path: z.string().min(1),
   sha256: z.string(),
   approvedBy: z.string().nullable(),
   approvedAt: z.string().nullable(),
+  pdf: z.string().optional(),
+  questionNumber: z.number().int().positive().optional(),
 });
 export const markerSchema = z.object({
   id: z.string().min(1), x: z.number().min(0).max(1), y: z.number().min(0).max(1),
@@ -42,14 +45,27 @@ export const imageSchema = z.object({
   isExamDerivative: z.boolean().optional(),
   reviewStatus: reviewStatusSchema.optional(),
 });
+export const questionTypeSchema = z.enum([
+  "LABELED_STRUCTURE",
+  "IMAGE_IDENTIFICATION",
+  "STRUCTURE_RELATION",
+  "IMAGE_IDENTIFY_STRUCTURE",
+  "IMAGE_IDENTIFY_PART",
+  "IMAGE_RELATED_STRUCTURE",
+  "IMAGE_DIAGNOSIS",
+  "IMAGE_LAB_IDENTIFICATION",
+  "IMAGE_SURFACE_ANATOMY",
+  "TEXT_OR_IMAGE_MCQ",
+  "IMAGE_MARKED_REGION",
+]);
 export const questionSchema = z.object({
   id: z.string(), academicYearId: z.string().nullable(), studyYear: z.number().int().positive(),
   trackId: z.string(), moduleId: z.string(), subject: z.string(), sourceLectureId: z.string().nullable(),
   sourceMaterial: sourceSchema, sourcePage: z.number().int().positive(),
-  questionType: z.enum(["LABELED_STRUCTURE", "IMAGE_IDENTIFICATION", "STRUCTURE_RELATION"]),
+  questionType: questionTypeSchema,
   answerFormat: z.literal("SINGLE_CHOICE"), imageId: z.string(), markerIds: z.array(z.string()),
-  groupId: z.string(), order: z.number().int().nonnegative(), prompt: english,
-  options: z.array(z.object({ id: z.string().min(1), text: english })).min(2).max(6),
+  groupId: z.string(), order: z.number().int().nonnegative(), prompt: bilingual,
+  options: z.array(z.object({ id: z.string().min(1), text: bilingual })).min(2).max(6),
   correctOptionId: z.string(), explanation: english, identifyingClue: english,
   commonMistake: english, examTip: english, status: statusSchema, isFixture: z.boolean(),
   // Authoring metadata (0025). Optional so legacy rows still parse unchanged.
@@ -124,7 +140,7 @@ export function eligibleQuestion(q: PracticalQuestion, image: PracticalImage | u
   return q.markerIds.every((id) => image.markers.some((m) => m.id === id));
 }
 
-/** Explicit allowlist: arrow target, clean image, options, question text. No answer key. */
+/** Explicit allowlist: arrow target, clean image, options, question text. No answer key, no source traceability. */
 export function studentQuestion(q: PracticalQuestion) {
   return {
     id: q.id, imageId: q.imageId, groupId: q.groupId, order: q.order,
