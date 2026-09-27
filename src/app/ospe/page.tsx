@@ -3,6 +3,7 @@ import { OspeSimulator } from "@/components/ospe-simulator";
 import { ExamMode } from "@/components/exam-mode";
 import { Navigation } from "@/components/navigation";
 import { FileText, ClipboardList } from "lucide-react";
+import Link from "next/link";
 import { getLocale, localize } from "@/shared/locale";
 import { getAccessibleOspeFolder } from "@/features/access/learning-access";
 import { OSPE_PDF_REFERENCES } from "@/features/ospe/data";
@@ -137,24 +138,18 @@ export default async function OspePage({
                   {localize(locale, "You can still practise today", "يمكنك التدريب اليوم")}
                 </p>
                 <div className="grid gap-3 sm:grid-cols-2">
-                  <a
-                    href="/review"
-                    className="rounded-xl border border-border p-4 transition-colors hover:bg-accent"
-                  >
+                  <Link href="/review" className="rounded-xl border border-border p-4 transition-colors hover:bg-accent">
                     <p className="text-sm font-semibold">{localize(locale, "Review your questions", "مراجعة أسئلتك")}</p>
                     <p className="mt-1 text-xs text-muted-foreground">
                       {localize(locale, "Revisit wrong and bookmarked items from earlier sessions.", "راجع الأسئلة الخاطئة والمفضلة من جلسات سابقة.")}
                     </p>
-                  </a>
-                  <a
-                    href="/quiz/ospe"
-                    className="rounded-xl border border-border p-4 transition-colors hover:bg-accent"
-                  >
+                  </Link>
+                  <Link href="/quiz/ospe" className="rounded-xl border border-border p-4 transition-colors hover:bg-accent">
                     <p className="text-sm font-semibold">{localize(locale, "OSPE question bank", "بنك أسئلة OSPE")}</p>
                     <p className="mt-1 text-xs text-muted-foreground">
                       {localize(locale, "Browse the approved question bank by module.", "تصفح بنك الأسئلة المعتمد حسب الموديول.")}
                     </p>
-                  </a>
+                  </Link>
                 </div>
                 {accessiblePdfReferences.length > 0 ? (
                   <a
