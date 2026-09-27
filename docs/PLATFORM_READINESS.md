@@ -16,6 +16,32 @@ when the software already knows how to handle the content the moment it arrives.
 | `OWNER_DECISION` | Code is ready and deliberately disabled/awaiting a business decision. |
 | `BLOCKED_GROUND_TRUTH` | Code is ready; a medical answer cannot be verified from any source. |
 
+## Verified by real smoke test
+
+Against local Postgres + `next dev` on port 3111, using an existing disposable
+student account. Observed:
+
+- Anonymous: public pages `200`; every protected page `307` → login; every
+  protected API `401`; unknown route `404`.
+- Student: `/dashboard`, `/curriculum`, `/search`, `/flashcards`, `/cases`,
+  `/ospe`, `/review`, `/leaderboard`, `/settings`, `/quiz/*`, `/battles` all
+  `200`; `/admin` `307` (a student cannot reach admin).
+- `GET /api/planning/weekly` → `200`, 7 days, 315 minutes, real lectures
+  ("Integumentary system", "Skeletal system") plus an honest note that no
+  flashcards are due.
+
+Two real bugs were found and fixed by that smoke test:
+
+1. The weekly plan was built but **not mounted** on `/dashboard`, because the
+   dashboard file also holds unrelated owner WIP. Resolved by staging HEAD plus
+   only the two weekly-plan hunks, leaving the owner's T1–T10 work untouched.
+2. `GET /api/planning/weekly` returned **500** because the hand-written SQL used
+   plural table names and a non-existent `users` table. It now builds on the
+   existing typed `getCurriculum()`, so the hidden-module filter and progress
+   semantics live in one place.
+
+Full per-feature proof: `reports/platform-final-feature-matrix.md`.
+
 ## CODE COMPLETE
 
 - **Auth / sessions** — Better Auth, sign-in/up/out, forgot-password, verify-email routes; `getSession`/`requireUser`/`requireAdmin` helpers.

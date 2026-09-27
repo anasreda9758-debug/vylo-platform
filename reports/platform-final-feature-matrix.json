@@ -1,0 +1,60 @@
+{
+  "generated": "2026-03-02",
+  "branch": "wip/renal-anatomy-practical",
+  "head": "c724c2f",
+  "method": "Real smoke test against local Postgres + next dev (port 3111) using an existing disposable student account. No new accounts, no content imported, no payments.",
+  "smoke": {
+    "anonymous": {
+      "/": 200, "/sign-in": 200, "/sign-up": 200, "/pricing": 200, "/redeem": 200, "/leaderboard": 200,
+      "/curriculum": 307, "/dashboard": 307, "/search": 307, "/flashcards": 307, "/cases": 307, "/ospe": 307, "/settings": 307, "/admin": 307,
+      "/api/planning/weekly": 401, "/api/search": 401, "/api/leaderboard": 401,
+      "/nonexistent-route-xyz": 404
+    },
+    "authenticatedStudent": {
+      "/dashboard": 200, "/curriculum": 200, "/search": 200, "/flashcards": 200, "/cases": 200,
+      "/ospe": 200, "/review": 200, "/leaderboard": 200, "/settings": 200,
+      "/quiz/analytics": 200, "/quiz/history": 200, "/quiz/bookmarks": 200, "/battles": 200,
+      "/api/planning/weekly": 200, "/api/leaderboard": 200, "/api/search?q=heart": 200,
+      "/admin": 307
+    },
+    "weeklyPlanLive": { "status": 200, "days": 7, "totalMinutes": 315, "sampleItems": ["LECTURE:Integumentary system", "LECTURE:Skeletal system"], "note": "No flashcards are due for review right now." }
+  },
+  "featureNotImplemented": [],
+  "bugsFixedBySmoke": [
+    { "bug": "Weekly plan component existed but was not mounted on /dashboard; dashboard page also contained unrelated owner WIP so it could not be staged wholesale", "fix": "Staged HEAD + only the two weekly-plan hunks, leaving owner T1-T10 WIP untouched in the working tree", "commit": "d8938e6" },
+    { "bug": "GET /api/planning/weekly returned 500: hand-written SQL used plural table names and a non-existent users table", "fix": "Rewritten on top of typed getCurriculum()/drizzle queries; real schema is lecture/module/user with order not position", "commit": "c724c2f" }
+  ],
+  "features": [
+    { "name": "Auth & sessions", "route": "/sign-in /sign-up /forgot-password /verify-email", "api": "Better Auth", "db": ["user","account","session"], "authz": "server-side", "empty": true, "error": true, "mobile": true, "tests": "auth suites", "status": "COMPLETE" },
+    { "name": "Student dashboard", "route": "/dashboard", "api": "/api/planning/weekly", "db": ["lecture","lecture_progress","practical_question","question_bank"], "authz": "requireUser", "empty": true, "error": true, "mobile": true, "tests": "weeklyPlan.test.ts(13) + route.test.ts(4)", "status": "COMPLETE" },
+    { "name": "Weekly study plan", "route": "card on /dashboard", "api": "GET /api/planning/weekly", "db": ["lecture","lecture_progress","practical_question","question_bank"], "authz": "session + input validation", "empty": true, "error": true, "mobile": true, "tests": "weeklyPlan.test.ts(13)", "status": "COMPLETE" },
+    { "name": "Curriculum", "route": "/curriculum /curriculum/[slug]", "api": "server", "db": ["module","lecture"], "authz": "per-module access", "empty": true, "error": true, "mobile": true, "tests": "term-progress", "status": "COMPLETE" },
+    { "name": "Lecture reader + PDF", "route": "/lecture/[slug]", "api": "server", "db": ["lecture"], "authz": "getAccessibleLecture", "empty": true, "error": true, "mobile": true, "tests": "existing", "status": "COMPLETE" },
+    { "name": "Quiz", "route": "/quiz/[bankSlug] /quiz/history /quiz/analytics /quiz/bookmarks", "api": "/api/quiz/*", "db": ["quiz_attempt","quiz_answer","question","question_option"], "authz": "server-side grading", "empty": true, "error": true, "mobile": true, "tests": "quiz route tests", "status": "COMPLETE" },
+    { "name": "Practical (code)", "route": "/curriculum/[slug]/practical/**", "api": "practical routes", "db": ["practical_question","practical_image","practical_track"], "authz": "getAccessibleQuestion", "empty": true, "error": true, "mobile": true, "tests": "practical-gate.test.ts(263)", "status": "COMPLETE" },
+    { "name": "Practical (content)", "route": null, "api": null, "db": ["practical_question"], "authz": null, "empty": null, "error": null, "mobile": null, "tests": "pilot metrics", "status": "BLOCKED_CONTENT" },
+    { "name": "PDF-first extraction", "route": "dry-run + admin review", "api": null, "db": [], "authz": "read-only", "empty": null, "error": null, "mobile": null, "tests": "pdfGeometry.test.ts(29)", "status": "COMPLETE" },
+    { "name": "Answer verification", "route": null, "api": null, "db": ["ospe_answer_key"], "authz": "read-only", "empty": null, "error": null, "mobile": null, "tests": "answerVerification.test.ts(15)", "status": "COMPLETE" },
+    { "name": "OSPE simulator", "route": "/ospe /quiz/ospe/[moduleSlug]", "api": "ospe routes", "db": ["ospe_exam","ospe_exam_station","ospe_answer_key"], "authz": "getAccessibleOspeExam", "empty": true, "error": true, "mobile": true, "tests": "exam.test.ts integrity.test.ts", "status": "COMPLETE" },
+    { "name": "OSPE stations (content)", "route": null, "api": null, "db": ["practical_track_ospe_station"], "authz": null, "empty": true, "error": null, "mobile": null, "tests": null, "status": "BLOCKED_CONTENT" },
+    { "name": "Flashcards / SRS", "route": "/flashcards /flashcards/all", "api": "/api/review/flashcards/*", "db": ["flashcard"], "authz": "ownership + access", "empty": true, "error": true, "mobile": true, "tests": "flashcard-due-policy.test.ts", "status": "COMPLETE" },
+    { "name": "Clinical cases", "route": "/cases /cases/all", "api": "/api/review/cases/*", "db": ["clinical_case","clinical_case_evaluation"], "authz": "getAccessibleClinicalCase", "empty": true, "error": true, "mobile": true, "tests": "clinical-case-evaluation.test.ts", "status": "COMPLETE" },
+    { "name": "AI tutor", "route": "/lecture/[slug]", "api": "/api/tutor/chat", "db": [], "authz": "session + access", "empty": true, "error": true, "mobile": true, "tests": "tutor route tests", "status": "COMPLETE" },
+    { "name": "AI quota & idempotency", "route": null, "api": "/api/review/*", "db": ["ai_usage","ai_generation_request"], "authz": "atomic reservation", "empty": null, "error": null, "mobile": null, "tests": "generation route tests", "status": "COMPLETE" },
+    { "name": "Search", "route": "/search", "api": "GET /api/search", "db": ["RAG chunks"], "authz": "per-lecture getAccessibleLecture", "empty": true, "error": true, "mobile": true, "tests": "existing", "status": "COMPLETE" },
+    { "name": "Profile / settings", "route": "/settings", "api": "server", "db": ["user_profile","subscription"], "authz": "own record", "empty": true, "error": true, "mobile": true, "tests": "existing", "status": "COMPLETE" },
+    { "name": "XP / engagement", "route": "/leaderboard /battles", "api": "/api/leaderboard", "db": ["xp_log","battle"], "authz": "own data", "empty": true, "error": true, "mobile": true, "tests": "xp-farming xp-atomic case-xp-once-ever sm2.test.ts", "status": "COMPLETE" },
+    { "name": "Subscriptions & plans", "route": "/pricing", "api": "billing routes", "db": ["plan","subscription"], "authz": "withModuleAccess", "empty": true, "error": true, "mobile": true, "tests": "pricing activation money", "status": "COMPLETE" },
+    { "name": "Payments (Paymob)", "route": "/pricing", "api": "checkout + webhook", "db": ["payment"], "authz": "HMAC + idempotency", "empty": true, "error": true, "mobile": true, "tests": "billing tests", "status": "COMPLETE_BUT_DISABLED" },
+    { "name": "Promo / redeem", "route": "/redeem", "api": "redeem route", "db": ["promo_code","promo_redemption"], "authz": "own code", "empty": true, "error": true, "mobile": true, "tests": "redeem/route.test.ts", "status": "COMPLETE_BUT_DISABLED" },
+    { "name": "Admin Control Center", "route": "/admin (19 tabs)", "api": "admin routes", "db": ["admin tables"], "authz": "requireAdmin", "empty": true, "error": true, "mobile": true, "tests": "admin analytics tests", "status": "COMPLETE" },
+    { "name": "Module game / ranking", "route": "/leaderboard /battles", "api": "/api/leaderboard", "db": ["battle","battle_participant","xp_log"], "authz": "own data", "empty": true, "error": true, "mobile": true, "tests": "sm2.test.ts", "status": "COMPLETE" },
+    { "name": "OCR for image-only PDFs", "route": null, "api": null, "db": [], "authz": null, "empty": null, "error": null, "mobile": null, "tests": null, "status": "BLOCKED_EXTERNAL" },
+    { "name": "T4-T10 lecture content", "route": null, "api": null, "db": ["lecture"], "authz": null, "empty": null, "error": null, "mobile": null, "tests": null, "status": "BLOCKED_CONTENT" },
+    { "name": "RESP verified answers", "route": null, "api": null, "db": ["ospe_answer_key"], "authz": null, "empty": null, "error": null, "mobile": null, "tests": null, "status": "SOURCE_GROUND_TRUTH_MISSING" },
+    { "name": "GPA (e-1..e-4, gp-10)", "route": null, "api": null, "db": [], "authz": null, "empty": null, "error": null, "mobile": null, "tests": null, "status": "OWNER_DECISION" },
+    { "name": "T10 numeric price", "route": "/pricing", "api": null, "db": ["plan"], "authz": null, "empty": null, "error": null, "mobile": null, "tests": null, "status": "OWNER_DECISION" }
+  ],
+  "pilot": { "questions": 10, "sourceQuestion": "10/10", "stem": "10/10", "answerAssociation": "5/10", "answerLeaks": 0, "contamination": 0, "artificialArrows": 0, "autoApproved": 0, "benchmark50": "not reached", "importAuthorised": false },
+  "gate": { "tests": 577, "files": 50, "typecheck": 0, "lintErrors": 0, "lintWarnings": 188, "build": "success" }
+}
