@@ -1,8 +1,17 @@
 {
-  "generated": "2026-09-27T04:33:18.638Z",
+  "generated": "2026-09-27T05:07:49.376Z",
   "rasterizer": "pdftoppm",
   "dpi": 220,
   "count": 10,
+  "metrics": {
+    "total": 10,
+    "answerVerified": 5,
+    "sourceMcq": 3,
+    "cropSafe": 9,
+    "contamination": 0,
+    "artificialArrows": 0,
+    "needsReview": 10
+  },
   "questions": [
     {
       "id": "cvs-p2-q1",
@@ -10,7 +19,7 @@
       "page": 2,
       "questionNumber": 1,
       "subject": "CVS Anatomy",
-      "questionType": "IMAGE_IDENTIFICATION",
+      "questionType": "ANATOMY_SPOTTER",
       "imageCount": 1,
       "sourceOptionCount": 0,
       "studentOptionCount": 5,
@@ -19,9 +28,10 @@
       "targetCoordinatesRequired": false,
       "cropSafe": true,
       "nextQuestionContamination": false,
-      "reviewStatus": "AUTO_VERIFIED",
+      "reviewStatus": "NEEDS_REVIEW",
       "sourceType": "DERIVED_FROM_VERIFIED_SOURCE",
       "origin": "SHORT_ANSWER_DERIVED",
+      "correctAnswer_ADMIN_ONLY": "Right coronary artery",
       "warnings": [
         "crop starts right of the prose column, so the printed answer is not shipped to students",
         "no placed image bbox in block; using raster block crop (level 3)",
@@ -29,14 +39,6 @@
         "answer text printed in source PDF",
         "source marker detected; preserved, no arrow added"
       ],
-      "studentOptionTexts": [
-        "Right coronary artery",
-        "circumflex artery",
-        "Left atrium",
-        "Left coronary artery",
-        "Great cardiac vein"
-      ],
-      "correctAnswer_ADMIN_ONLY": "Right coronary artery",
       "provenance": {
         "sourcePdf": "OSPE CVS.pdf",
         "sourcePage": 2,
@@ -69,7 +71,7 @@
       "page": 5,
       "questionNumber": 6,
       "subject": "CVS Anatomy",
-      "questionType": "IMAGE_IDENTIFICATION",
+      "questionType": "ANATOMY_SPOTTER",
       "imageCount": 1,
       "sourceOptionCount": 0,
       "studentOptionCount": 5,
@@ -78,9 +80,10 @@
       "targetCoordinatesRequired": false,
       "cropSafe": true,
       "nextQuestionContamination": false,
-      "reviewStatus": "AUTO_VERIFIED",
+      "reviewStatus": "NEEDS_REVIEW",
       "sourceType": "DERIVED_FROM_VERIFIED_SOURCE",
       "origin": "SHORT_ANSWER_DERIVED",
+      "correctAnswer_ADMIN_ONLY": "Left coronary artery",
       "warnings": [
         "crop starts right of the prose column, so the printed answer is not shipped to students",
         "no placed image bbox in block; using raster block crop (level 3)",
@@ -89,14 +92,6 @@
         "source marker detected; preserved, no arrow added",
         "block ends at raster whitespace separator (largest blank run of 165.6pt between headers, confidence 1.00)"
       ],
-      "studentOptionTexts": [
-        "Left coronary artery",
-        "Right coronary artery",
-        "circumflex artery",
-        "Left atrium",
-        "Great cardiac vein"
-      ],
-      "correctAnswer_ADMIN_ONLY": "Left coronary artery",
       "provenance": {
         "sourcePdf": "OSPE CVS.pdf",
         "sourcePage": 5,
@@ -107,7 +102,12 @@
           595,
           428
         ],
-        "answerRegion": null,
+        "answerRegion": [
+          50,
+          192,
+          165,
+          205
+        ],
         "visualRegions": [
           [
             224,
@@ -136,15 +136,15 @@
       "reviewStatus": "NEEDS_REVIEW",
       "sourceType": "DERIVED_FROM_VERIFIED_SOURCE",
       "origin": "SHORT_ANSWER_DERIVED",
+      "correctAnswer_ADMIN_ONLY": null,
       "warnings": [
         "crop starts right of the prose column, so the printed answer is not shipped to students",
         "no placed image bbox in block; using raster block crop (level 3)",
         "no MCQ options in source; short-answer format",
+        "answer text printed in source PDF",
         "block ends at raster whitespace separator (largest blank run of 171.5pt between headers, confidence 1.00)",
-        "no verified answer available; cannot build options"
+        "no verifiable answer: no answer-key entry matches the printed answer"
       ],
-      "studentOptionTexts": [],
-      "correctAnswer_ADMIN_ONLY": null,
       "provenance": {
         "sourcePdf": "OSPE CVS.pdf",
         "sourcePage": 8,
@@ -155,7 +155,12 @@
           595,
           423
         ],
-        "answerRegion": null,
+        "answerRegion": [
+          50,
+          208,
+          148,
+          221
+        ],
         "visualRegions": [
           [
             454,
@@ -184,21 +189,15 @@
       "reviewStatus": "NEEDS_REVIEW",
       "sourceType": "SOURCE_PDF_QUESTION",
       "origin": "SOURCE_MCQ",
+      "correctAnswer_ADMIN_ONLY": null,
       "warnings": [
         "crop starts right of the prose column, so the printed answer is not shipped to students",
         "no placed image bbox in block; using raster block crop (level 3)",
         "source marker detected; preserved, no arrow added",
         "block ends at raster whitespace separator (largest blank run of 120.3pt between headers, confidence 1.00)",
-        "source MCQ has no printed answer on the page; correct option NOT verified from source"
+        "source MCQ preserved at 5 options; no answer is printed on the page",
+        "answer key folder RESP stores prompts, not answers: correct option is SOURCE_GROUND_TRUTH_MISSING"
       ],
-      "studentOptionTexts": [
-        "Manubrium sterni .",
-        "Body.",
-        "Xiphoid process.",
-        "Supra - sternal notch.",
-        "Clavicular notch."
-      ],
-      "correctAnswer_ADMIN_ONLY": null,
       "provenance": {
         "sourcePdf": "OSPE RESP.pdf",
         "sourcePage": 3,
@@ -238,21 +237,15 @@
       "reviewStatus": "NEEDS_REVIEW",
       "sourceType": "SOURCE_PDF_QUESTION",
       "origin": "SOURCE_MCQ",
+      "correctAnswer_ADMIN_ONLY": null,
       "warnings": [
         "crop starts right of the prose column, so the printed answer is not shipped to students",
         "no placed image bbox in block; using raster block crop (level 3)",
         "source marker detected; preserved, no arrow added",
         "block ends at raster whitespace separator (largest blank run of 113.1pt between headers, confidence 1.00)",
-        "source MCQ has no printed answer on the page; correct option NOT verified from source"
+        "source MCQ preserved at 5 options; no answer is printed on the page",
+        "answer key folder RESP stores prompts, not answers: correct option is SOURCE_GROUND_TRUTH_MISSING"
       ],
-      "studentOptionTexts": [
-        "Manubrium sterni .",
-        "Body.",
-        "Xiphoid process.",
-        "Supra - sternal notch.",
-        "Clavicular notch."
-      ],
-      "correctAnswer_ADMIN_ONLY": null,
       "provenance": {
         "sourcePdf": "OSPE RESP.pdf",
         "sourcePage": 4,
@@ -292,21 +285,15 @@
       "reviewStatus": "NEEDS_REVIEW",
       "sourceType": "SOURCE_PDF_QUESTION",
       "origin": "SOURCE_MCQ",
+      "correctAnswer_ADMIN_ONLY": null,
       "warnings": [
         "crop starts right of the prose column, so the printed answer is not shipped to students",
         "no placed image bbox in block; using raster block crop (level 3)",
         "source marker detected; preserved, no arrow added",
         "block ends at raster whitespace separator (largest blank run of 190.6pt between headers, confidence 1.00)",
-        "source MCQ has no printed answer on the page; correct option NOT verified from source"
+        "source MCQ preserved at 5 options; no answer is printed on the page",
+        "answer key folder RESP stores prompts, not answers: correct option is SOURCE_GROUND_TRUTH_MISSING"
       ],
-      "studentOptionTexts": [
-        "Anterior end.",
-        "Head.",
-        "Tubercle.",
-        "Costal groove.",
-        "Neck."
-      ],
-      "correctAnswer_ADMIN_ONLY": null,
       "provenance": {
         "sourcePdf": "OSPE RESP.pdf",
         "sourcePage": 6,
@@ -337,8 +324,8 @@
       "questionType": "ANATOMY_SPOTTER",
       "imageCount": 1,
       "sourceOptionCount": 0,
-      "studentOptionCount": 0,
-      "answerVerified": false,
+      "studentOptionCount": 5,
+      "answerVerified": true,
       "sourceMarker": true,
       "targetCoordinatesRequired": false,
       "cropSafe": true,
@@ -346,16 +333,15 @@
       "reviewStatus": "NEEDS_REVIEW",
       "sourceType": "DERIVED_FROM_VERIFIED_SOURCE",
       "origin": "SHORT_ANSWER_DERIVED",
+      "correctAnswer_ADMIN_ONLY": "Superior vena cava",
       "warnings": [
         "crop starts right of the prose column, so the printed answer is not shipped to students",
         "no placed image bbox in block; using raster block crop (level 3)",
         "no MCQ options in source; short-answer format",
+        "answer text printed in source PDF",
         "source marker detected; preserved, no arrow added",
-        "block ends at raster whitespace separator (largest blank run of 103.6pt between headers, confidence 1.00)",
-        "no verified answer available; cannot build options"
+        "block ends at raster whitespace separator (largest blank run of 103.6pt between headers, confidence 1.00)"
       ],
-      "studentOptionTexts": [],
-      "correctAnswer_ADMIN_ONLY": null,
       "provenance": {
         "sourcePdf": "OSPE CVS.pdf",
         "sourcePage": 7,
@@ -366,7 +352,12 @@
           595,
           433
         ],
-        "answerRegion": null,
+        "answerRegion": [
+          50,
+          191,
+          157,
+          205
+        ],
         "visualRegions": [
           [
             182,
@@ -383,7 +374,7 @@
       "page": 9,
       "questionNumber": 14,
       "subject": "CVS Anatomy",
-      "questionType": "IMAGE_IDENTIFICATION",
+      "questionType": "ANATOMY_SPOTTER",
       "imageCount": 1,
       "sourceOptionCount": 0,
       "studentOptionCount": 5,
@@ -392,9 +383,10 @@
       "targetCoordinatesRequired": false,
       "cropSafe": true,
       "nextQuestionContamination": false,
-      "reviewStatus": "AUTO_VERIFIED",
+      "reviewStatus": "NEEDS_REVIEW",
       "sourceType": "DERIVED_FROM_VERIFIED_SOURCE",
       "origin": "SHORT_ANSWER_DERIVED",
+      "correctAnswer_ADMIN_ONLY": "Right atrium",
       "warnings": [
         "crop starts right of the prose column, so the printed answer is not shipped to students",
         "no placed image bbox in block; using raster block crop (level 3)",
@@ -403,14 +395,6 @@
         "source marker detected; preserved, no arrow added",
         "block ends at raster whitespace separator (largest blank run of 141.7pt between headers, confidence 1.00)"
       ],
-      "studentOptionTexts": [
-        "Right atrium",
-        "Right coronary artery",
-        "circumflex artery",
-        "Left atrium",
-        "Left coronary artery"
-      ],
-      "correctAnswer_ADMIN_ONLY": "Right atrium",
       "provenance": {
         "sourcePdf": "OSPE CVS.pdf",
         "sourcePage": 9,
@@ -446,8 +430,8 @@
       "questionType": "ANATOMY_SPOTTER",
       "imageCount": 1,
       "sourceOptionCount": 0,
-      "studentOptionCount": 0,
-      "answerVerified": false,
+      "studentOptionCount": 5,
+      "answerVerified": true,
       "sourceMarker": true,
       "targetCoordinatesRequired": false,
       "cropSafe": true,
@@ -455,16 +439,15 @@
       "reviewStatus": "NEEDS_REVIEW",
       "sourceType": "DERIVED_FROM_VERIFIED_SOURCE",
       "origin": "SHORT_ANSWER_DERIVED",
+      "correctAnswer_ADMIN_ONLY": "Ascending aorta",
       "warnings": [
         "crop starts right of the prose column, so the printed answer is not shipped to students",
         "no placed image bbox in block; using raster block crop (level 3)",
         "no MCQ options in source; short-answer format",
+        "answer text printed in source PDF",
         "source marker detected; preserved, no arrow added",
-        "block ends at raster whitespace separator (largest blank run of 133.4pt between headers, confidence 1.00)",
-        "no verified answer available; cannot build options"
+        "block ends at raster whitespace separator (largest blank run of 133.4pt between headers, confidence 1.00)"
       ],
-      "studentOptionTexts": [],
-      "correctAnswer_ADMIN_ONLY": null,
       "provenance": {
         "sourcePdf": "OSPE CVS.pdf",
         "sourcePage": 10,
@@ -475,7 +458,12 @@
           595,
           434
         ],
-        "answerRegion": null,
+        "answerRegion": [
+          50,
+          191,
+          141,
+          205
+        ],
         "visualRegions": [
           [
             183,
@@ -493,7 +481,7 @@
       "questionNumber": null,
       "subject": "Module 3 Practical",
       "questionType": "IMAGE_IDENTIFICATION",
-      "stem": "[OCR candidate unavailable - image-only PDF; stem requires OCR/manual transcription]",
+      "stem": "[image-only PDF: no text layer; stem requires OCR or manual transcription]",
       "imageCount": 1,
       "sourceOptionCount": 0,
       "studentOptionCount": 0,
@@ -505,13 +493,12 @@
       "reviewStatus": "NEEDS_REVIEW",
       "sourceType": "SOURCE_PDF_QUESTION",
       "origin": "IMAGE_ONLY_OCR_CANDIDATE",
-      "warnings": [
-        "image-only PDF: no text layer, so stem/options cannot be extracted deterministically",
-        "no OCR engine available in this environment; OCR would be CANDIDATE text only, never ground truth",
-        "correct answer cannot be verified from the PDF; must not be auto-approved"
-      ],
-      "studentOptionTexts": [],
       "correctAnswer_ADMIN_ONLY": null,
+      "warnings": [
+        "image-only PDF: no text layer",
+        "no OCR engine available; OCR would be candidate text only",
+        "correct answer cannot be verified: SOURCE_GROUND_TRUTH_MISSING"
+      ],
       "provenance": {
         "sourcePdf": "Ospe module 3.pdf",
         "sourcePage": 1,

@@ -49,8 +49,33 @@ const HEADER_RE = /^\s*(?:q(?:uestion)?\s*)?(\d{1,3})\s*[\)\.\-:]\s*(.*)$/i;
 /** Option lines: "A. text", "a) text", "(A) text" */
 const OPTION_RE = /^\s*\(?([A-Ea-e])[\)\.\-]\s*(.+)$/;
 
-/** Answer text directly under a stem in revision decks: ends with a period. */
-const ANSWER_RE = /^(.{2,120})\.\s*$/;
+/** Bare numbers and ticks are image labels, never answers. */
+const LABEL_ONLY_RE = /^[\s\d\.\*\+\-–—:;,]+$/;
+
+/**
+ * Recovers the answer a revision deck prints under the question.
+ *
+ * The answer is NOT reliably punctuated — real CVS pages print "Superior vena
+ * cava", "Ascending aorta" and "Pulmonary artery ?" with no full stop — so it
+ * cannot be matched on a trailing period. Instead the answer is the last
+ * prose line of the block that is not a header, option, or bare image label.
+ */
+export const extractPrintedAnswer = (bodyLines: TextLine[], headerText: string): string | null => {
+  const candidates = bodyLines.filter(
+    (l) =>
+      !HEADER_RE.test(l.text) &&
+      !OPTION_RE.test(l.text) &&
+      !isMarkerGlyph(l.text) &&
+      !LABEL_ONLY_RE.test(l.text) &&
+      l.text.trim() !== headerText.trim(),
+  );
+  const last = candidates[candidates.length - 1];
+  if (!last) return null;
+  // Strip a trailing "?" that belongs to the source marker, and terminal punctuation.
+  const text = last.text.replace(/\s*\?\s*$/, "").replace(/[.\s]+$/, "").trim();
+  if (text.length < 2 || text.length > 120) return null;
+  return text;
+};
 
 export const parseQuestionHeader = (line: TextLine): { number: number | null; stem: string } | null => {
   const m = HEADER_RE.exec(line.text);
@@ -119,18 +144,15 @@ export const segmentQuestionBlocks = (page: PageGeometry): QuestionBlock[] => {
 
     const stem = h.stem;
     const options: QuestionOption[] = [];
-    let printedAnswer: string | null = null;
     for (const l of bodyLines) {
       const om = OPTION_RE.exec(l.text);
       if (om && om[1].toUpperCase() === String.fromCharCode(65 + options.length)) {
         options.push({ label: om[1].toUpperCase(), text: om[2].trim() });
-        continue;
-      }
-      if (!printedAnswer) {
-        const am = ANSWER_RE.exec(l.text.trim());
-        if (am && !HEADER_RE.test(l.text)) printedAnswer = am[1].trim();
       }
     }
+    // Only short-answer blocks print their answer. A source MCQ must never have
+    // one of its own options mistaken for a printed answer.
+    const printedAnswer = options.length >= 2 ? null : extractPrintedAnswer(bodyLines, lines[h.index].text);
 
     const blockRect: Rect = {
       x0: 0,
