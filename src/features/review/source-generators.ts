@@ -3,6 +3,7 @@ import {
   rankConcepts, normaliseForCompare, deduplicate, type Fact, type RichSummary, type ConceptNode,
 } from "./source-analysis";
 import { cleanedSource } from "./source-cleaner";
+import { resolveConversationalFocus, type HistoryMessage } from "./tutor-context";
 
 type Summary = {
   overview?: string;
@@ -207,18 +208,31 @@ const bullet = (s: string) => `• ${s}`;
  * Answers the student's actual question from the source instead of echoing
  * sentences. Intent-aware: "what causes X" gets causes, "compare A and B" gets
  * the contrast, "what is X" gets the definition.
+ *
+ * An optional conversation history lets follow-up questions ("what causes it?",
+ * "اشرح ده") resolve their subject against the most recently discussed topic.
  */
 export function createSourceTutorReply(
   title: string,
   content: string,
   summary: Summary,
   question: string,
+  context?: { history?: HistoryMessage[] },
 ): string {
   const source = cleanedSource(content ?? "");
   const ar = /[\u0600-\u06FF]/.test(question ?? "");
   const facts = extractFacts(source, 40);
+
+  const { focus, wantsClarification } = resolveConversationalFocus(question ?? "", context?.history ?? []);
+  if (wantsClarification) {
+    return ar
+      ? "لم أتمكن من تحديد المصطلح المقصود في سؤالك. اذكر اسم المفهوم الذي تريد مناقشته (مثال: «اشرح التامور») ثم أعد السؤال."
+      : "I couldn’t tell which topic you mean. Name the concept you want to discuss (e.g. “Explain the pericardium”), then ask again.";
+  }
+
   const { intent, focusTerms } = detectIntent(question ?? "");
-  const focused = factsAbout(facts, focusTerms, intent, question ?? "");
+  const effectiveTerms = focusTerms.length ? focusTerms : focus ? [focus] : [];
+  const focused = factsAbout(facts, effectiveTerms, intent, question ?? "");
 
   const L = ar
     ? {
@@ -299,7 +313,7 @@ export function createSourceTutorReply(
   };
 
   const lines: string[] = [];
-  const focusLabel = focusTerms[0];
+  const focusLabel = effectiveTerms[0];
 
   if (focusLabel) {
     lines.push(ar ? `**${focusLabel}:**` : `**${focusLabel}**`);

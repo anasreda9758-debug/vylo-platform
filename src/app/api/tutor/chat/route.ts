@@ -8,6 +8,7 @@ import { tutorChatSchema } from "@/shared/validation";
 import { updateStreak } from "@/features/gamification/queries";
 import { createSourceTutorReply } from "@/features/review/source-generators";
 import { getAccessibleLecture } from "@/features/access/learning-access";
+import { safeUpdateStreak } from "@/features/gamification/error-handling";
 
 // ── Principle 1: Role Playing ──────────────────────────────────────────────
 function buildSystemPrompt(
@@ -130,7 +131,10 @@ export async function POST(request: NextRequest) {
   const lectureAccess = await getAccessibleLecture(session.user, lectureId, { allowPreview: true });
   if (!lectureAccess.ok) return NextResponse.json({ error: "lecture not found" }, { status: 404 });
   const lectureRow = lectureAccess.value;
-  updateStreak(session.user.id).catch(() => {});
+  await safeUpdateStreak(
+    () => updateStreak(session.user.id),
+    (msg: string, err?: Error) => console.warn(`[tutor] ${msg}`, err),
+  );
   // Local source-grounded study tools are the default. A hosted model is an
   // explicit opt-in, never an accidental dependency just because a key exists.
   const useHostedModel = process.env.USE_HOSTED_AI === "true" && Boolean(process.env.GROQ_API_KEY);
@@ -153,11 +157,13 @@ export async function POST(request: NextRequest) {
     // The study assistant remains useful without a paid/hosted model. This
     // fallback only reorganizes the verified lecture text already in the DB.
     if (!useHostedModel) {
+      const history = messages.slice(0, -1).map((m) => ({ role: m.role, content: m.content }));
       const answer = createSourceTutorReply(
         lectureRow.title,
         lectureRow.content ?? "",
         lectureRow.summaryJson,
         lastUserMsg,
+        { history },
       );
       return new Response(answer, {
         headers: {
