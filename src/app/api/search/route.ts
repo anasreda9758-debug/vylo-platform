@@ -16,9 +16,13 @@ export async function GET(request: NextRequest) {
   if (!q || q.trim().length === 0) {
     return NextResponse.json({ error: "missing query parameter 'q'" }, { status: 400 });
   }
+  if (q.length > 500) {
+    return NextResponse.json({ error: "query too long" }, { status: 400 });
+  }
 
   const moduleSlug = request.nextUrl.searchParams.get("module") ?? undefined;
-  const topK = Math.min(parseInt(request.nextUrl.searchParams.get("k") ?? "5", 10), 20);
+  const requestedK = parseInt(request.nextUrl.searchParams.get("k") ?? "5", 10);
+  const topK = Number.isFinite(requestedK) ? Math.min(Math.max(requestedK, 1), 20) : 5;
 
   try {
     const index = await getRAGIndex();

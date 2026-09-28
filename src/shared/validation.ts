@@ -63,6 +63,13 @@ export const flashcardReviewSchema = z.object({
   quality: z.number().int().min(0).max(5),
 });
 
+// ── Question Review Answer (initial review / SM-2) ──
+export const questionReviewAnswerSchema = z.object({
+  questionId: z.string().min(1).max(200),
+  optionId: z.string().min(1).max(200),
+  timeSpentMs: z.number().int().min(0).max(300000).optional(),
+});
+
 // ── Case Evaluate ──
 export const caseEvaluateSchema = z.object({
   caseId: z.string().min(1).max(200),

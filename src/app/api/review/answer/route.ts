@@ -2,14 +2,25 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/shared/session";
 import { updateQuestionReview } from "@/features/practice/queries";
 import { getAccessibleQuestionReview } from "@/features/access/learning-access";
+import { questionReviewAnswerSchema } from "@/shared/validation";
 
 export async function POST(request: NextRequest) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
-  const { questionId, optionId, timeSpentMs } = await request.json();
-  if (!questionId || !optionId) {
-    return NextResponse.json({ error: "missing fields" }, { status: 400 });
+  let questionId: string;
+  let optionId: string;
+  let timeSpentMs: number | undefined;
+  try {
+    const parsed = questionReviewAnswerSchema.parse(await request.json());
+    questionId = parsed.questionId;
+    optionId = parsed.optionId;
+    timeSpentMs = parsed.timeSpentMs;
+  } catch (e: any) {
+    if (e?.issues || e instanceof SyntaxError) {
+      return NextResponse.json({ error: "validation" }, { status: 400 });
+    }
+    return NextResponse.json({ error: "invalid json" }, { status: 400 });
   }
 
   // A review answer is only valid for this user's scheduled review item.

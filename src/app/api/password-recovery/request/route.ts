@@ -3,6 +3,7 @@ import { createPasswordResetChallenge, PASSWORD_RESET_MESSAGE } from "@/features
 import { logger } from "@/shared/logger";
 
 function requestIp(request: Request) {
+  if (process.env.TRUST_PROXY !== "true") return "unknown";
   return request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
     ?? request.headers.get("x-real-ip")
     ?? "unknown";
