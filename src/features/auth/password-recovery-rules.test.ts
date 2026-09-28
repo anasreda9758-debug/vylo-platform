@@ -1,4 +1,8 @@
 import { describe, expect, it } from "vitest";
+
+// secret() requires BETTER_AUTH_SECRET (fail-closed); provide a test value.
+process.env.BETTER_AUTH_SECRET = "unit-test-secret";
+
 import {
   PASSWORD_RESET_CODE_TTL_MS,
   PASSWORD_RESET_MAX_ATTEMPTS,

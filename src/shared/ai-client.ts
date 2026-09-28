@@ -23,6 +23,7 @@ export async function generateTutorReply(params: {
     system: params.system,
     messages: params.messages,
     abortSignal: AbortSignal.timeout(30_000),
+    maxOutputTokens: 2048,
   });
 
   const inputTokens = usage?.inputTokens ?? 0;
@@ -40,6 +41,7 @@ export function streamTutorReply(params: {
     system: params.system,
     messages: params.messages,
     abortSignal: AbortSignal.timeout(60_000),
+    maxOutputTokens: 4096,
   });
 }
 
@@ -49,6 +51,7 @@ export async function generateJson<T>(params: { system: string; user: string }) 
     system: params.system,
     prompt: params.user,
     abortSignal: AbortSignal.timeout(30_000),
+    maxOutputTokens: 2048,
   });
 
   const inputTokens = usage?.inputTokens ?? 0;

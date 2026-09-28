@@ -15,7 +15,11 @@ export async function getRAGIndex(): Promise<BM25Index> {
 }
 
 export async function rebuildIndex(): Promise<BM25Index> {
-  const client = postgres(process.env.DATABASE_URL ?? "postgres://postgres:lms_dev@localhost:5432/lms");
+  const connectionString = process.env.DATABASE_URL;
+  if (!connectionString) {
+    throw new Error("DATABASE_URL is required to build the RAG index");
+  }
+  const client = postgres(connectionString);
 
   const meta = await client`
     SELECT l.id as lid, l.title as ltitle, m.slug as mslug

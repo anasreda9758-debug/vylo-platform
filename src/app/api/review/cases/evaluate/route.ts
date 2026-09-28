@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/shared/session";
-import { recordAiUsage } from "@/features/ai/queries";
+import { FREE_DAILY_LIMIT, recordAiUsage, reserveAiUsageSlot } from "@/features/ai/queries";
 import { generateJson } from "@/shared/ai-client";
 import { awardXp } from "@/features/gamification/queries";
 import { evaluateSourceAnswers } from "@/features/review/source-generators";
@@ -29,8 +29,14 @@ export async function POST(request: NextRequest) {
     if (!Array.isArray(body.answers) || body.answers.length === 0) {
       return NextResponse.json({ error: "invalid answers" }, { status: 400 });
     }
+    if (body.answers.length > 40) {
+      return NextResponse.json({ error: "too many answers" }, { status: 400 });
+    }
     caseId = body.caseId;
     answers = body.answers.map((a: unknown) => String(a ?? ""));
+    if (answers.some((a) => a.length > 4000)) {
+      return NextResponse.json({ error: "answer too long" }, { status: 400 });
+    }
   } catch {
     return NextResponse.json({ error: "invalid json" }, { status: 400 });
   }
@@ -72,6 +78,17 @@ const evaluateLocally = async () => {
     return NextResponse.json({ ...result, source: "lecture" });
   };
   if (!process.env.GROQ_API_KEY) return evaluateLocally();
+
+  const reservation = await reserveAiUsageSlot(session.user.id);
+  if (!reservation.ok) {
+    return NextResponse.json(
+      {
+        error: "free_limit",
+        message: `وصلت إلى حد ${FREE_DAILY_LIMIT} عملية ذكية مجانية اليوم.`,
+      },
+      { status: 429 },
+    );
+  }
 
   try {
     const { data, inputTokens, outputTokens } = await generateJson<{ score: number; feedback: string }>({

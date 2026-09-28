@@ -64,16 +64,28 @@ export async function createPasswordResetChallenge(email: string, ip: string) {
   const normalizedEmail = normalizeRecoveryEmail(email);
   const key = clientKey(normalizedEmail, ip);
   const now = new Date();
-  const recent = await db.query.passwordResetChallenge.findFirst({
-    where: and(
-      eq(passwordResetChallenge.requestKeyHash, key),
-      gt(
-        passwordResetChallenge.createdAt,
-        new Date(now.getTime() - PASSWORD_RESET_RESEND_COOLDOWN_MS),
+  const [recent] = [
+    await db.query.passwordResetChallenge.findFirst({
+      where: and(
+        eq(passwordResetChallenge.requestKeyHash, key),
+        gt(
+          passwordResetChallenge.createdAt,
+          new Date(now.getTime() - PASSWORD_RESET_RESEND_COOLDOWN_MS),
+        ),
       ),
-    ),
-    orderBy: [desc(passwordResetChallenge.createdAt)],
-  });
+      orderBy: [desc(passwordResetChallenge.createdAt)],
+    }),
+    await db.query.passwordResetChallenge.findFirst({
+      where: and(
+        eq(passwordResetChallenge.email, normalizedEmail),
+        gt(
+          passwordResetChallenge.createdAt,
+          new Date(now.getTime() - PASSWORD_RESET_RESEND_COOLDOWN_MS),
+        ),
+      ),
+      orderBy: [desc(passwordResetChallenge.createdAt)],
+    }),
+  ].filter(Boolean);
   if (recent) return { limited: true as const, challengeId: recent.id };
 
   const foundUser = await db.query.user.findFirst({
@@ -198,6 +210,7 @@ export async function completePasswordReset(resetToken: string, newPassword: str
     where: and(
       eq(passwordResetChallenge.resetTokenHash, hashRecoveryValue(resetToken)),
       isNull(passwordResetChallenge.consumedAt),
+      isNull(passwordResetChallenge.invalidatedAt),
     ),
   });
   if (!challenge || !challenge.userId || !challenge.verifiedAt || challenge.expiresAt <= new Date()) {

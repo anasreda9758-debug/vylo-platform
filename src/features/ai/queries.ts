@@ -36,6 +36,16 @@ async function legacyAiUsageToday(userId: string, now = new Date()): Promise<num
 }
 
 /**
+ * The additive ai_usage_daily counter may not exist on pre-migration dbs. Only
+ * that exact missing-relation failure may fall back; every other error must
+ * propagate so the quota never fails open on a transient DB fault.
+ */
+function isMissingDailyTable(error: unknown): boolean {
+  return (error as { code?: string })?.code === "42P01" &&
+    /ai_usage_daily/.test(String((error as { message?: string })?.message ?? ""));
+}
+
+/**
  * Today's used study-generation operations for the user.
  * Prefers the additive ai_usage_daily counter; falls back to a legacy
  * ai_usage row-count when that table is not yet migrated.
@@ -49,7 +59,8 @@ export async function getAiUsageToday(userId: string, now = new Date()): Promise
         AND bucket = ${STUDY_GENERATION_BUCKET}
     `)) as { count?: number }[];
     return typeof rows[0]?.count === "number" ? rows[0].count : 0;
-  } catch {
+  } catch (error) {
+    if (!isMissingDailyTable(error)) throw error;
     return legacyAiUsageToday(userId, now);
   }
 }
@@ -91,7 +102,8 @@ export async function reserveAiUsageSlot(
       `)) as { count?: number }[];
       return { ok: true, count: typeof after[0]?.count === "number" ? after[0].count : used + 1 } as const;
     });
-  } catch {
+  } catch (error) {
+    if (!isMissingDailyTable(error)) throw error;
     // ai_usage_daily not yet migrated: legacy check-then-act against ai_usage.
     const used = await legacyAiUsageToday(userId, now);
     if (used >= limit) return { ok: false, reason: "limit_reached" };

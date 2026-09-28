@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/shared/session";
 import { streamTutorReply, type TutorMessage } from "@/shared/ai-client";
-import { FREE_DAILY_LIMIT, getAiUsageToday, recordAiUsage } from "@/features/ai/queries";
+import { FREE_DAILY_LIMIT, recordAiUsage, reserveAiUsageSlot } from "@/features/ai/queries";
 import { hasAnySubscription } from "@/features/billing/queries";
 import { getRAGIndex, retrieve } from "@/features/rag";
 import { tutorChatSchema } from "@/shared/validation";
@@ -140,8 +140,8 @@ export async function POST(request: NextRequest) {
   const useHostedModel = process.env.USE_HOSTED_AI === "true" && Boolean(process.env.GROQ_API_KEY);
   const premium = useHostedModel && await hasAnySubscription(session.user.id);
   if (useHostedModel && !premium) {
-    const usedToday = await getAiUsageToday(session.user.id);
-    if (usedToday >= FREE_DAILY_LIMIT) {
+    const reservation = await reserveAiUsageSlot(session.user.id);
+    if (!reservation.ok) {
       return NextResponse.json(
         {
           error: "free_limit",

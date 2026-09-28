@@ -5,7 +5,11 @@ export const PASSWORD_RESET_RESEND_COOLDOWN_MS = 60 * 1000;
 export const PASSWORD_RESET_MAX_ATTEMPTS = 5;
 
 function secret() {
-  return process.env.BETTER_AUTH_SECRET ?? "development-only-password-recovery-secret";
+  const value = process.env.BETTER_AUTH_SECRET;
+  if (!value) {
+    throw new Error("BETTER_AUTH_SECRET is required for password recovery");
+  }
+  return value;
 }
 
 export function normalizeRecoveryEmail(email: string) {
