@@ -1,5 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
+import { timingSafeEqual } from "node:crypto";
 import { processExpiredSubscriptions } from "@/features/billing/queries";
+
+function bearerMatches(authHeader: string | null, secret: string): boolean {
+  if (!authHeader?.startsWith("Bearer ")) return false;
+  const presented = Buffer.from(authHeader.slice("Bearer ".length));
+  const expected = Buffer.from(secret);
+  return presented.length === expected.length && timingSafeEqual(presented, expected);
+}
 
 /**
  * GET /api/billing/cron
@@ -10,10 +18,9 @@ import { processExpiredSubscriptions } from "@/features/billing/queries";
  * Protect with CRON_SECRET header.
  */
 export async function GET(request: NextRequest) {
-  const authHeader = request.headers.get("authorization");
   const cronSecret = process.env.CRON_SECRET;
 
-  if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
+  if (!cronSecret || !bearerMatches(request.headers.get("authorization"), cronSecret)) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
