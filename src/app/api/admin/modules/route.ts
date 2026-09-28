@@ -116,25 +116,45 @@ export async function PUT(request: NextRequest) {
   const [existing] = await db.execute(sql`SELECT * FROM module WHERE id = ${body.id}`);
   if (!existing) return NextResponse.json({ error: "not found" }, { status: 404 });
 
-  const updates: Record<string, any> = {};
-  if (body.name !== undefined) updates.name = body.name;
-  if (body.slug !== undefined) updates.slug = body.slug;
-  if (body.description !== undefined) updates.description = body.description;
-  if (body.subjectId !== undefined) updates.subject_id = body.subjectId;
-  if (body.order !== undefined) updates["order"] = body.order;
-  if (body.isFree !== undefined) updates.is_free = body.isFree;
-  if (body.studyYear !== undefined) updates.study_year = Number(body.studyYear) || 1;
-  if (body.term !== undefined) updates.term = body.term;
+  const updates: Partial<typeof curriculumModule.$inferInsert> = {};
+  if (body.name !== undefined) {
+    if (typeof body.name !== "string" || !body.name.trim()) return NextResponse.json({ error: "invalid name" }, { status: 400 });
+    updates.name = body.name;
+  }
+  if (body.slug !== undefined) {
+    if (typeof body.slug !== "string" || !body.slug.trim()) return NextResponse.json({ error: "invalid slug" }, { status: 400 });
+    updates.slug = body.slug;
+  }
+  if (body.description !== undefined) {
+    if (body.description !== null && typeof body.description !== "string") return NextResponse.json({ error: "invalid description" }, { status: 400 });
+    updates.description = body.description;
+  }
+  if (body.subjectId !== undefined) {
+    if (body.subjectId !== null && typeof body.subjectId !== "string") return NextResponse.json({ error: "invalid subjectId" }, { status: 400 });
+    updates.subjectId = body.subjectId;
+  }
+  if (body.order !== undefined) {
+    if (!Number.isInteger(body.order)) return NextResponse.json({ error: "invalid order" }, { status: 400 });
+    updates.order = body.order;
+  }
+  if (body.isFree !== undefined) {
+    if (typeof body.isFree !== "boolean") return NextResponse.json({ error: "invalid isFree" }, { status: 400 });
+    updates.isFree = body.isFree;
+  }
+  if (body.studyYear !== undefined) {
+    if (!Number.isInteger(Number(body.studyYear)) || Number(body.studyYear) < 1) return NextResponse.json({ error: "invalid studyYear" }, { status: 400 });
+    updates.studyYear = Number(body.studyYear);
+  }
+  if (body.term !== undefined) {
+    if (!Number.isInteger(body.term)) return NextResponse.json({ error: "invalid term" }, { status: 400 });
+    updates.term = body.term;
+  }
 
   if (Object.keys(updates).length === 0) {
     return NextResponse.json({ error: "no fields to update" }, { status: 400 });
   }
 
-  const setClauses = Object.entries(updates)
-    .map(([k, v]) => `"${k}" = ${typeof v === "string" ? `'${v}'` : v}`)
-    .join(", ");
-
-  await db.execute(sql.raw(`UPDATE module SET ${setClauses}, updated_at = NOW() WHERE id = '${body.id}'`));
+  await db.update(curriculumModule).set(updates).where(eq(curriculumModule.id, body.id));
 
   await logAudit({
     userId: admin.user.id,

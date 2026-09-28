@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { randomUUID } from "node:crypto";
-import { sql } from "drizzle-orm";
+import { sql, eq } from "drizzle-orm";
 import { getSession } from "@/shared/session";
 import { db } from "@/shared/db";
 import { lecture } from "@/features/curriculum/schema";
@@ -118,34 +118,31 @@ export async function PUT(request: NextRequest) {
   const [existing] = await db.execute(sql`SELECT * FROM lecture WHERE id = ${body.id}`);
   if (!existing) return NextResponse.json({ error: "not found" }, { status: 404 });
 
-  const updates: Record<string, any> = {};
-  const allowed = ["title", "slug", "summary", "subject", "kind", "content", "pdfFile", "durationMin", "pdfPageStart", "pdfPageEnd"];
-  const dbKeyMap: Record<string, string> = {
-    pdfFile: "pdf_file",
-    durationMin: "duration_min",
-    pdfPageStart: "pdf_page_start",
-    pdfPageEnd: "pdf_page_end",
-  };
+  const updates: Partial<typeof lecture.$inferInsert> = {};
+  const allowed: ["title", "slug", "summary", "subject", "kind", "content", "pdfFile", "durationMin", "pdfPageStart", "pdfPageEnd"] =
+    ["title", "slug", "summary", "subject", "kind", "content", "pdfFile", "durationMin", "pdfPageStart", "pdfPageEnd"];
+  const stringKeys = ["title", "slug", "summary", "subject", "kind", "content", "pdfFile"] as const;
   for (const key of allowed) {
-    if (body[key] !== undefined) {
-      updates[dbKeyMap[key] ?? key] = body[key];
+    if (body[key] === undefined) continue;
+    const value = body[key];
+    if ((stringKeys as readonly string[]).includes(key)) {
+      if (value !== null && typeof value !== "string") return NextResponse.json({ error: `invalid ${key}` }, { status: 400 });
+      (updates as Record<string, unknown>)[key] = value;
+    } else {
+      if (value !== null && !Number.isInteger(value)) return NextResponse.json({ error: `invalid ${key}` }, { status: 400 });
+      (updates as Record<string, unknown>)[key] = value;
     }
   }
-  if (body.order !== undefined) updates["order"] = body.order;
+  if (body.order !== undefined) {
+    if (!Number.isInteger(body.order)) return NextResponse.json({ error: "invalid order" }, { status: 400 });
+    updates.order = body.order;
+  }
 
   if (Object.keys(updates).length === 0) {
     return NextResponse.json({ error: "no fields to update" }, { status: 400 });
   }
 
-  const setClauses = Object.entries(updates)
-    .map(([k, v]) => {
-      if (v === null) return `"${k}" = NULL`;
-      if (typeof v === "string") return `"${k}" = '${v.replace(/'/g, "''")}'`;
-      return `"${k}" = ${v}`;
-    })
-    .join(", ");
-
-  await db.execute(sql.raw(`UPDATE lecture SET ${setClauses}, updated_at = NOW() WHERE id = '${body.id}'`));
+  await db.update(lecture).set(updates).where(eq(lecture.id, body.id));
 
   await logAudit({
     userId: admin.user.id,
