@@ -276,3 +276,22 @@ export async function hasEarnedCaseCompletionXp(userId: string, caseId: string):
   `);
   return (rows as any[]).length > 0;
 }
+
+/**
+ * True when the user already earned quiz_correct XP for this question today.
+ * Prevents re-answering a known-correct question to farm XP while still
+ * rewarding each newly-learned correct answer once per day.
+ */
+export async function hasEarnedQuizCorrectToday(userId: string, questionId: string, now = new Date()): Promise<boolean> {
+  const startOfDay = new Date(now);
+  startOfDay.setHours(0, 0, 0, 0);
+  const rows = await db.execute(sql`
+    SELECT 1 FROM xp_log
+    WHERE user_id = ${userId}
+      AND reason = 'quiz_correct'
+      AND reference_id = ${questionId}
+      AND created_at >= ${startOfDay}
+    LIMIT 1
+  `);
+  return (rows as any[]).length > 0;
+}

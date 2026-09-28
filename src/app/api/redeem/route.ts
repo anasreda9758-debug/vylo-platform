@@ -8,6 +8,19 @@ import { curriculumModule } from "@/features/curriculum/schema";
 import { plan, promoCode, promoRedemption, subscription } from "@/features/billing/schema";
 import { normalizeRedeemCode } from "@/features/billing/redeem-codes";
 import { PromoValidationError } from "@/features/billing/pricing";
+import { isBillableTermModule, termScopeRefFromType } from "@/features/billing/pricing-rules";
+
+/**
+ * TEMPORARY SECURITY KILL SWITCH.
+ *
+ * The `confirm` action creates a subscription and increments promo usage
+ * directly, and can grant the wrong term or an unavailable module. Keep this
+ * `false` until entitlement validation is implemented. The read-only `preview`
+ * action below is intentionally unaffected.
+ */
+const PROMO_REDEMPTION_ENABLED = false;
+
+const REDEMPTION_DISABLED_MESSAGE = "Promo code redemption is temporarily unavailable.";
 
 function codeError(error: unknown) {
   if (!(error instanceof PromoValidationError)) return null;
@@ -48,6 +61,12 @@ export async function POST(request: NextRequest) {
   const normalized = normalizeRedeemCode(body.code);
   if (normalized.length < 5 || normalized.length > 64) return NextResponse.json({ error: "Invalid code format" }, { status: 400 });
 
+  // Authentication (401 above) is preserved before this response. Disable all
+  // redemption writes without revealing anything about the account or code.
+  if (body.action === "confirm" && !PROMO_REDEMPTION_ENABLED) {
+    return NextResponse.json({ error: REDEMPTION_DISABLED_MESSAGE }, { status: 503 });
+  }
+
   try {
     if (body.action !== "confirm") {
       const raw = await db.query.promoCode.findFirst({ where: eq(promoCode.code, normalized) });
@@ -83,13 +102,15 @@ export async function POST(request: NextRequest) {
       if (!expiresAt) throw new Error("REWARD_TARGET_NOT_CONFIGURED");
       if (rewardType === "FREE_MODULE") {
         const moduleRow = await tx.query.curriculumModule.findFirst({ where: eq(curriculumModule.id, String(raw?.module_id)), with: { academicPeriod: true } });
+        if (moduleRow && !isBillableTermModule(moduleRow.slug)) throw new Error("REWARD_TARGET_NOT_CONFIGURED");
         const modulePlan = moduleRow ? await tx.query.plan.findFirst({ where: eq(plan.scopeRef, moduleRow.slug) }) : null;
         const moduleExpiry = expiresAt ?? moduleRow?.academicPeriod?.endsAt;
         if (!moduleRow || !modulePlan || !moduleExpiry) throw new Error("REWARD_TARGET_NOT_CONFIGURED");
         await tx.insert(subscription).values({ id: randomUUID(), userId: session.user.id, planId: modulePlan.id, status: "active", startsAt: new Date(), expiresAt: moduleExpiry });
       } else {
         const period = await tx.query.academicPeriod.findFirst({ where: eq(academicPeriod.id, String(raw.academic_period_id)) });
-        const termPlan = period ? await tx.query.plan.findFirst({ where: and(eq(plan.scope, "term"), eq(plan.scopeRef, period.type === "TERM_1" ? "1" : "2")) }) : null;
+        const termScopeRef = termScopeRefFromType(period?.type ?? null);
+        const termPlan = period && termScopeRef ? await tx.query.plan.findFirst({ where: and(eq(plan.scope, "term"), eq(plan.scopeRef, termScopeRef)) }) : null;
         if (!termPlan) throw new Error("REWARD_TARGET_NOT_CONFIGURED");
         await tx.insert(subscription).values({ id: randomUUID(), userId: session.user.id, planId: termPlan.id, status: "active", startsAt: new Date(), expiresAt });
       }

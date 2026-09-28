@@ -206,4 +206,18 @@ describe("POST /api/review/flashcards - idempotent generation", () => {
     expect(mocks.createFlashcards).toHaveBeenCalledTimes(3);
     expect(mocks.reserve).toHaveBeenCalledTimes(3);
   });
+
+  it("finalizes a pending request as failed when generation fails (key is never left poisoned)", async () => {
+    const key = "00000000-0000-4000-8000-0000000000aa";
+    mocks.createFlashcards.mockRejectedValue(new Error("generation exploded"));
+    const response = await POST(request({ lectureId: "lecture-1", idempotencyKey: key }));
+    expect(response.status).toBe(400);
+    expect(mem.state("user-1", key)?.status).toBe("failed");
+
+    // a failed key is recoverable: a later attempt regenerates
+    mocks.createFlashcards.mockResolvedValue(3);
+    const retry = await POST(request({ lectureId: "lecture-1", idempotencyKey: key }));
+    expect(retry.status).toBe(200);
+    expect(mem.state("user-1", key)?.status).toBe("completed");
+  });
 });

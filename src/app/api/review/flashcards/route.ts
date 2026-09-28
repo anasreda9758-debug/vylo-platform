@@ -98,6 +98,14 @@ export async function POST(request: NextRequest) {
     try {
       return await respond(await createLocalCards());
     } catch (err) {
+      if (idempotencyKey) {
+        await finalizeGeneration({
+          userId: session.user.id,
+          idempotencyKey,
+          status: "failed",
+          result: { error: (err as Error).message },
+        });
+      }
       return NextResponse.json({ error: (err as Error).message }, { status: (err as { status?: number }).status ?? 400 });
     }
   }
