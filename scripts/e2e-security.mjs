@@ -139,7 +139,7 @@ async function fixture() {
     limit 1
   `;
   assert.equal(otherQuestionRows.length, 1, "Expected a question in a different bank for boundary testing");
-  const ospe = await sql`select id from ospe_answer_key where folder = 'CVS' limit 1`;
+  const ospe = await sql`select folder, file_name from ospe_answer_key where folder = 'CVS' limit 1`;
   assert.equal(ospe.length, 1, "Expected recovered CVS OSPE answer-key data");
   return {
     module: modules[0],
@@ -148,6 +148,7 @@ async function fixture() {
     bank: banks[0],
     question: questionRows[0],
     otherQuestion: otherQuestionRows[0],
+    ospe: { folder: ospe[0].folder, fileName: ospe[0].file_name },
   };
 }
 
@@ -335,6 +336,46 @@ async function main() {
 
   const search = await call(`/api/search?q=${encodeURIComponent(data.protectedLecture.title)}&module=cvs-202`, { cookie: noEntitlement.cookie });
   check("search does not expose paid lecture text to unentitled user", search.status === 200 && Array.isArray(search.json?.results) && search.json.results.every((result) => result.lectureId !== data.protectedLecture.id), `status=${search.status}`);
+
+  // Admin API isolation: JSON 401/403 semantics, never a page redirect.
+  {
+    const adminAnon = await call("/api/admin/practical-review");
+    check("anonymous admin API denied with JSON 401 (no redirect)", adminAnon.status === 401 && adminAnon.contentType.includes("json"), `status=${adminAnon.status}, type=${adminAnon.contentType}`);
+    const adminAsStudent = await call("/api/admin/practical-review", { cookie: secondUser.cookie });
+    check("student admin API denied with JSON 403", adminAsStudent.status === 403 && adminAsStudent.contentType.includes("json"), `status=${adminAsStudent.status}`);
+    const adminOk = await call("/api/admin/practical-review", { cookie: admin.cookie });
+    check("administrator can reach the practical-review API", adminOk.status === 200 && adminOk.contentType.includes("json"), `status=${adminOk.status}`);
+  }
+
+  // Leaderboard user scoping (IDOR regression).
+  {
+    const own = await call(`/api/leaderboard?userId=${entitled.id}`, { cookie: entitled.cookie });
+    check("leaderboard returns own profile by userId", own.status === 200 && "profile" in (own.json ?? {}), `status=${own.status}`);
+    const other = await call(`/api/leaderboard?userId=${entitled.id}`, { cookie: secondUser.cookie });
+    check("leaderboard refuses another user's profile (IDOR)", other.status === 403, `status=${other.status}`);
+    expectStatus("anonymous leaderboard denied", await call("/api/leaderboard"), 401);
+  }
+
+  // OSPE station image serving: only (folder,fileName) pairs on the reviewed answer key.
+  {
+    const reviewed = data.ospe;
+    const served = await call(`/api/content/ospe/image?folder=${encodeURIComponent(reviewed.folder)}&file=${encodeURIComponent(reviewed.fileName)}`, { cookie: entitled.cookie });
+    check("reviewed OSPE station image serves with nosniff", served.status === 200 && served.response.headers.get("x-content-type-options") === "nosniff", `status=${served.status}`);
+    const unreviewed = await call(`/api/content/ospe/image?folder=${encodeURIComponent(reviewed.folder)}&file=never-reviewed.png`, { cookie: entitled.cookie });
+    check("unreviewed OSPE file name is never served", unreviewed.status === 404, `status=${unreviewed.status}`);
+    const anonImg = await call(`/api/content/ospe/image?folder=${encodeURIComponent(reviewed.folder)}&file=${encodeURIComponent(reviewed.fileName)}`);
+    expectStatus("anonymous OSPE image denied", anonImg, 401);
+  }
+
+  // Search input clamping stays sane for extreme parameters.
+  {
+    const missingQ = await call("/api/search", { cookie: entitled.cookie });
+    expectStatus("search rejects a missing query", missingQ, 400);
+    const long = await call(`/api/search?q=${"x".repeat(600)}`, { cookie: entitled.cookie });
+    expectStatus("search rejects an overlong query", long, 400);
+    const extreme = await call(`/api/search?q=${encodeURIComponent(data.protectedLecture.title)}&k=999999`, { cookie: entitled.cookie });
+    check("search clamps extreme k without a 500", extreme.status === 200, `status=${extreme.status}`);
+  }
 
   await runBrowserChecks({ noEntitlement, entitled, fixture: data });
 }
