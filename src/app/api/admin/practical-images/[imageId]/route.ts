@@ -1,4 +1,4 @@
-import { requireAdmin } from "@/shared/session";
+import { requireAdminApi } from "@/shared/session";
 import { eq } from "drizzle-orm";
 import { db } from "@/shared/db";
 import { practicalImage } from "@/features/practical/schema";
@@ -15,7 +15,8 @@ import { practicalFailure, privateHeaders } from "@/features/practical/http";
  * to approved exam derivatives only.
  */
 export async function GET(request: Request, { params }: { params: Promise<{ imageId: string }> }) {
-  await requireAdmin();
+  const guard = await requireAdminApi();
+  if (guard.error) return guard.error;
   try {
     const imageId = (await params).imageId;
     const [image] = await db.select().from(practicalImage).where(eq(practicalImage.id, imageId)).limit(1);

@@ -3,7 +3,7 @@ import { writeFile, mkdir } from "node:fs/promises";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
-import { requireAdmin } from "@/shared/session";
+import { requireAdminApi } from "@/shared/session";
 import { eq } from "drizzle-orm";
 import { db } from "@/shared/db";
 import { practicalImage, practicalQuestion } from "@/features/practical/schema";
@@ -53,7 +53,8 @@ const actionBody = z.discriminatedUnion("action", [
 ]);
 
 export async function GET(request: Request) {
-  await requireAdmin();
+  const guard = await requireAdminApi();
+  if (guard.error) return guard.error;
   const url = new URL(request.url);
   const previewId = url.searchParams.get("preview");
   if (previewId) {
@@ -83,7 +84,8 @@ export async function GET(request: Request) {
 }
 
 export async function PATCH(request: Request) {
-  await requireAdmin();
+  const guard = await requireAdminApi();
+  if (guard.error) return guard.error;
   let body: z.infer<typeof actionBody>;
   try {
     body = actionBody.parse(await request.json());

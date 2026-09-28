@@ -14,19 +14,29 @@ function exactOrigin(value: string | undefined) {
   }
 }
 
-const baseURL = exactOrigin(process.env.BETTER_AUTH_URL) ?? "http://localhost:3000";
+const isProduction = process.env.NODE_ENV === "production";
+const envBaseURL = exactOrigin(process.env.BETTER_AUTH_URL);
+if (isProduction && !envBaseURL) {
+  throw new Error("BETTER_AUTH_URL is required in production");
+}
+const baseURL = envBaseURL ?? "http://localhost:3000";
 const configuredTrustedOrigins = (process.env.BETTER_AUTH_TRUSTED_ORIGINS ?? "")
   .split(",")
   .map((origin) => exactOrigin(origin.trim()))
   .filter((origin): origin is string => Boolean(origin));
-const trustedOrigins = [
-  baseURL,
+// Localhost origins are development conveniences only; a production build must
+// never trust a co-located service on a loopback port.
+const localDevelopmentOrigins = isProduction ? [] : [
   "http://localhost:3000",
   "http://localhost:3001",
   "http://localhost:3002",
   "http://127.0.0.1:3000",
   "http://127.0.0.1:3001",
   "http://127.0.0.1:3002",
+];
+const trustedOrigins = [
+  baseURL,
+  ...localDevelopmentOrigins,
   ...configuredTrustedOrigins,
 ].filter((origin, index, origins) => origins.indexOf(origin) === index);
 
@@ -108,6 +118,8 @@ export const auth = betterAuth({
   },
   advanced: {
     cookiePrefix: "lms",
+    useSecureCookies: isProduction,
+    defaultCookieAttributes: { httpOnly: true, sameSite: "lax" },
     rateLimit: {
       enabled: true,
       window: 60,

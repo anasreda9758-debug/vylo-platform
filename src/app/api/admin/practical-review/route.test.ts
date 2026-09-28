@@ -21,7 +21,10 @@ const mem = vi.hoisted(() => {
   };
 });
 
-vi.mock("@/shared/session", () => ({ requireAdmin: vi.fn(async () => ({ user: { role: "admin" } })) }));
+vi.mock("@/shared/session", () => ({
+  requireAdmin: vi.fn(async () => ({ user: { role: "admin" } })),
+  requireAdminApi: async () => ({ session: { user: { role: "admin" } }, error: null }),
+}));
 vi.mock("@/shared/db", () => ({ db: mem.db }));
 
 import { GET, POST } from "./route";

@@ -26,7 +26,10 @@ const mem = vi.hoisted(() => {
   };
 });
 
-vi.mock("@/shared/session", () => ({ requireAdmin: vi.fn(async () => ({ user: { role: "admin" } })) }));
+vi.mock("@/shared/session", () => ({
+  requireAdmin: vi.fn(async () => ({ user: { role: "admin" } })),
+  requireAdminApi: async () => ({ session: { user: { role: "admin" } }, error: null }),
+}));
 vi.mock("@/shared/db", () => ({ db: mem.db }));
 vi.mock("node:fs/promises", () => ({ writeFile: mem.writeFile, mkdir: mem.mkdir }));
 

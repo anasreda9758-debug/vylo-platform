@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { requireAdmin } from "@/shared/session";
+import { requireAdminApi } from "@/shared/session";
 import { eq } from "drizzle-orm";
 import { db } from "@/shared/db";
 import { practicalQuestion } from "@/features/practical/schema";
 
 async function GET() {
-  const session = await requireAdmin();
+  const guard = await requireAdminApi();
+  if (guard.error) return guard.error;
   const rows = await db
     .select({
       id: practicalQuestion.id,
@@ -23,7 +24,7 @@ async function GET() {
     })
     .from(practicalQuestion)
     .orderBy(practicalQuestion.order, practicalQuestion.id);
-  return NextResponse.json({ questions: rows, user: session.user });
+  return NextResponse.json({ questions: rows, user: guard.session.user });
 }
 
 const actionBody = z.object({
@@ -32,7 +33,8 @@ const actionBody = z.object({
 });
 
 async function POST(req: NextRequest) {
-  const session = await requireAdmin();
+  const guard = await requireAdminApi();
+  if (guard.error) return guard.error;
   const body = await req.json();
   const { questionId, action } = actionBody.parse(body);
 

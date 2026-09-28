@@ -1,12 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
-  requireAdmin: vi.fn(async () => ({ user: { role: "admin", id: "owner" } })),
+  requireAdminApi: vi.fn(async () => ({ session: { user: { role: "admin", id: "owner" } }, error: null })),
   read: vi.fn(),
   dbSelect: vi.fn(),
 }));
 
-vi.mock("@/shared/session", () => ({ requireAdmin: mocks.requireAdmin }));
+vi.mock("@/shared/session", () => ({ requireAdminApi: mocks.requireAdminApi }));
 vi.mock("@/features/practical/images", () => ({ readPracticalImage: mocks.read }));
 vi.mock("@/shared/db", () => ({
   db: {
@@ -73,7 +73,7 @@ describe("GET /api/admin/practical-images/[imageId]", () => {
     mocks.dbSelect.mockResolvedValue([]);
     const res = await GET(req("../../etc/passwd"), { params: Promise.resolve({ imageId: "../../etc/passwd" }) });
     expect(res.status).toBe(404);
-    expect(mocks.requireAdmin).toHaveBeenCalled();
+    expect(mocks.requireAdminApi).toHaveBeenCalled();
     mocks.dbSelect.mockResolvedValue([SOURCE_ROW]);
     const ok = await GET(req(SOURCE_ROW.id), { params: Promise.resolve({ imageId: SOURCE_ROW.id }) });
     expect(ok.status).toBe(200);
