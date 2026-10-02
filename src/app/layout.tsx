@@ -6,8 +6,8 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   applicationName: "VYLO",
-  title: "VYLO — Medical Learning Platform",
-  description: "VYLO is a structured medical learning platform for lectures, practice, and study tools.",
+  title: "VYLO — Smart Learning",
+  description: "VYLO brings learning material, practice, and study tools into one focused workspace.",
 };
 
 export default async function RootLayout({ children }: { children: ReactNode }) {

@@ -24,6 +24,7 @@ import {
 import { SignOutButton } from "@/components/sign-out-button";
 import { PreferenceControls } from "@/components/preference-controls";
 import { useLocale } from "@/components/locale-provider";
+import { StudentNavigation } from "./student-navigation";
 
 const navItems = [
   { href: "/dashboard", label: { en: "Student dashboard", ar: "لوحة الطالب" }, icon: LayoutDashboard },
@@ -43,6 +44,13 @@ const navItems = [
 ];
 
 export function Navigation({
+  user, isAdmin,
+}: { user: { name: string; email: string }; isAdmin: boolean }) {
+  const pathname = usePathname();
+  return pathname.startsWith("/admin") ? <LegacyNavigation user={user} isAdmin={isAdmin} /> : <StudentNavigation user={user} isAdmin={isAdmin} />;
+}
+
+function LegacyNavigation({
   user,
   isAdmin,
 }: {

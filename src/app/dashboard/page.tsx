@@ -7,7 +7,7 @@ import { db } from "@/shared/db";
 import { quizAttempt, questionBank } from "@/features/practice/schema";
 import { curriculumModule } from "@/features/curriculum/schema";
 import { and, eq, desc } from "drizzle-orm";
-import { Navigation } from "@/components/navigation";
+import { StudentShell } from "@/components/student-shell";
 import { getLocale } from "@/shared/locale";
 import { getSelectedStudyYear } from "@/shared/study-year";
 import { canAccessModule } from "@/features/access/learning-access";
@@ -87,8 +87,7 @@ export default async function DashboardPage() {
     .limit(5);
 
   return (
-    <div className="flex flex-1 flex-col lg:flex-row">
-      <Navigation user={{ name: user.name, email: user.email }} isAdmin={user.role === "admin"} />
+    <StudentShell user={user}>
       <DashboardHome
         name={user.name} locale={locale} years={availableYears} year={studyYear}
         nextLecture={nextLecture} modules={accessibleCurriculum}
@@ -98,6 +97,6 @@ export default async function DashboardPage() {
         weakModule={weakModule} recent={recentQuizzes}
         terms={termProgress} subscriptions={subs}
       />
-    </div>
+    </StudentShell>
   );
 }

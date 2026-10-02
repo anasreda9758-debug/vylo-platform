@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ArrowRight, BookOpen, Brain, RefreshCw, Stethoscope, FlaskConical, Lock, ChevronDown } from "lucide-react";
 import { AcademicYearSelector } from "@/components/academic-year-selector";
 import WeeklyPlanCard from "@/components/weekly-plan-card";
+import { WeeklyPlanDisclosure } from "./weekly-plan-disclosure";
 
 type ModuleProgress = { name: string; slug: string; completedLectures: number; totalLectures: number; percent: number; access: boolean };
 type Props = {
@@ -21,7 +22,7 @@ export function DashboardHome(props: Props) {
   const t = (en: string, ar: string) => props.locale === "ar" ? ar : en;
   const next = props.nextLecture;
   return (
-    <main className="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-10 lg:py-10">
+    <main id="student-main" tabIndex={-1} className="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-10 lg:py-10">
       <div className="mx-auto max-w-6xl space-y-8">
         <header className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0">
@@ -78,7 +79,7 @@ export function DashboardHome(props: Props) {
           </div>
         </div>
 
-        <details className="group rounded-2xl border bg-card"><summary className="flex min-h-16 cursor-pointer list-none items-center justify-between gap-3 px-5 py-4 font-semibold focus-visible:outline-2 focus-visible:outline-ring sm:px-6">{t("Your weekly plan", "خطتك الأسبوعية")}<ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180" aria-hidden="true" /></summary><div className="px-3 pb-3 sm:px-4"><WeeklyPlanCard /></div></details>
+        <WeeklyPlanDisclosure label={t("Your weekly plan", "خطتك الأسبوعية")}><WeeklyPlanCard /></WeeklyPlanDisclosure>
         <details className="group rounded-2xl border bg-card"><summary className="flex min-h-16 cursor-pointer list-none items-center justify-between gap-3 px-5 py-4 font-semibold focus-visible:outline-2 focus-visible:outline-ring sm:px-6">{t("Progress details", "تفاصيل التقدم")}<ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180" aria-hidden="true" /></summary><div className="space-y-5 border-t p-5 sm:p-6"><div><p className="font-medium">{t("Study Score", "مؤشر المذاكرة")}: {props.accuracy === null ? "—" : `${props.score}/100`}</p><p className="mt-1 text-sm text-muted-foreground">{t("Based on lecture completion, quiz accuracy and practice volume. This is not a prediction of exam performance.", "مبني على إكمال المحاضرات ودقة الإجابات وحجم التدريب، وليس توقعًا لنتيجة الامتحان.")}</p></div><div className="grid gap-3 sm:grid-cols-3">{props.terms.filter(term => term.hasContent).map(term => <div key={term.term} className="rounded-xl bg-muted/50 p-4"><p className="text-sm font-medium">{t(`Term ${term.term}`, `الترم ${term.term}`)}</p><p className="mt-1 text-sm text-muted-foreground">{term.completedLectures}/{term.totalLectures} · {term.percent}%</p></div>)}</div><Link href="/quiz/analytics" className="inline-block text-sm text-primary hover:underline">{t("View quiz analytics", "عرض تحليلات الاختبارات")}</Link>{props.subscriptions.length > 0 && <p className="text-sm text-muted-foreground">{t(`${props.subscriptions.length} active subscriptions`, `${props.subscriptions.length} اشتراكات نشطة`)} · <Link href="/pricing" className="text-primary hover:underline">{t("Manage plans", "عرض الخطط")}</Link></p>}</div></details>
       </div>
     </main>
