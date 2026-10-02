@@ -1,0 +1,378 @@
+{
+  "date": "2026-10-03",
+  "startingHead": "1f3815710189a866095a20dcab082fbb51f39522",
+  "browser": "Installed Microsoft Edge via Playwright",
+  "origin": "http://localhost:3000",
+  "authenticatedStudent": true,
+  "runtimeInstall": "Playwright install chromium returned without provisioning an executable; used existing Microsoft Edge. No package/lockfile changes.",
+  "fullMatrix": [
+    {
+      "page": "Dashboard",
+      "path": "/dashboard",
+      "width": 1440,
+      "theme": "light",
+      "overflow": false
+    },
+    {
+      "page": "Modules",
+      "path": "/curriculum",
+      "width": 1440,
+      "theme": "light",
+      "overflow": false
+    },
+    {
+      "page": "Module detail",
+      "path": "/curriculum/ahe-101",
+      "width": 1440,
+      "theme": "light",
+      "overflow": false
+    },
+    {
+      "page": "Lecture",
+      "path": "/lecture/ahe-101-anatomy-integumentary-system",
+      "width": 1440,
+      "theme": "light",
+      "overflow": false
+    },
+    {
+      "page": "Dashboard",
+      "path": "/dashboard",
+      "width": 1024,
+      "theme": "light",
+      "overflow": false
+    },
+    {
+      "page": "Modules",
+      "path": "/curriculum",
+      "width": 1024,
+      "theme": "light",
+      "overflow": false
+    },
+    {
+      "page": "Module detail",
+      "path": "/curriculum/ahe-101",
+      "width": 1024,
+      "theme": "light",
+      "overflow": false
+    },
+    {
+      "page": "Lecture",
+      "path": "/lecture/ahe-101-anatomy-integumentary-system",
+      "width": 1024,
+      "theme": "light",
+      "overflow": false
+    },
+    {
+      "page": "Dashboard",
+      "path": "/dashboard",
+      "width": 768,
+      "theme": "light",
+      "overflow": false
+    },
+    {
+      "page": "Modules",
+      "path": "/curriculum",
+      "width": 768,
+      "theme": "light",
+      "overflow": false
+    },
+    {
+      "page": "Module detail",
+      "path": "/curriculum/ahe-101",
+      "width": 768,
+      "theme": "light",
+      "overflow": false
+    },
+    {
+      "page": "Lecture",
+      "path": "/lecture/ahe-101-anatomy-integumentary-system",
+      "width": 768,
+      "theme": "light",
+      "overflow": false
+    },
+    {
+      "page": "Dashboard",
+      "path": "/dashboard",
+      "width": 375,
+      "theme": "light",
+      "overflow": false
+    },
+    {
+      "page": "Modules",
+      "path": "/curriculum",
+      "width": 375,
+      "theme": "light",
+      "overflow": false
+    },
+    {
+      "page": "Module detail",
+      "path": "/curriculum/ahe-101",
+      "width": 375,
+      "theme": "light",
+      "overflow": false
+    },
+    {
+      "page": "Lecture",
+      "path": "/lecture/ahe-101-anatomy-integumentary-system",
+      "width": 375,
+      "theme": "light",
+      "overflow": false
+    },
+    {
+      "page": "Dashboard",
+      "path": "/dashboard",
+      "width": 1440,
+      "theme": "dark",
+      "overflow": false
+    },
+    {
+      "page": "Modules",
+      "path": "/curriculum",
+      "width": 1440,
+      "theme": "dark",
+      "overflow": false
+    },
+    {
+      "page": "Module detail",
+      "path": "/curriculum/ahe-101",
+      "width": 1440,
+      "theme": "dark",
+      "overflow": false
+    },
+    {
+      "page": "Lecture",
+      "path": "/lecture/ahe-101-anatomy-integumentary-system",
+      "width": 1440,
+      "theme": "dark",
+      "overflow": false
+    },
+    {
+      "page": "Dashboard",
+      "path": "/dashboard",
+      "width": 1024,
+      "theme": "dark",
+      "overflow": false
+    },
+    {
+      "page": "Modules",
+      "path": "/curriculum",
+      "width": 1024,
+      "theme": "dark",
+      "overflow": false
+    },
+    {
+      "page": "Module detail",
+      "path": "/curriculum/ahe-101",
+      "width": 1024,
+      "theme": "dark",
+      "overflow": false
+    },
+    {
+      "page": "Lecture",
+      "path": "/lecture/ahe-101-anatomy-integumentary-system",
+      "width": 1024,
+      "theme": "dark",
+      "overflow": false
+    },
+    {
+      "page": "Dashboard",
+      "path": "/dashboard",
+      "width": 768,
+      "theme": "dark",
+      "overflow": false
+    },
+    {
+      "page": "Modules",
+      "path": "/curriculum",
+      "width": 768,
+      "theme": "dark",
+      "overflow": false
+    },
+    {
+      "page": "Module detail",
+      "path": "/curriculum/ahe-101",
+      "width": 768,
+      "theme": "dark",
+      "overflow": false
+    },
+    {
+      "page": "Lecture",
+      "path": "/lecture/ahe-101-anatomy-integumentary-system",
+      "width": 768,
+      "theme": "dark",
+      "overflow": false
+    },
+    {
+      "page": "Dashboard",
+      "path": "/dashboard",
+      "width": 375,
+      "theme": "dark",
+      "overflow": false
+    },
+    {
+      "page": "Modules",
+      "path": "/curriculum",
+      "width": 375,
+      "theme": "dark",
+      "overflow": false
+    },
+    {
+      "page": "Module detail",
+      "path": "/curriculum/ahe-101",
+      "width": 375,
+      "theme": "dark",
+      "overflow": false
+    },
+    {
+      "page": "Lecture",
+      "path": "/lecture/ahe-101-anatomy-integumentary-system",
+      "width": 375,
+      "theme": "dark",
+      "overflow": false
+    },
+    {
+      "path": "/dashboard",
+      "width": 375,
+      "locale": "ar",
+      "rtl": true,
+      "overflow": false
+    },
+    {
+      "path": "/curriculum",
+      "width": 375,
+      "locale": "ar",
+      "rtl": true,
+      "overflow": false
+    },
+    {
+      "path": "/curriculum/ahe-101",
+      "width": 375,
+      "locale": "ar",
+      "rtl": true,
+      "overflow": false
+    },
+    {
+      "path": "/lecture/ahe-101-anatomy-integumentary-system",
+      "width": 375,
+      "locale": "ar",
+      "rtl": true,
+      "overflow": false
+    }
+  ],
+  "finalPhonePass": [
+    {
+      "path": "/dashboard",
+      "width": 375,
+      "theme": "light",
+      "overflow": false
+    },
+    {
+      "path": "/curriculum",
+      "width": 375,
+      "theme": "light",
+      "overflow": false
+    },
+    {
+      "path": "/curriculum/ahe-101",
+      "width": 375,
+      "theme": "light",
+      "overflow": false
+    },
+    {
+      "path": "/lecture/ahe-101-anatomy-integumentary-system",
+      "width": 375,
+      "theme": "light",
+      "overflow": false
+    },
+    {
+      "path": "/dashboard",
+      "width": 375,
+      "theme": "dark",
+      "overflow": false
+    },
+    {
+      "path": "/curriculum",
+      "width": 375,
+      "theme": "dark",
+      "overflow": false
+    },
+    {
+      "path": "/curriculum/ahe-101",
+      "width": 375,
+      "theme": "dark",
+      "overflow": false
+    },
+    {
+      "path": "/lecture/ahe-101-anatomy-integumentary-system",
+      "width": 375,
+      "theme": "dark",
+      "overflow": false
+    },
+    {
+      "path": "/dashboard",
+      "width": 375,
+      "locale": "ar",
+      "rtl": true,
+      "overflow": false
+    },
+    {
+      "path": "/curriculum",
+      "width": 375,
+      "locale": "ar",
+      "rtl": true,
+      "overflow": false
+    },
+    {
+      "path": "/curriculum/ahe-101",
+      "width": 375,
+      "locale": "ar",
+      "rtl": true,
+      "overflow": false
+    },
+    {
+      "path": "/lecture/ahe-101-anatomy-integumentary-system",
+      "width": 375,
+      "locale": "ar",
+      "rtl": true,
+      "overflow": false
+    }
+  ],
+  "interactions": {
+    "weeklyAnchor": true,
+    "weeklyCollapse": true,
+    "summary": true,
+    "tutor": true,
+    "notes": true,
+    "keyboardToolSwitch": true,
+    "noteDraftPreserved": true,
+    "pdfRendered": true,
+    "zoom": true,
+    "thumbnails": true,
+    "search": true,
+    "searchAvailability": "Unavailable for this document (reader's existing text-detection rule)",
+    "pageNavigation": true,
+    "focus": true,
+    "mobileDrawer": true,
+    "mobileFocusContained": true,
+    "mobileEscape": true,
+    "emptyModule": true,
+    "emptyModuleHasNoPaywall": true,
+    "lockedModule": true,
+    "lockedToolsHidden": true,
+    "lockedLecture": true,
+    "lockedPdfHidden": true,
+    "textSearchCount": "1 / 7",
+    "searchJump": true
+  },
+  "consoleErrors": [],
+  "failedRequests": [],
+  "notes": "Next development overlay hidden for student screenshots only; no auth/content requests mocked. Secondary student used existing credentials via legitimate sign-in. No note was saved; no AI generation requested.",
+  "unverified": [
+    "Production runtime/deployment",
+    "Systematic performance benchmark",
+    "AI response generation",
+    "Note save/delete during this session",
+    "Runtime PDF failure/no-summary/no-weekly-task states (existing branches inspected, not forced)"
+  ],
+  "localAssets": "Screenshots are local-only in tmp/student-experience-qa; rerun node scripts/qa-student-experience.mjs to regenerate. QA requires installed Edge and existing safe local test accounts or QA_STUDENT_EMAIL/QA_STUDENT_PASSWORD."
+}

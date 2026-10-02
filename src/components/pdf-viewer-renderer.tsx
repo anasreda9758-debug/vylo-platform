@@ -344,7 +344,7 @@ export function PdfViewerRenderer({
           </Button>
         </div>
 
-        <div className="flex items-center gap-1">
+        <div className="flex max-w-full flex-wrap items-center gap-1">
           <Button variant="ghost" size="icon" onClick={() => { setFitMode("custom"); setCustomScale((s) => clampScale(s - ZOOM_STEP)); }} aria-label={t("Zoom out", "تصغير")}>
             <ZoomOut className="h-4 w-4" />
           </Button>
@@ -352,7 +352,7 @@ export function PdfViewerRenderer({
           <Button variant="ghost" size="icon" onClick={() => { setFitMode("custom"); setCustomScale((s) => clampScale(s + ZOOM_STEP)); }} aria-label={t("Zoom in", "تكبير")}>
             <ZoomIn className="h-4 w-4" />
           </Button>
-          <div className="ms-1 hidden items-center gap-1 sm:flex" role="group" aria-label={t("Fit mode", "وضع العرض")}>
+          <div className="ms-1 flex items-center gap-1" role="group" aria-label={t("Fit mode", "وضع العرض")}>
             <Button variant={fitMode === "width" ? "secondary" : "ghost"} size="sm" onClick={() => setFitMode("width")} className="h-8 text-xs">
               {t("Width", "العرض")}
             </Button>
@@ -401,7 +401,7 @@ export function PdfViewerRenderer({
 
       <div className="flex min-h-0 flex-1">
         {thumbsOpen ? (
-          <aside className="hidden w-40 shrink-0 overflow-y-auto border-e border-border bg-muted/30 p-2 sm:block" aria-label={t("Page thumbnails", "مصغرات الصفحات")}>
+          <aside className="w-24 shrink-0 overflow-y-auto border-e border-border bg-muted/30 p-2 sm:w-40" aria-label={t("Page thumbnails", "مصغرات الصفحات")}>
             <p className="mb-2 px-1 text-[11px] font-medium text-muted-foreground">{t("Pages", "الصفحات")}</p>
             <ul className="space-y-2">
               {thumbPages.map((p) => (
@@ -423,7 +423,7 @@ export function PdfViewerRenderer({
 
         <div
           ref={scrollRef}
-          className="relative min-h-[60vh] flex-1 overflow-auto bg-muted p-2 sm:p-4"
+          className="relative min-h-[24rem] min-w-0 flex-1 overflow-auto bg-muted p-2 sm:min-h-[60vh] sm:p-4"
           style={focus ? { height: "calc(100vh - 7rem)" } : undefined}
         >
           {(pdf === null || !firstPaint) && !error ? (

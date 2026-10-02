@@ -17,6 +17,17 @@ describe("scale clamping and zoom", () => {
 });
 
 describe("fit modes", () => {
+  it("fits wide PDF pages inside a phone viewport below manual zoom minimum", () => {
+    const scale = fitWidthScale(250, 842);
+    expect(scale).toBeLessThan(MIN_SCALE);
+    expect(scale * 842).toBeLessThanOrEqual(250 - 24);
+  });
+
+  it("fits the complete page on a narrow mobile viewport", () => {
+    const scale = fitPageScale(250, 500, 842, 595);
+    expect(scale * 842).toBeLessThanOrEqual(250 - 24);
+    expect(scale * 595).toBeLessThanOrEqual(500 - 24);
+  });
   it("fit width scales the page to the viewport", () => {
     // 595pt page into 800px -> ~1.31
     expect(fitWidthScale(800, 595)).toBeCloseTo(1.3, 2); // 24px gutter

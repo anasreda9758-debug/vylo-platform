@@ -62,12 +62,14 @@ export function LectureNotes({ lectureId }: { lectureId: string }) {
       </div>
       <div className="grid gap-3">
         <input
+          aria-label={t("Highlighted term (optional)", "مصطلح مظلل (اختياري)")}
           value={highlightedText}
           onChange={(event) => setHighlightedText(event.target.value)}
           placeholder={t("Key term or highlighted phrase (optional)", "مصطلح أو عبارة مهمة (اختياري)")}
           className="rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
         />
         <textarea
+          aria-label={t("Private lecture note", "ملاحظة خاصة للمحاضرة")}
           value={body}
           onChange={(event) => setBody(event.target.value)}
           placeholder={t("Write a concise note, clinical pearl, or memory aid…", "اكتب ملاحظة أو نقطة سريرية أو وسيلة تذكر…")}
@@ -76,7 +78,7 @@ export function LectureNotes({ lectureId }: { lectureId: string }) {
           className="rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
         />
         <div>
-          <Button onClick={save} disabled={!body.trim() || saving}>
+          <Button className="min-h-11" onClick={save} disabled={!body.trim() || saving}>
             {saving ? <Loader2 className="me-1 h-4 w-4 animate-spin" /> : <BookmarkPlus className="me-1 h-4 w-4" />}
             {t("Save note", "حفظ الملاحظة")}
           </Button>

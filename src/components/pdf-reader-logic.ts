@@ -27,7 +27,8 @@ export const fitWidthScale = (
   gutter = 24,
 ): number => {
   if (!availableWidth || !pageWidthPt) return 1;
-  return clampScale((availableWidth - gutter) / pageWidthPt);
+  // Automatic fit can be smaller than the manual zoom minimum on phones.
+  return Math.min(MAX_SCALE, Math.max(0.1, Math.floor((availableWidth - gutter) / pageWidthPt * 100) / 100));
 };
 
 /** Scale that fits the entire page (both dimensions) into the viewport. */
@@ -39,9 +40,9 @@ export const fitPageScale = (
   gutter = 24,
 ): number => {
   if (!availableWidth || !availableHeight || !pageWidthPt || !pageHeightPt) return 1;
-  return clampScale(
-    Math.min((availableWidth - gutter) / pageWidthPt, (availableHeight - gutter) / pageHeightPt),
-  );
+  return Math.min(MAX_SCALE, Math.max(0.1, Math.floor(
+    Math.min((availableWidth - gutter) / pageWidthPt, (availableHeight - gutter) / pageHeightPt) * 100,
+  ) / 100));
 };
 
 /** Constrains a page number to the readable range. */
