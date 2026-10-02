@@ -1,4 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import * as fs from "node:fs";
+vi.mock("node:fs", { spy: true });
 import {
   PDF_RASTERIZER_NOT_AVAILABLE, discoverRasterizer, findRasterizer, pdfPointsToPixels,
   readPngSize, renderPdfPage, findQuestionSeparatorY, findQuestionTopY, type RowProfile,
@@ -43,10 +45,27 @@ describe("rasterizer discovery", () => {
   });
 
   it("throws PDF_RASTERIZER_NOT_AVAILABLE when nothing is installed", async () => {
-    if (discoverRasterizer()) return; // environment has poppler; nothing to assert
-    await expect(
-      renderPdfPage({ pdfPath: "x.pdf", page: 1, outputPath: "y.png" }),
-    ).rejects.toThrow(PDF_RASTERIZER_NOT_AVAILABLE);
+    // A valid source must pass input validation before capability discovery.
+    const exists = vi.spyOn(fs, "existsSync").mockImplementation((path) => path === "x.pdf");
+    const mkdir = vi.spyOn(fs, "mkdirSync").mockImplementation(() => undefined);
+    try {
+      await expect(
+        renderPdfPage({ pdfPath: "x.pdf", page: 1, outputPath: "y.png" }),
+      ).rejects.toThrow(PDF_RASTERIZER_NOT_AVAILABLE);
+    } finally {
+      exists.mockRestore();
+      mkdir.mockRestore();
+    }
+  });
+
+  it("rejects a missing PDF before rasterizer discovery", async () => {
+    const exists = vi.spyOn(fs, "existsSync").mockReturnValue(false);
+    try {
+      await expect(renderPdfPage({ pdfPath: "missing.pdf", page: 1, outputPath: "y.png" }))
+        .rejects.toThrow("PDF not found: missing.pdf");
+    } finally {
+      exists.mockRestore();
+    }
   });
 
   it("rejects invalid page and dpi", async () => {
