@@ -173,7 +173,8 @@ export async function streamFile(relativePath: string): Promise<Response | null>
         headers: {
           "Content-Type": meta.contentType,
           "Content-Length": String(meta.size),
-          "Cache-Control": "public, max-age=86400, s-maxage=604800",
+          "Cache-Control": "private, no-store",
+          "Vary": "Cookie, Authorization",
         },
       });
     } catch {
@@ -205,7 +206,8 @@ export async function streamFile(relativePath: string): Promise<Response | null>
       headers: {
         "Content-Type": meta.contentType,
         "Content-Length": String(meta.size),
-        "Cache-Control": "public, max-age=86400, s-maxage=604800",
+        "Cache-Control": "private, no-store",
+        "Vary": "Cookie, Authorization",
       },
     });
   } catch {

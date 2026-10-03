@@ -1,6 +1,6 @@
 import { getSession } from "@/shared/session";
 import { practicalGenerateBody, practicalFailure, privateHeaders } from "@/features/practical/http";
-import { getAiUsageToday, reserveAiUsageSlot, FREE_DAILY_LIMIT, recordAiUsage } from "@/features/ai/queries";
+import { reserveAiUsageSlot, FREE_DAILY_LIMIT, recordAiUsage } from "@/features/ai/queries";
 import { beginGeneration, finalizeGeneration } from "@/features/gamification/idempotency";
 import { generateJson } from "@/shared/ai-client";
 import { eq } from "drizzle-orm";
@@ -10,6 +10,7 @@ import { getAccessibleModuleBySlug } from "@/features/access/learning-access";
 import { db } from "@/shared/db";
 import { randomUUID } from "crypto";
 import { z } from "zod";
+import { readBoundedJson, RequestBodyTooLarge } from "@/shared/bounded-json";
 
 const SYSTEM_PROMPT_PRACTICAL = `You are a medical education assistant building a practical spotter question.
 The examiner has ALREADY verified the correct structure; you must NOT invent or choose the correct answer.
@@ -40,8 +41,9 @@ export async function POST(request: Request) {
 
     let body: z.infer<typeof practicalGenerateBody>;
     try {
-      body = practicalGenerateBody.parse(await request.json());
-    } catch {
+      body = practicalGenerateBody.parse(await readBoundedJson(request, 32 * 1024));
+    } catch (error) {
+      if (error instanceof RequestBodyTooLarge) return Response.json({ error: "request_too_large" }, { status: 413, headers: privateHeaders });
       return Response.json({ error: "invalid json" }, { status: 400, headers: privateHeaders });
     }
 
@@ -110,21 +112,24 @@ export async function POST(request: Request) {
     const needsVerifiedAnswer = correctStructure.length === 0;
     const needsCleanImage = !examImage;
 
-    // Soft pre-flight: refuse already-exhausted quotas before doing the work.
-    const used = await getAiUsageToday(sessionUser.id);
-    if (used >= FREE_DAILY_LIMIT) {
-      return Response.json(
-        { error: "daily_limit", message: `Daily AI generation limit (${FREE_DAILY_LIMIT}) reached` },
-        { status: 429, headers: privateHeaders },
-      );
-    }
-
     let generated: AIPracticalResponse | null = null;
     let aiSucceeded = false;
     if (!needsVerifiedAnswer) {
+      if (process.env.USE_HOSTED_AI !== "true" || !process.env.GROQ_API_KEY) {
+        return Response.json({ error: "hosted_ai_disabled" }, { status: 503, headers: privateHeaders });
+      }
+      // Reserve BEFORE spending. Failed/invalid replies can still cost;
+      // they retain the slot rather than opening a free retry/concurrency bypass.
+      const reservation = await reserveAiUsageSlot(sessionUser.id);
+      if (!reservation.ok) {
+        return Response.json(
+          { error: "daily_limit", message: `Daily AI generation limit (${FREE_DAILY_LIMIT}) reached` },
+          { status: 429, headers: privateHeaders },
+        );
+      }
       try {
         const prompt = `Create a medical image identification practical question.
-Image description: ${sourceImage.alt}
+Image description: ${sourceImage.alt.slice(0, 4000)}
 Verified correct structure (DO NOT reveal or change it): ${correctStructure}
 Target coordinates: x=${body.targetX}, y=${body.targetY}
 ${body.prompt ? `Additional context: ${body.prompt}` : ""}
@@ -250,14 +255,6 @@ Suggest four plausible distractors and teaching aids.`;
         status: "completed",
         result,
       });
-    }
-
-    // Quota semantics: a successful AI-assisted generation consumes exactly one
-    // study_generation slot; it is charged AT SUCCESS (never on a failed call or
-    // a pure authoring action). A hard race where the last slot was taken while
-    // generating yields a hidden NEEDS_REVIEW draft and no over-quota charge.
-    if (aiSucceeded) {
-      await reserveAiUsageSlot(sessionUser.id);
     }
 
     return Response.json(result, { headers: privateHeaders });

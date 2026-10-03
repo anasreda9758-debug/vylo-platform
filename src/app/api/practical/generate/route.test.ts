@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 type SqlObj = { query: string; values: unknown[] };
 
@@ -174,6 +174,8 @@ let currentSource: (typeof SOURCE) | null = SOURCE;
 
 beforeEach(() => {
   vi.resetAllMocks();
+  vi.stubEnv("USE_HOSTED_AI", "true");
+  vi.stubEnv("GROQ_API_KEY", "unit-test-placeholder-not-a-real-key");
   currentSource = { ...SOURCE };
   images.clear();
   tracks.clear();
@@ -202,6 +204,7 @@ beforeEach(() => {
   );
   mem.reset();
 });
+afterEach(() => vi.unstubAllEnvs());
 
 describe("POST /api/practical/generate - authoring", () => {
   it("creates a hidden DRAFT question: verified answer is opt_0, exactly 5 options, never auto-published", async () => {
@@ -328,26 +331,45 @@ describe("POST /api/practical/generate - authoring", () => {
     expect(mem.inserted.length).toBe(0);
   });
 
-  it("shares the study-generation quota and charges only on success", async () => {
-    // pre-flight at 14: success consumes the 15th slot
-    mocks.usedToday.mockResolvedValue(14);
+  it("reserves the shared last slot BEFORE provider calls and rejects exhaustion", async () => {
+    mocks.reserve.mockResolvedValueOnce({ ok: true, count: 15 });
     const ok = await POST(request(validBody()));
     expect(ok.status).toBe(200);
     expect(mocks.reserve).toHaveBeenCalledTimes(1);
-    // pre-flight already at the limit: 429 before any generation
-    mocks.usedToday.mockResolvedValue(15);
+    expect(mocks.reserve.mock.invocationCallOrder[0]).toBeLessThan(mocks.generate.mock.invocationCallOrder[0]);
+    mocks.reserve.mockResolvedValue({ ok: false, reason: "limit_reached" });
     const rejected = await POST(request(validBody({ idempotencyKey: "22222222-2222-4222-8222-222222222222" })));
     expect(rejected.status).toBe(429);
-    expect(mocks.reserve).toHaveBeenCalledTimes(1);
+    expect(mocks.reserve).toHaveBeenCalledTimes(2);
     expect(mocks.generate).toHaveBeenCalledTimes(1);
   });
 
-  it("a failed AI generation consumes NO quota and stores a failed request", async () => {
+  it("a failed provider call retains its reservation (no free retry bypass)", async () => {
     mocks.generate.mockRejectedValue(new Error("api down"));
     const response = await POST(request(validBody()));
     expect(response.status).toBe(500);
-    expect(mocks.reserve).not.toHaveBeenCalled();
+    expect(mocks.reserve).toHaveBeenCalledTimes(1);
     expect(mem.inserted.length).toBe(0);
+  });
+
+  it("quota failure denies AI and generated content without a legacy fallback", async () => {
+    mocks.reserve.mockRejectedValue(new Error("Counter table unavailable"));
+    expect((await POST(request(validBody()))).status).toBe(503);
+    expect(mocks.generate).not.toHaveBeenCalled();
+    expect(mem.inserted).toHaveLength(0);
+  });
+  it("hosted opt-out denies calls even if a key exists", async () => {
+    vi.stubEnv("USE_HOSTED_AI", "false");
+    expect((await POST(request(validBody()))).status).toBe(503);
+    expect(mocks.reserve).not.toHaveBeenCalled();
+    expect(mocks.generate).not.toHaveBeenCalled();
+    expect(mem.inserted).toHaveLength(0);
+  });
+  it("oversized prompt denied before quota/provider/persistence", async () => {
+    expect((await POST(request(validBody({ prompt: "x".repeat(4001) })))).status).toBe(400);
+    expect(mocks.generate).not.toHaveBeenCalled();
+    expect(mocks.reserve).not.toHaveBeenCalled();
+    expect(mem.inserted).toHaveLength(0);
   });
 
   it("reusing a completed idempotency key replays the stored result without re-generating", async () => {

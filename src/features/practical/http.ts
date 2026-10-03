@@ -6,14 +6,14 @@ export function requestScope(url: URL): RequestScope {
 export const answerBody = z.object({ questionId: z.string().min(1).max(160), optionId: z.string().min(1).max(160), requestId: z.string().uuid() }).strict();
 export const flagBody = z.object({ questionId: z.string().min(1).max(160), flag: z.enum(["bookmarked", "difficult"]), value: z.boolean() }).strict();
 export const practicalGenerateBody = z.object({
-  sourceImageId: z.string().min(1),
-  examImageId: z.string().optional(),
+  sourceImageId: z.string().min(1).max(160),
+  examImageId: z.string().max(160).optional(),
   targetX: z.number().min(0).max(1),
   targetY: z.number().min(0).max(1),
   // Verified correct structure is optional at creation time: if omitted the
   // artifact is created as NEEDS_REVIEW and the AI never guesses an answer.
   correctStructure: z.string().max(200).optional(),
-  prompt: z.string().optional(),
+  prompt: z.string().max(4000).optional(),
   idempotencyKey: z.string().uuid(),
 }).strict();
 export const privateHeaders = { "Cache-Control": "private, no-store", "Vary": "Cookie", "X-Content-Type-Options": "nosniff" };
