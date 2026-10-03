@@ -8,6 +8,7 @@ import { ospeExam, ospeExamStation, practicalTrackOspeStation } from "@/features
 import { OSPE_FOLDER_TO_MODULE } from "@/features/ospe/data";
 import { practicalTrack } from "@/features/practical/schema";
 import { ospeAnswerKeysBelongToTrack } from "@/features/practical/ospe";
+import { isModuleAcademicallyVisible } from "@/features/hierarchy/academic-visibility-server";
 
 export type LearningActor = {
   id: string;
@@ -15,7 +16,7 @@ export type LearningActor = {
 };
 
 type ModuleRecord = typeof curriculumModule.$inferSelect;
-type ModuleAccessTarget = Pick<ModuleRecord, "id" | "slug" | "isFree" | "term">;
+type ModuleAccessTarget = Pick<ModuleRecord, "id" | "slug" | "isFree" | "term"> & Partial<Pick<ModuleRecord, "academicPeriodId">>;
 type AccessibleLecture = typeof lecture.$inferSelect & { module: ModuleRecord };
 type AccessibleQuestionBank = typeof questionBank.$inferSelect & { module: ModuleRecord };
 type AccessibleQuestion = typeof question.$inferSelect & {
@@ -87,6 +88,7 @@ export async function canAccessModule(
 ): Promise<AccessDecision<undefined>> {
   if (!actor) return unauthenticated();
   if (actor.role === "admin") return allowed(undefined);
+  if (!(await isModuleAcademicallyVisible(actor, module))) return notFound();
   const hasEntitlement = await hasModuleAccess(actor.id, module);
   return decideModuleAccess(actor, module, hasEntitlement);
 }
@@ -117,6 +119,9 @@ export async function getAccessibleLecture(
   });
   if (!lectureRow?.module) return notFound<AccessibleLecture>();
   const accessibleLecture = lectureRow as AccessibleLecture;
+
+  // Academic visibility precedes entitlement AND the first-lecture free preview.
+  if (!(await isModuleAcademicallyVisible(actor, accessibleLecture.module))) return notFound();
 
   const moduleDecision = await canAccessModule(actor, accessibleLecture.module);
   if (moduleDecision.ok) return allowed<AccessibleLecture>(accessibleLecture);

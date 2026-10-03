@@ -57,7 +57,7 @@ export function DashboardHome(props: Props) {
 
         <section aria-label={t("Learning snapshot", "لمحة عن تقدمك")} className="grid grid-cols-2 gap-4 rounded-2xl border bg-card p-5 sm:grid-cols-4 sm:p-6">
           {[
-            { label: t("Lectures completed", "محاضرات مكتملة"), value: `${props.completed}/${props.total}`, detail: t(`${props.percent}% of your year`, `${props.percent}% من سنتك`) },
+            { label: t("Lectures completed", "محاضرات مكتملة"), value: `${props.completed}/${props.total}`, detail: t(`${props.percent}% of the current period`, `${props.percent}% من الفترة الحالية`) },
             { label: t("Quiz accuracy", "دقة الإجابات"), value: props.accuracy === null ? "—" : `${props.accuracy}%`, detail: t("Completed quiz answers", "إجابات الاختبارات المكتملة") },
             { label: t("Review due", "مراجعات مستحقة"), value: String(props.due), detail: t("Scheduled questions", "أسئلة مجدولة") },
             { label: t("Your level", "مستواك"), value: `${props.level}`, detail: `${props.xp} XP` },

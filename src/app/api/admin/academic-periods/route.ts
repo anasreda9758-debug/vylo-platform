@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { asc, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { db } from "@/shared/db";
 import { academicPeriod } from "@/features/hierarchy/schema";
+import { curriculumModule } from "@/features/curriculum/schema";
+import { getAcademicPeriods } from "@/features/hierarchy/academic-visibility-server";
+import { academicConfigurationWarnings, ACADEMIC_TIME_ZONE, academicTimestampForStorage } from "@/features/hierarchy/academic-visibility";
 import { getSession } from "@/shared/session";
 
 async function requireAdmin() {
@@ -14,9 +17,9 @@ async function requireAdmin() {
 export async function GET() {
   const error = await requireAdmin();
   if (error) return error;
-  return NextResponse.json({
-    periods: await db.query.academicPeriod.findMany({ orderBy: [asc(academicPeriod.academicYear), asc(academicPeriod.type)] }),
-  });
+  const periods = await getAcademicPeriods();
+  const modules = await db.select({ academicPeriodId: curriculumModule.academicPeriodId }).from(curriculumModule);
+  return NextResponse.json({ periods, timeZone: ACADEMIC_TIME_ZONE, warnings: academicConfigurationWarnings(periods, modules) });
 }
 
 export async function PATCH(request: NextRequest) {
@@ -27,8 +30,12 @@ export async function PATCH(request: NextRequest) {
   if (typeof body.id !== "string" || typeof body.startsAt !== "string" || typeof body.endsAt !== "string") {
     return NextResponse.json({ error: "id, startsAt, and endsAt are required" }, { status: 400 });
   }
-  const startsAt = new Date(body.startsAt);
-  const endsAt = new Date(body.endsAt);
+  // datetime-local means Cairo, not whichever timezone the admin browser/host uses.
+  const startsAt = academicTimestampForStorage(body.startsAt);
+  const endsAt = academicTimestampForStorage(body.endsAt);
+  if (!startsAt || !endsAt) {
+    return NextResponse.json({ error: "Use Cairo local date/time or an explicit timestamp offset" }, { status: 400 });
+  }
   if (Number.isNaN(startsAt.getTime()) || Number.isNaN(endsAt.getTime()) || endsAt <= startsAt) {
     return NextResponse.json({ error: "Invalid academic period dates" }, { status: 400 });
   }

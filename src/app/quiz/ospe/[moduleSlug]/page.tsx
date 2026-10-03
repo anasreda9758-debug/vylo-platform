@@ -6,6 +6,7 @@ import { OspeQuizRunner } from "@/components/ospe-quiz-runner";
 import { Navigation } from "@/components/navigation";
 import { Lock, HelpCircle, Clock, Stethoscope } from "lucide-react";
 import { canAccessModule } from "@/features/access/learning-access";
+import { isModuleAcademicallyVisible } from "@/features/hierarchy/academic-visibility-server";
 
 export default async function OspeQuizPage({
   params,
@@ -19,6 +20,7 @@ export default async function OspeQuizPage({
   const session = await requireUser();
   const bank = await getBankBySlug(`ospe-${moduleSlug}`);
   if (!bank) notFound();
+  if (!bank.module || !(await isModuleAcademicallyVisible(session.user, bank.module))) notFound();
 
   const moduleName = bank.module?.name ?? "هذا الموديول";
   const access = bank.module ? (await canAccessModule(session.user, bank.module)).ok : false;

@@ -613,7 +613,7 @@ export async function getQuizAnalytics(actor: LearningActor) {
   };
 }
 
-export async function getDueReviewCount(actor: LearningActor) {
+export async function getDueReviewCount(actor: LearningActor, moduleIds?: string[]) {
   const rows = await db
     .select({
       moduleId: curriculumModule.id,
@@ -626,5 +626,6 @@ export async function getDueReviewCount(actor: LearningActor) {
     .innerJoin(questionBank, eq(question.bankId, questionBank.id))
     .innerJoin(curriculumModule, eq(questionBank.moduleId, curriculumModule.id))
     .where(and(eq(questionReview.userId, actor.id), lte(questionReview.nextReview, new Date())));
-  return (await filterAccessibleModuleRows(actor, rows)).length;
+  const scoped = moduleIds ? rows.filter((row) => moduleIds.includes(row.moduleId)) : rows;
+  return (await filterAccessibleModuleRows(actor, scoped)).length;
 }

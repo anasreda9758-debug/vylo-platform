@@ -1,12 +1,12 @@
 import { requireUser } from "@/shared/session";
-import { getCurriculum, getStudyYears } from "@/features/curriculum/queries";
+import { getAcademicCurriculum, getAcademicStudyYears } from "@/features/curriculum/academic-curriculum";
 import { getModuleAccuracy, getDueReviewCount } from "@/features/practice/queries";
 import { getActiveSubscriptions } from "@/features/billing/queries";
 import { getProfile } from "@/features/gamification/queries";
 import { db } from "@/shared/db";
 import { quizAttempt, questionBank } from "@/features/practice/schema";
 import { curriculumModule } from "@/features/curriculum/schema";
-import { and, eq, desc } from "drizzle-orm";
+import { and, eq, desc, inArray } from "drizzle-orm";
 import { StudentShell } from "@/components/student-shell";
 import { getLocale } from "@/shared/locale";
 import { getSelectedStudyYear } from "@/shared/study-year";
@@ -17,23 +17,23 @@ export default async function DashboardPage() {
   const session = await requireUser();
   const locale = await getLocale();
   const user = session.user;
-  const studyYears = await getStudyYears();
-  const availableYears = studyYears.length ? studyYears : [1];
+  const availableYears = await getAcademicStudyYears(user, true);
   const savedYear = await getSelectedStudyYear();
-  const studyYear = availableYears.includes(savedYear) ? savedYear : availableYears[0];
-  const curriculum = await getCurriculum(user.id, studyYear);
+  const studyYear = availableYears.includes(savedYear) ? savedYear : availableYears[0] ?? 0;
+  const curriculum = await getAcademicCurriculum(user, studyYear || undefined, true);
   const accessibleCurriculum = await Promise.all(
     curriculum.map(async (module) => ({
       ...module,
       access: (await canAccessModule(user, module)).ok,
     })),
   );
-  const accuracy = await getModuleAccuracy(user, studyYear);
+  const currentSlugs = new Set(curriculum.map((m) => m.slug));
+  const accuracy = (await getModuleAccuracy(user, studyYear)).filter((m) => currentSlugs.has(m.moduleSlug));
   const subs = (await getActiveSubscriptions(user.id)).filter(
     (s) => s.expiresAt > new Date()
   );
   const profile = await getProfile(user.id);
-  const dueReviewCount = await getDueReviewCount(user);
+  const dueReviewCount = await getDueReviewCount(user, curriculum.map((m) => m.id));
   const nextLecture = accessibleCurriculum
     .flatMap((module) => module.lectures.map((lecture) => ({ ...lecture, moduleName: module.name, accessible: module.access })))
     .find((lecture) => lecture.accessible && !lecture.completed) ?? null;
@@ -82,7 +82,7 @@ export default async function DashboardPage() {
     .from(quizAttempt)
     .innerJoin(questionBank, eq(quizAttempt.bankId, questionBank.id))
     .innerJoin(curriculumModule, eq(questionBank.moduleId, curriculumModule.id))
-    .where(and(eq(quizAttempt.userId, user.id), eq(quizAttempt.status, "completed")))
+    .where(and(eq(quizAttempt.userId, user.id), eq(quizAttempt.status, "completed"), inArray(curriculumModule.id, curriculum.map((m) => m.id))))
     .orderBy(desc(quizAttempt.completedAt))
     .limit(5);
 

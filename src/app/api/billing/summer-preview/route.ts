@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/shared/session";
 import { calculateSummerPreview } from "@/features/billing/summer-pricing";
 import { PromoValidationError } from "@/features/billing/pricing";
+import { isModuleAcademicallyVisible, isSummerAcademicallyVisible } from "@/features/hierarchy/academic-visibility-server";
 
 export async function POST(request: NextRequest) {
   const session = await getSession();
@@ -15,6 +16,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "invalid moduleIds" }, { status: 400 });
   }
   try {
+    if (!(await isSummerAcademicallyVisible(session?.user.role))) {
+      return NextResponse.json({ error: "Summer retakes are not currently available" }, { status: 404 });
+    }
+    for (const id of body.moduleIds as string[]) {
+      if (!(await isModuleAcademicallyVisible(session?.user ?? { role: "student" }, { id }))) {
+        return NextResponse.json({ error: "Product not available" }, { status: 404 });
+      }
+    }
     return NextResponse.json(await calculateSummerPreview({
       moduleIds: body.moduleIds,
       promoCodeText: typeof body.promoCode === "string" ? body.promoCode : undefined,

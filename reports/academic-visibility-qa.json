@@ -1,0 +1,174 @@
+{
+  "runtime": {
+    "dashboardCurrentTerm": true,
+    "dashboardYears": [
+      "Academic year 1"
+    ],
+    "visual": [
+      {
+        "path": "dashboard",
+        "width": 1440,
+        "mode": "light",
+        "overflow": false
+      },
+      {
+        "path": "dashboard",
+        "width": 1440,
+        "mode": "dark",
+        "overflow": false
+      },
+      {
+        "path": "dashboard",
+        "width": 375,
+        "mode": "light",
+        "overflow": false
+      },
+      {
+        "path": "dashboard",
+        "width": 375,
+        "mode": "dark",
+        "overflow": false
+      },
+      {
+        "path": "curriculum",
+        "width": 1440,
+        "mode": "light",
+        "overflow": false
+      },
+      {
+        "path": "curriculum",
+        "width": 1440,
+        "mode": "dark",
+        "overflow": false
+      },
+      {
+        "path": "curriculum",
+        "width": 375,
+        "mode": "light",
+        "overflow": false
+      },
+      {
+        "path": "curriculum",
+        "width": 375,
+        "mode": "dark",
+        "overflow": false
+      }
+    ],
+    "moduleTerms": "All modules\nTerm 1 · Current",
+    "moduleYears": [
+      "Academic year 1"
+    ],
+    "futureModulesAbsent": true,
+    "summerAbsent": true,
+    "queryCannotRevealFuture": true,
+    "weeklyPlan": true,
+    "pricingFutureAndSummerAbsent": true,
+    "directFutureModule": {
+      "status": 404,
+      "denied": true
+    },
+    "directFutureLecture": 404,
+    "futurePdf": 404,
+    "futureNotes": 403,
+    "futureSearch": {
+      "status": 200,
+      "results": 0
+    },
+    "futurePricePreview": 404,
+    "inactiveSummerPreview": 404,
+    "unexpectedErrors": 0,
+    "unexpectedFailedRequests": 0
+  },
+  "controlledDateScreenshots": [
+    {
+      "period": "term1",
+      "width": 1440,
+      "mode": "light",
+      "overflow": false,
+      "path": "tmp/academic-visibility-qa/term1-1440-light.png"
+    },
+    {
+      "period": "term1",
+      "width": 1440,
+      "mode": "dark",
+      "overflow": false,
+      "path": "tmp/academic-visibility-qa/term1-1440-dark.png"
+    },
+    {
+      "period": "term1",
+      "width": 375,
+      "mode": "light",
+      "overflow": false,
+      "path": "tmp/academic-visibility-qa/term1-375-light.png"
+    },
+    {
+      "period": "term1",
+      "width": 375,
+      "mode": "dark",
+      "overflow": false,
+      "path": "tmp/academic-visibility-qa/term1-375-dark.png"
+    },
+    {
+      "period": "term2",
+      "width": 1440,
+      "mode": "light",
+      "overflow": false,
+      "path": "tmp/academic-visibility-qa/term2-1440-light.png"
+    },
+    {
+      "period": "term2",
+      "width": 1440,
+      "mode": "dark",
+      "overflow": false,
+      "path": "tmp/academic-visibility-qa/term2-1440-dark.png"
+    },
+    {
+      "period": "term2",
+      "width": 375,
+      "mode": "light",
+      "overflow": false,
+      "path": "tmp/academic-visibility-qa/term2-375-light.png"
+    },
+    {
+      "period": "term2",
+      "width": 375,
+      "mode": "dark",
+      "overflow": false,
+      "path": "tmp/academic-visibility-qa/term2-375-dark.png"
+    },
+    {
+      "period": "summer",
+      "width": 1440,
+      "mode": "light",
+      "overflow": false,
+      "path": "tmp/academic-visibility-qa/summer-1440-light.png"
+    },
+    {
+      "period": "summer",
+      "width": 1440,
+      "mode": "dark",
+      "overflow": false,
+      "path": "tmp/academic-visibility-qa/summer-1440-dark.png"
+    },
+    {
+      "period": "summer",
+      "width": 375,
+      "mode": "light",
+      "overflow": false,
+      "path": "tmp/academic-visibility-qa/summer-375-light.png"
+    },
+    {
+      "period": "summer",
+      "width": 375,
+      "mode": "dark",
+      "overflow": false,
+      "path": "tmp/academic-visibility-qa/summer-375-dark.png"
+    }
+  ],
+  "errors": [],
+  "failedRequests": [],
+  "limitations": [
+    "Term 2/Summer browser views use fixed-date SSR fixtures of the actual components; they are not live end-to-end sessions.",
+    "Admin configuration warnings are covered by policy/API inspection; no admin login/password change attempted."
+  ]
+}

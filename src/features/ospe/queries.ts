@@ -3,6 +3,7 @@ import { db } from "@/shared/db";
 import { curriculumModule } from "@/features/curriculum/schema";
 import { OSPE_FOLDER_TO_MODULE } from "./data";
 import { canAccessModule, type LearningActor } from "@/features/access/learning-access";
+import { isModuleAcademicallyVisible } from "@/features/hierarchy/academic-visibility-server";
 
 export type OspeFolderAccess = {
   folder: string;
@@ -23,6 +24,7 @@ export async function getOspeModuleAccess(user: LearningActor): Promise<OspeFold
   const out: OspeFolderAccess[] = [];
   for (const [folder, slug] of Object.entries(OSPE_FOLDER_TO_MODULE)) {
     const m = bySlug.get(slug);
+    if (!m || !(await isModuleAcademicallyVisible(user, m))) continue;
     const isFree = m?.isFree ?? false;
     const accessible = m ? (await canAccessModule(user, m)).ok : false;
     out.push({

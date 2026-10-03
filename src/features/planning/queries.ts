@@ -1,4 +1,5 @@
-import { getCurriculum } from "@/features/curriculum/queries";
+import { getAcademicCurriculum } from "@/features/curriculum/academic-curriculum";
+import { canAccessModule, type LearningActor } from "@/features/access/learning-access";
 import { getDueFlashcards } from "@/features/review/queries";
 import { db } from "@/shared/db";
 import { eq, and, count } from "drizzle-orm";
@@ -25,12 +26,16 @@ export const cairoToday = (now: Date = new Date()): string => {
  */
 export const getWeeklyPlan = async (
   userId: string,
-  opts: { dailyMinutes?: number; studyYear?: number } = {},
+  opts: { dailyMinutes?: number; studyYear?: number; actor?: LearningActor } = {},
 ): Promise<WeeklyPlan> => {
   const lectures: PlanLecture[] = [];
+  const currentModuleSlugs = new Set<string>();
+  const actor = opts.actor ?? { id: userId };
   try {
-    const modules = await getCurriculum(userId, opts.studyYear);
+    const modules = await getAcademicCurriculum(actor, opts.studyYear, true);
     for (const m of modules) {
+      if (!(await canAccessModule(actor, m)).ok) continue;
+      currentModuleSlugs.add(m.slug);
       for (const l of m.lectures) {
         lectures.push({
           id: l.id,
@@ -53,7 +58,8 @@ export const getWeeklyPlan = async (
   let dueFlashcardCount = 0;
   try {
     const due = await getDueFlashcards(userId, 200);
-    dueFlashcardCount = Array.isArray(due) ? due.length : 0;
+    const currentLectureIds = new Set(lectures.map((l) => l.id));
+    dueFlashcardCount = Array.isArray(due) ? due.filter((card) => currentLectureIds.has(card.lectureId)).length : 0;
   } catch {
     dueFlashcardCount = 0;
   }
@@ -69,7 +75,7 @@ export const getWeeklyPlan = async (
       .limit(10);
     practicalModules = rows
       .map((r) => ({ slug: r.slug, title: r.title, questionCount: Number(r.n) }))
-      .filter((r) => r.questionCount > 0);
+      .filter((r) => r.questionCount > 0 && currentModuleSlugs.has(r.slug));
   } catch {
     practicalModules = [];
   }
@@ -85,7 +91,7 @@ export const getWeeklyPlan = async (
       .limit(10);
     quizModules = rows
       .map((r) => ({ slug: r.slug, title: r.title, hasQuiz: Number(r.n) > 0 }))
-      .filter((r) => r.hasQuiz);
+      .filter((r) => r.hasQuiz && currentModuleSlugs.has(r.slug));
   } catch {
     quizModules = [];
   }

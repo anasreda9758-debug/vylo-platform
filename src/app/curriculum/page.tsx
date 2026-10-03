@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { requireUser } from "@/shared/session";
-import { getStudyYears } from "@/features/curriculum/queries";
-import { getCachedCurriculum } from "@/shared/query-cache";
+import { getAcademicCurriculum, getAcademicStudyYears } from "@/features/curriculum/academic-curriculum";
+import { getAcademicVisibility } from "@/features/hierarchy/academic-visibility-server";
 import { getLocale, localize } from "@/shared/locale";
 import { getSelectedStudyYear } from "@/shared/study-year";
 import { AcademicYearSelector } from "@/components/academic-year-selector";
@@ -24,8 +24,8 @@ export default async function CurriculumPage({
   const locale = await getLocale();
   const t = (en: string, ar: string) => localize(locale, en, ar);
   const params = await searchParams;
-  const studyYears = await getStudyYears();
-  const availableYears = studyYears.length ? studyYears : [1];
+  const availableYears = await getAcademicStudyYears(session.user);
+  const visibility = await getAcademicVisibility();
   const savedYear = await getSelectedStudyYear();
   const requestedYear = Number(params.year);
   const isAdmin = session.user.role === "admin";
@@ -33,9 +33,9 @@ export default async function CurriculumPage({
     ? requestedYear
     : availableYears.includes(savedYear)
       ? savedYear
-      : availableYears[0];
-  const loaded = await getCachedCurriculum(
-    session.user.id,
+      : availableYears[0] ?? 0;
+  const loaded = await getAcademicCurriculum(
+    session.user,
     isAdmin && !params.year ? undefined : studyYear,
   );
   const curriculum = isAdmin
@@ -57,8 +57,6 @@ export default async function CurriculumPage({
   const terms = [
     ...new Set([
       ...curriculum.map((module) => module.term),
-      studyYear * 2 - 1,
-      studyYear * 2,
     ]),
   ].sort((a, b) => a - b);
   return (
@@ -111,6 +109,7 @@ export default async function CurriculumPage({
               className={`min-h-11 rounded-lg px-4 py-3 text-sm ${activeTerm === term ? "bg-muted font-medium" : "text-muted-foreground hover:bg-muted"}`}
             >
               {t(`Term ${term}`, `الترم ${term}`)}
+              {curriculum.some((m) => m.term === term && visibility.currentPeriodIds.has(m.academicPeriodId ?? "")) && t(" · Current", " · الحالي")}
             </Link>
           ))}
         </nav>

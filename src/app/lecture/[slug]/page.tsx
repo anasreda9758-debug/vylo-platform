@@ -35,6 +35,7 @@ import { lectureProgress } from "@/features/curriculum/schema";
 import { and, eq } from "drizzle-orm";
 import { getLocale, localize } from "@/shared/locale";
 import { getAccessibleLecture } from "@/features/access/learning-access";
+import { isModuleAcademicallyVisible } from "@/features/hierarchy/academic-visibility-server";
 
 export default async function LecturePage({
   params,
@@ -51,6 +52,7 @@ export default async function LecturePage({
     localize(locale, english, arabic);
   const lectureRow = await getLectureBySlug(slug);
   if (!lectureRow) notFound();
+  if (!lectureRow.module || !(await isModuleAcademicallyVisible(session.user, lectureRow.module))) notFound();
 
   const moduleName = lectureRow.module?.name ?? t("Module", "الموديول");
   const lectureAccess = await getAccessibleLecture(

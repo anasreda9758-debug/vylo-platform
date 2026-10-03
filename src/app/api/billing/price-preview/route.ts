@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/shared/session";
+import { isPlanAcademicallyVisible } from "@/features/hierarchy/academic-visibility-server";
 import {
   calculatePricePreview,
   PromoValidationError,
@@ -17,6 +18,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "invalid planId" }, { status: 400 });
   }
   try {
+    if (!(await isPlanAcademicallyVisible(body.planId, session?.user.role))) {
+      return NextResponse.json({ error: "Product not available" }, { status: 404 });
+    }
     return NextResponse.json(await calculatePricePreview({
       planId: body.planId,
       promoCodeText: typeof body.promoCode === "string" ? body.promoCode : undefined,

@@ -1,14 +1,11 @@
 import Link from "next/link";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { requireUser } from "@/shared/session";
-import { getModuleBySlug } from "@/features/curriculum/queries";
+import { getAcademicModuleBySlug } from "@/features/curriculum/academic-curriculum";
 import { getBankForModule } from "@/features/practice/queries";
 import { getLocale, localize } from "@/shared/locale";
 import { canAccessModule } from "@/features/access/learning-access";
-import {
-  isHiddenFromStudentCurriculum,
-  moduleDescription,
-} from "@/shared/curriculum-copy";
+import { moduleDescription } from "@/shared/curriculum-copy";
 import { listPracticalTracks } from "@/features/practical/tracks";
 import {
   StudentShell,
@@ -34,8 +31,7 @@ export default async function ModulePage({
   const session = await requireUser();
   const locale = await getLocale();
   const t = (en: string, ar: string) => localize(locale, en, ar);
-  if (isHiddenFromStudentCurriculum(slug)) redirect("/curriculum");
-  const mod = await getModuleBySlug(session.user.id, slug);
+  const mod = await getAcademicModuleBySlug(session.user, slug);
   if (!mod) notFound();
   const bank = await getBankForModule(mod.id);
   const access = (await canAccessModule(session.user, mod)).ok;

@@ -2,6 +2,8 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 
 vi.mock("@/shared/session", () => ({ getSession: vi.fn() }));
 vi.mock("@/features/planning/queries", () => ({ getWeeklyPlan: vi.fn() }));
+vi.mock("@/shared/study-year", () => ({ getSelectedStudyYear: vi.fn().mockResolvedValue(1) }));
+vi.mock("@/features/curriculum/academic-curriculum", () => ({ getAcademicStudyYears: vi.fn().mockResolvedValue([1]) }));
 
 const { GET } = await import("./route");
 const { getSession } = await import("@/shared/session");

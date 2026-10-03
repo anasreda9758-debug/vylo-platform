@@ -14,6 +14,8 @@ import { getLocale, localize } from "@/shared/locale";
 import { moduleDescription } from "@/shared/curriculum-copy";
 import { MODULE_PRICE_EGP, calculateFullTermPriceCents } from "@/features/billing/pricing";
 import { SummerRetakePicker } from "@/components/summer-retake-picker";
+import { getAcademicVisibility } from "@/features/hierarchy/academic-visibility-server";
+import { filterAcademicModules } from "@/features/hierarchy/academic-visibility";
 type PlanRow = {
   id: string;
   name: string;
@@ -132,7 +134,7 @@ export default async function PricingPage() {
   const t = (english: string, arabic: string) => localize(locale, english, arabic);
   const userId = session?.user.id;
 
-  const [plans, modules, periods, subs] = await Promise.all([
+  const [plans, loadedModules, periods, subs] = await Promise.all([
     getPlans(),
     db.query.curriculumModule.findMany({
       orderBy: (m, { asc }) => [asc(m.order)],
@@ -145,13 +147,15 @@ export default async function PricingPage() {
     userId ? getActiveSubscriptions(userId) : Promise.resolve([]),
   ]);
 
+  const visibility = await getAcademicVisibility();
+  const modules = filterAcademicModules(loadedModules, visibility, session?.user.role);
   const owned = new Set(
     subs.filter((s) => s.expiresAt > new Date()).map((s) => s.planId)
   );
   const moduleBySlug = new Map(modules.map((m) => [m.slug, m]));
 
   const periodByType = new Map(periods.map((period) => [period.type, period]));
-  const summerPeriod = periodByType.get("SUMMER");
+  const summerPeriod = periods.find((period) => period.type === "SUMMER" && visibility.currentPeriodIds.has(period.id));
   const summerModules = modules.filter((module) => module.lectures.length > 0);
   const pricedPlans: PlanRow[] = plans
     .filter((p) => p.scope === "module" || p.scope === "term")
@@ -239,14 +243,9 @@ export default async function PricingPage() {
                 />
               ))}
             </div>
-            {periodByType.get("SUMMER") && modules.filter((module) => module.academicPeriodId === periodByType.get("SUMMER")?.id).length === 0 ? (
-              <p className="mt-6 text-center text-sm text-muted-foreground">
-                {t("No Summer modules available yet.", "لا توجد موديولات صيفية متاحة حاليًا.")}
-              </p>
-            ) : null}
           </section>
 
-          {summerPeriod && summerPeriod.startsAt <= new Date() && summerPeriod.endsAt > new Date() ? (
+          {summerPeriod && summerModules.length > 0 ? (
             <SummerRetakePicker
               modules={summerModules.map((module) => ({
                 id: module.id,

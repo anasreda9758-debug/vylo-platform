@@ -7,6 +7,7 @@ import { Navigation } from "@/components/navigation";
 import { Lock, HelpCircle, Clock, BarChart3 } from "lucide-react";
 import { getLocale, localize } from "@/shared/locale";
 import { canAccessModule } from "@/features/access/learning-access";
+import { isModuleAcademicallyVisible } from "@/features/hierarchy/academic-visibility-server";
 
 export default async function QuizPage({
   params,
@@ -22,6 +23,7 @@ export default async function QuizPage({
   const t = (english: string, arabic: string) => localize(locale, english, arabic);
   const bank = await getBankBySlug(bankSlug);
   if (!bank) notFound();
+  if (!bank.module || !(await isModuleAcademicallyVisible(session.user, bank.module))) notFound();
 
   const moduleName = bank.module?.name ?? t("this module", "هذا الموديول");
   const access = bank.module ? (await canAccessModule(session.user, bank.module)).ok : false;

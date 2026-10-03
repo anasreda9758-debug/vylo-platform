@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/shared/session";
 import { getWeeklyPlan } from "@/features/planning/queries";
+import { getSelectedStudyYear } from "@/shared/study-year";
+import { getAcademicStudyYears } from "@/features/curriculum/academic-curriculum";
 
 export const dynamic = "force-dynamic";
 
@@ -23,7 +25,10 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const plan = await getWeeklyPlan(session.user.id, { dailyMinutes });
+    const years = await getAcademicStudyYears(session.user, true);
+    const savedYear = await getSelectedStudyYear();
+    const studyYear = years.includes(savedYear) ? savedYear : years[0];
+    const plan = await getWeeklyPlan(session.user.id, { dailyMinutes, studyYear, actor: session.user });
     return NextResponse.json({ plan });
   } catch (error) {
     // A planning failure must surface as an error state, never a spinner.
