@@ -21,10 +21,10 @@ export async function isModuleAcademicallyVisible(
 ) {
   if (!actor) return false;
   if (actor.role === "admin") return true;
-  // Some result/analytics guards carry only module ID. Resolve its actual association,
+  // Some result/analytics guards carry only module ID. Resolve its actual year/association,
   // never its term number, slug, client query or entitlement.
-  const row = module.academicPeriodId === undefined
-    ? await db.query.curriculumModule.findFirst({ where: eq(curriculumModule.id, module.id), columns: { academicPeriodId: true } })
+  const row = module.academicPeriodId === undefined || module.studyYear === undefined
+    ? await db.query.curriculumModule.findFirst({ where: eq(curriculumModule.id, module.id), columns: { academicPeriodId: true, studyYear: true } })
     : module;
   return Boolean(row && isAcademicModuleVisible(row, await getAcademicVisibility(), actor.role));
 }
@@ -38,7 +38,7 @@ export async function isPlanAcademicallyVisible(planId: string, role?: string | 
   if (selected.scope === "term" && (!Number.isInteger(term) || term < 1)) return false;
   const modules = await db.query.curriculumModule.findMany({
     where: selected.scope === "module" ? eq(curriculumModule.slug, selected.scopeRef) : eq(curriculumModule.term, term),
-    columns: { academicPeriodId: true },
+    columns: { academicPeriodId: true, studyYear: true },
   });
   return filterAcademicModules(modules, await getAcademicVisibility(), role).length > 0;
 }

@@ -1,0 +1,419 @@
+{
+  "checkedAt": "2026-10-03T01:08:59.401Z",
+  "studentPages": [
+    {
+      "path": "/dashboard",
+      "status": 200,
+      "yearOptions": [
+        "Academic year 1"
+      ],
+      "hiddenYearText": false,
+      "hiddenModuleLinks": [],
+      "year2ModuleLinks": [],
+      "hiddenModuleOptions": [],
+      "onlyYear1Selector": true
+    },
+    {
+      "path": "/curriculum",
+      "status": 200,
+      "yearOptions": [
+        "Academic year 1"
+      ],
+      "hiddenYearText": false,
+      "hiddenModuleLinks": [],
+      "year2ModuleLinks": [],
+      "hiddenModuleOptions": [],
+      "onlyYear1Selector": true
+    },
+    {
+      "path": "/curriculum?year=3",
+      "status": 200,
+      "yearOptions": [
+        "Academic year 1"
+      ],
+      "hiddenYearText": false,
+      "hiddenModuleLinks": [],
+      "year2ModuleLinks": [],
+      "hiddenModuleOptions": [],
+      "onlyYear1Selector": true
+    },
+    {
+      "path": "/curriculum?year=4",
+      "status": 200,
+      "yearOptions": [
+        "Academic year 1"
+      ],
+      "hiddenYearText": false,
+      "hiddenModuleLinks": [],
+      "year2ModuleLinks": [],
+      "hiddenModuleOptions": [],
+      "onlyYear1Selector": true
+    },
+    {
+      "path": "/curriculum?year=5",
+      "status": 200,
+      "yearOptions": [
+        "Academic year 1"
+      ],
+      "hiddenYearText": false,
+      "hiddenModuleLinks": [],
+      "year2ModuleLinks": [],
+      "hiddenModuleOptions": [],
+      "onlyYear1Selector": true
+    },
+    {
+      "path": "/search?q=epidemiology",
+      "status": 200,
+      "yearOptions": [],
+      "hiddenYearText": false,
+      "hiddenModuleLinks": [],
+      "year2ModuleLinks": [],
+      "hiddenModuleOptions": [],
+      "onlyYear1Selector": true
+    },
+    {
+      "path": "/flashcards",
+      "status": 200,
+      "yearOptions": [],
+      "hiddenYearText": false,
+      "hiddenModuleLinks": [],
+      "year2ModuleLinks": [],
+      "hiddenModuleOptions": [],
+      "onlyYear1Selector": true
+    },
+    {
+      "path": "/cases",
+      "status": 200,
+      "yearOptions": [],
+      "hiddenYearText": false,
+      "hiddenModuleLinks": [],
+      "year2ModuleLinks": [],
+      "hiddenModuleOptions": [],
+      "onlyYear1Selector": true
+    },
+    {
+      "path": "/ospe",
+      "status": 200,
+      "yearOptions": [],
+      "hiddenYearText": false,
+      "hiddenModuleLinks": [],
+      "year2ModuleLinks": [],
+      "hiddenModuleOptions": [],
+      "onlyYear1Selector": true
+    },
+    {
+      "path": "/battles",
+      "status": 200,
+      "yearOptions": [],
+      "hiddenYearText": false,
+      "hiddenModuleLinks": [],
+      "year2ModuleLinks": [],
+      "hiddenModuleOptions": [],
+      "onlyYear1Selector": true
+    }
+  ],
+  "negativeRequests": [
+    {
+      "moduleSlug": "epd-501",
+      "studyYear": 3,
+      "status": 404
+    },
+    {
+      "moduleSlug": "inf-502",
+      "studyYear": 3,
+      "status": 404
+    },
+    {
+      "moduleSlug": "trp-503",
+      "studyYear": 3,
+      "status": 404
+    },
+    {
+      "moduleSlug": "bsp-504",
+      "studyYear": 3,
+      "status": 404
+    },
+    {
+      "moduleSlug": "e-1",
+      "studyYear": 3,
+      "status": 404
+    },
+    {
+      "moduleSlug": "com-601",
+      "studyYear": 3,
+      "status": 404
+    },
+    {
+      "moduleSlug": "ctf-602",
+      "studyYear": 3,
+      "status": 404
+    },
+    {
+      "moduleSlug": "ms-603",
+      "studyYear": 3,
+      "status": 404
+    },
+    {
+      "moduleSlug": "e-2",
+      "studyYear": 3,
+      "status": 404
+    },
+    {
+      "moduleSlug": "ms-701",
+      "studyYear": 4,
+      "status": 404
+    },
+    {
+      "moduleSlug": "ped-702",
+      "studyYear": 4,
+      "status": 404
+    },
+    {
+      "moduleSlug": "ogy-703",
+      "studyYear": 4,
+      "status": 404
+    },
+    {
+      "moduleSlug": "e-3",
+      "studyYear": 4,
+      "status": 404
+    },
+    {
+      "moduleSlug": "ms-801",
+      "studyYear": 4,
+      "status": 404
+    },
+    {
+      "moduleSlug": "ped-802",
+      "studyYear": 4,
+      "status": 404
+    },
+    {
+      "moduleSlug": "ogy-803",
+      "studyYear": 4,
+      "status": 404
+    },
+    {
+      "moduleSlug": "ent-901",
+      "studyYear": 5,
+      "status": 404
+    },
+    {
+      "moduleSlug": "opt-902",
+      "studyYear": 5,
+      "status": 404
+    },
+    {
+      "moduleSlug": "fmi-903",
+      "studyYear": 5,
+      "status": 404
+    },
+    {
+      "moduleSlug": "lmr-904",
+      "studyYear": 5,
+      "status": 404
+    },
+    {
+      "moduleSlug": "e-4",
+      "studyYear": 5,
+      "status": 404
+    },
+    {
+      "moduleSlug": "sur-10-1",
+      "studyYear": 5,
+      "status": 404
+    },
+    {
+      "moduleSlug": "nps-10-2",
+      "studyYear": 5,
+      "status": 404
+    },
+    {
+      "moduleSlug": "med-10-3",
+      "studyYear": 5,
+      "status": 404
+    },
+    {
+      "moduleSlug": "dan-10-4",
+      "studyYear": 5,
+      "status": 404
+    },
+    {
+      "moduleSlug": "gp-10",
+      "studyYear": 5,
+      "status": 404
+    },
+    {
+      "api": "search",
+      "studyYear": 2,
+      "status": 200,
+      "results": 0
+    },
+    {
+      "api": "practical",
+      "studyYear": 2,
+      "status": 403
+    },
+    {
+      "api": "search",
+      "studyYear": 3,
+      "status": 200,
+      "results": 0
+    },
+    {
+      "api": "practical",
+      "studyYear": 3,
+      "status": 403
+    },
+    {
+      "api": "search",
+      "studyYear": 4,
+      "status": 200,
+      "results": 0
+    },
+    {
+      "api": "practical",
+      "studyYear": 4,
+      "status": 403
+    },
+    {
+      "api": "search",
+      "studyYear": 5,
+      "status": 200,
+      "results": 0
+    },
+    {
+      "api": "practical",
+      "studyYear": 5,
+      "status": 403
+    }
+  ],
+  "browserErrors": [],
+  "failedApplicationRequests": [],
+  "limitations": [
+    "No Year 3-5 lecture rows exist locally; direct hidden-year lecture and generation denial verified using real authorization/route functions with deterministic in-memory fixtures, not fabricated DB content."
+  ],
+  "visual": [
+    {
+      "path": "dashboard",
+      "width": 1440,
+      "overflow": false,
+      "screenshot": "tmp/student-release-qa/dashboard-1440.png"
+    },
+    {
+      "path": "dashboard",
+      "width": 375,
+      "overflow": false,
+      "screenshot": "tmp/student-release-qa/dashboard-375.png"
+    },
+    {
+      "path": "curriculum",
+      "width": 1440,
+      "overflow": false,
+      "screenshot": "tmp/student-release-qa/curriculum-1440.png"
+    },
+    {
+      "path": "curriculum",
+      "width": 375,
+      "overflow": false,
+      "screenshot": "tmp/student-release-qa/curriculum-375.png"
+    }
+  ],
+  "weeklyPlan": {
+    "status": 200,
+    "itemCount": 21,
+    "curriculumReferences": 14,
+    "resolvedReferences": 13,
+    "studyYears": [
+      1
+    ],
+    "hiddenModulesAbsent": true,
+    "year2ModulesAbsent": true,
+    "method": "Resolve exact referenced module/lecture slugs against read-only DB; not substring matching"
+  },
+  "health": 200,
+  "admin": {
+    "status": "NOT_VERIFIED",
+    "reason": "The accessible in-app browser tab is still /sign-in; the owner's separately reported authenticated Admin session is not accessible to the browser tool. No Admin credentials or session secrets were read, copied or saved.",
+    "codeEvidence": [
+      "src/features/hierarchy/academic-visibility.ts: admin bypass before student release filter",
+      "src/features/hierarchy/academic-visibility-server.ts: admin bypass before DB release resolution",
+      "src/app/api/admin/modules/route.ts: admin-only GET reads all module rows without student filtering"
+    ],
+    "deterministicAdminChecks": "PASS"
+  },
+  "database": {
+    "before": {
+      "checkedAt": "2026-10-03T01:03:13.182Z",
+      "counts": {
+        "modules": 44,
+        "lectures": 394,
+        "mapped": 10,
+        "unmapped": 34
+      },
+      "fingerprints": [
+        {
+          "table_name": "module",
+          "fingerprint": "fc8b63113c525326f6e92b02d309e3be"
+        },
+        {
+          "table_name": "lecture",
+          "fingerprint": "5fc7d6b1fa1963d086251c501ccf46b1"
+        },
+        {
+          "table_name": "academic_period",
+          "fingerprint": "e29b20ab8e8a68fb9df2f5ba28f983f8"
+        }
+      ]
+    },
+    "after": {
+      "checkedAt": "2026-10-03T01:20:30.573Z",
+      "counts": {
+        "modules": 44,
+        "lectures": 394,
+        "mapped": 10,
+        "unmapped": 34
+      },
+      "fingerprints": [
+        {
+          "table_name": "module",
+          "fingerprint": "fc8b63113c525326f6e92b02d309e3be"
+        },
+        {
+          "table_name": "lecture",
+          "fingerprint": "5fc7d6b1fa1963d086251c501ccf46b1"
+        },
+        {
+          "table_name": "academic_period",
+          "fingerprint": "e29b20ab8e8a68fb9df2f5ba28f983f8"
+        }
+      ],
+      "fingerprintMethod": "md5(string_agg(to_jsonb(row)::text, '' ORDER BY id)); independently rechecked and matched all three tables"
+    },
+    "wholeRowFingerprintsUnchanged": true,
+    "countsUnchanged": true,
+    "queries": "SELECT-only in enforced READ ONLY transactions"
+  },
+  "gates": {
+    "focusedTests": {
+      "passed": 90,
+      "files": 5
+    },
+    "newTests": 42,
+    "fullTests": {
+      "passed": 972,
+      "files": 77
+    },
+    "typecheck": "PASS",
+    "lint": {
+      "errors": 0,
+      "warnings": 197
+    },
+    "build": {
+      "result": "PASS",
+      "existingTracingWarnings": 9
+    }
+  },
+  "startingHead": "3d210cd",
+  "branch": "wip/renal-anatomy-practical"
+}

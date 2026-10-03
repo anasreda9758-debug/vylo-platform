@@ -15,7 +15,7 @@ beforeEach(() => {
     { id: "t1", academicYear: "2026-2027", type: "TERM_1", startsAt: "2026-09-01 00:00:00", endsAt: "2027-02-28 23:59:59.999", active: true },
     { id: "t2", academicYear: "2026-2027", type: "TERM_2", startsAt: "2027-03-01 00:00:00", endsAt: "2027-07-31 23:59:59.999", active: true },
   ]);
-  mocks.module.mockResolvedValue({ academicPeriodId: "t2" });
+  mocks.module.mockResolvedValue({ academicPeriodId: "t2", studyYear: 1 });
 });
 afterEach(() => vi.useRealTimers());
 describe("authoritative DB period resolver", () => {
@@ -28,7 +28,7 @@ describe("authoritative DB period resolver", () => {
     expect(mocks.module).toHaveBeenCalledTimes(1);
   });
   it("full records use the actual period foreign key", async () => {
-    expect(await isModuleAcademicallyVisible(actor, { id: "module", academicPeriodId: "t1" })).toBe(true);
+    expect(await isModuleAcademicallyVisible(actor, { id: "module", academicPeriodId: "t1", studyYear: 1 })).toBe(true);
     expect(mocks.module).not.toHaveBeenCalled();
   });
   it("unconfigured and deleted modules fail closed", async () => {
@@ -45,5 +45,19 @@ describe("authoritative DB period resolver", () => {
   it("empty config never falls back to a term label or subscription", async () => {
     mocks.periods.mockResolvedValue([]);
     expect(await isModuleAcademicallyVisible(actor, { id: "module", academicPeriodId: "t1" })).toBe(false);
+  });
+  it("partial records resolve their authoritative study year as well as period", async () => {
+    mocks.module.mockResolvedValue({ academicPeriodId: "t1", studyYear: 3 });
+    expect(await isModuleAcademicallyVisible(actor, { id: "module", academicPeriodId: "t1" })).toBe(false);
+    expect(mocks.module).toHaveBeenCalledWith(expect.objectContaining({
+      columns: { academicPeriodId: true, studyYear: true },
+    }));
+  });
+  it("minimal ID request cannot override the database's unreleased year", async () => {
+    mocks.module.mockResolvedValue({ academicPeriodId: "t1", studyYear: 5 });
+    expect(await isModuleAcademicallyVisible(actor, { id: "module" })).toBe(false);
+  });
+  it.each([3, 4, 5])("full Year-%i records are denied despite a current period", async (studyYear) => {
+    expect(await isModuleAcademicallyVisible(actor, { id: "module", academicPeriodId: "t1", studyYear })).toBe(false);
   });
 });

@@ -16,7 +16,7 @@ export type LearningActor = {
 };
 
 type ModuleRecord = typeof curriculumModule.$inferSelect;
-type ModuleAccessTarget = Pick<ModuleRecord, "id" | "slug" | "isFree" | "term"> & Partial<Pick<ModuleRecord, "academicPeriodId">>;
+type ModuleAccessTarget = Pick<ModuleRecord, "id" | "slug" | "isFree" | "term"> & Partial<Pick<ModuleRecord, "academicPeriodId" | "studyYear">>;
 type AccessibleLecture = typeof lecture.$inferSelect & { module: ModuleRecord };
 type AccessibleQuestionBank = typeof questionBank.$inferSelect & { module: ModuleRecord };
 type AccessibleQuestion = typeof question.$inferSelect & {

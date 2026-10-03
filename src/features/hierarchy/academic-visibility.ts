@@ -1,3 +1,5 @@
+import { isStudentAcademicYearReleased } from "./student-curriculum-release";
+
 /** academic_period uses timestamp WITHOUT time zone: values are Cairo wall time. */
 export const ACADEMIC_TIME_ZONE = "Africa/Cairo";
 
@@ -9,7 +11,7 @@ export type AcademicWindow = {
   endsAt: string;
   active: boolean;
 };
-export type PeriodModule = { academicPeriodId?: string | null };
+export type PeriodModule = { academicPeriodId?: string | null; studyYear?: number | null };
 export type AcademicVisibility = {
   periods: AcademicWindow[];
   visiblePeriodIds: Set<string>;
@@ -80,7 +82,8 @@ export function isAcademicModuleVisible(
   module: PeriodModule, visibility: AcademicVisibility, role?: string | null, currentOnly = false,
 ) {
   if (role === "admin") return true;
-  return Boolean(module.academicPeriodId && (currentOnly ? visibility.currentPeriodIds : visibility.visiblePeriodIds).has(module.academicPeriodId));
+  return isStudentAcademicYearReleased(module.studyYear)
+    && Boolean(module.academicPeriodId && (currentOnly ? visibility.currentPeriodIds : visibility.visiblePeriodIds).has(module.academicPeriodId));
 }
 
 export function filterAcademicModules<T extends PeriodModule>(

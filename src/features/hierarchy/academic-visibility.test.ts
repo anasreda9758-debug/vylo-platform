@@ -60,7 +60,7 @@ describe("shared curriculum visibility", () => {
   it("Modules excludes future terms and unconfigured future years", () => expect(filterAcademicModules(modules, buildAcademicVisibility(periods, inTerm1)).map((m) => m.id)).toEqual(["m1"]));
   it("Modules retains past terms but prioritizes the current term", () => expect(filterAcademicModules(modules, buildAcademicVisibility(periods, inTerm2)).map((m) => m.id)).toEqual(["m2", "m1"]));
   it("missing configuration fails safely", () => expect(filterAcademicModules(modules, buildAcademicVisibility([], inTerm1))).toEqual([]));
-  it("unknown associations fail safely", () => expect(isAcademicModuleVisible({ academicPeriodId: "deleted" }, buildAcademicVisibility(periods, inTerm1))).toBe(false));
+  it("unknown associations fail safely", () => expect(isAcademicModuleVisible({ studyYear: 1, academicPeriodId: "deleted" }, buildAcademicVisibility(periods, inTerm1))).toBe(false));
   it("disabled periods are hidden", () => expect(isStudentPeriodVisible({ ...term1, active: false }, inTerm1)).toBe(false));
   it("invalid dates fail safely", () => expect(isStudentPeriodVisible({ ...term1, endsAt: term1.startsAt }, inTerm1)).toBe(false));
   it("Summer stays hidden during an overlapping ordinary term", () => {

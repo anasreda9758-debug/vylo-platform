@@ -44,3 +44,31 @@ describe("database-backed discovery boundaries", () => {
     expect(await getAcademicCurriculum({ id: "admin", role: "admin" })).toHaveLength(4);
   });
 });
+
+describe("unreleased years are excluded before reaching student pages", () => {
+  beforeEach(() => {
+    // Active associations deliberately prove release protection independent of dates.
+    const unreleased = [3, 4, 5].map((studyYear) => ({
+      id: `hidden-${studyYear}`, slug: `hidden-${studyYear}`, studyYear, academicPeriodId: "t1",
+    }));
+    mocks.modules.mockResolvedValue([...records, ...unreleased]);
+    mocks.curriculum.mockResolvedValue([...records, ...unreleased]);
+  });
+  it("Year 3 modules are absent from Modules", async () => {
+    expect((await getAcademicCurriculum(student)).some((module) => module.studyYear === 3)).toBe(false);
+  });
+  it("Year 4 and Year 5 cannot appear in academic-year or term selectors", async () => {
+    expect(await getAcademicStudyYears(student)).toEqual([1]);
+  });
+  it("manually requesting a hidden Year-3 slug finds no student record", async () => {
+    expect(await getAcademicModuleBySlug(student, "hidden-3")).toBeNull();
+  });
+  it("Dashboard current-only loader excludes all unreleased years", async () => {
+    expect((await getAcademicCurriculum(student, undefined, true)).map((module) => module.id)).toEqual(["m1"]);
+  });
+  it("admin discovery retains Years 1-5 and hidden-year module records", async () => {
+    const admin = { id: "admin", role: "admin" };
+    expect(await getAcademicStudyYears(admin)).toEqual([1, 2, 3, 4, 5]);
+    expect(await getAcademicModuleBySlug(admin, "hidden-5")).toMatchObject({ studyYear: 5 });
+  });
+});
