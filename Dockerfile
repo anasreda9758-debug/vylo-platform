@@ -9,7 +9,17 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
-RUN npm run build
+# Build-time stand-ins only: never pass real DB/auth secrets into image layers.
+# Dynamic routes do not query this nonexistent DB during the production build.
+RUN DATABASE_URL=postgresql://build:build@127.0.0.1:9/build \
+    BETTER_AUTH_URL=https://build.invalid \
+    BETTER_AUTH_SECRET=build-only-placeholder-not-for-runtime \
+    npm run build
+
+# Optional maintenance image only; never the default application image.
+FROM builder AS seed
+ENV NODE_ENV=production
+CMD ["node_modules/.bin/tsx", "scripts/staging-seed.ts"]
 
 FROM node:24-alpine AS runner
 WORKDIR /app
@@ -22,13 +32,7 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder /app/drizzle ./drizzle
 COPY --from=builder /app/scripts/migrate.mjs ./scripts/migrate.mjs
-
-# One-shot seeding stage. Builds from `builder` so tsx + source + dev deps are
-# available. Runs scripts/staging-seed.ts (idempotent). Kept separate from
-# `runner` so no source/devDeps leak into the runtime image.
-FROM builder AS seed
-ENV NODE_ENV=production
-CMD ["node_modules/.bin/tsx", "scripts/staging-seed.ts"]
+COPY --from=builder /app/scripts/validate-staging-env.mjs ./scripts/validate-staging-env.mjs
 
 # Never ship env files that Next may copy into the standalone output.
 RUN rm -f .env .env.local .env.development .env.production .env.staging

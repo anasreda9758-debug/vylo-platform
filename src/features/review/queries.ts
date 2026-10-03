@@ -1,8 +1,9 @@
-import { and, eq, lte, sql } from "drizzle-orm";
+import { and, eq, inArray, lte, sql } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { db } from "@/shared/db";
 import { clinicalCase, clinicalCaseEvaluation, flashcard } from "./schema";
-import { canAccessModule, type LearningActor } from "@/features/access/learning-access";
+import { canAccessModule, getAccessibleClinicalCase, type LearningActor } from "@/features/access/learning-access";
+import { getAccessibleSavedLectureIds, getPersistedContentActor } from "@/features/access/persisted-content";
 
 export type ReviewLecture = {
   id: string;
@@ -63,8 +64,14 @@ export async function createFlashcards(
 }
 
 export async function getDueFlashcards(userId: string, limit = 30) {
+  const actor = await getPersistedContentActor(userId);
+  if (!actor) return [];
+  const where = and(eq(flashcard.userId, actor.id), lte(flashcard.dueDate, new Date()));
+  const candidates = await db.query.flashcard.findMany({ where, columns: { lectureId: true } });
+  const lectureIds = await getAccessibleSavedLectureIds(actor, candidates.map(c => c.lectureId));
+  if (!lectureIds.length) return [];
   return db.query.flashcard.findMany({
-    where: and(eq(flashcard.userId, userId), lte(flashcard.dueDate, new Date())),
+    where: and(where, inArray(flashcard.lectureId, lectureIds)),
     orderBy: (f, { asc }) => [asc(f.dueDate)],
     limit,
     with: { lecture: true },
@@ -115,9 +122,10 @@ export async function createClinicalCase(
 }
 
 export async function getClinicalCase(id: string, userId: string) {
-  return db.query.clinicalCase.findFirst({
-    where: and(eq(clinicalCase.id, id), eq(clinicalCase.userId, userId)),
-  });
+  const actor = await getPersistedContentActor(userId);
+  if (!actor) return undefined;
+  const access = await getAccessibleClinicalCase(actor, id);
+  return access.ok ? access.value.case : undefined;
 }
 
 /**
@@ -161,8 +169,15 @@ export async function createClinicalCaseEvaluation(params: {
 }
 
 export async function listMyCases(userId: string, limit = 10) {
+  const actor = await getPersistedContentActor(userId);
+  if (!actor) return [];
+  const candidates = await db.query.clinicalCase.findMany({
+    where: eq(clinicalCase.userId, actor.id), columns: { lectureId: true },
+  });
+  const lectureIds = await getAccessibleSavedLectureIds(actor, candidates.map(c => c.lectureId));
+  if (!lectureIds.length) return [];
   return db.query.clinicalCase.findMany({
-    where: eq(clinicalCase.userId, userId),
+    where: and(eq(clinicalCase.userId, actor.id), inArray(clinicalCase.lectureId, lectureIds)),
     orderBy: (c, { desc }) => [desc(c.createdAt)],
     limit,
     with: { lecture: true },
@@ -170,16 +185,30 @@ export async function listMyCases(userId: string, limit = 10) {
 }
 
 export async function getAllClinicalCases(userId: string) {
+  const actor = await getPersistedContentActor(userId);
+  if (!actor) return [];
+  const candidates = await db.query.clinicalCase.findMany({
+    where: eq(clinicalCase.userId, actor.id), columns: { lectureId: true },
+  });
+  const lectureIds = await getAccessibleSavedLectureIds(actor, candidates.map(c => c.lectureId));
+  if (!lectureIds.length) return [];
   return db.query.clinicalCase.findMany({
-    where: eq(clinicalCase.userId, userId),
+    where: and(eq(clinicalCase.userId, actor.id), inArray(clinicalCase.lectureId, lectureIds)),
     orderBy: (c, { desc }) => [desc(c.createdAt)],
     with: { lecture: true },
   });
 }
 
 export async function getAllFlashcards(userId: string) {
+  const actor = await getPersistedContentActor(userId);
+  if (!actor) return [];
+  const candidates = await db.query.flashcard.findMany({
+    where: eq(flashcard.userId, actor.id), columns: { lectureId: true },
+  });
+  const lectureIds = await getAccessibleSavedLectureIds(actor, candidates.map(c => c.lectureId));
+  if (!lectureIds.length) return [];
   return db.query.flashcard.findMany({
-    where: eq(flashcard.userId, userId),
+    where: and(eq(flashcard.userId, actor.id), inArray(flashcard.lectureId, lectureIds)),
     orderBy: (f, { desc }) => [desc(f.createdAt)],
     with: { lecture: true },
   });

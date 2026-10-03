@@ -1,21 +1,6 @@
-# Staging topology (single VPS). Requires a .env.staging file, e.g.:
-#   POSTGRES_PASSWORD=<alphanumeric, no URL-special chars>
-#   BETTER_AUTH_SECRET=<long random string>
-#   BETTER_AUTH_URL=http://<VPS_IP>:3000     # IP only (no domain)
-#   GROQ_API_KEY=...
-#   GROQ_MODEL=llama-3.3-70b-versatile
-#   ADMIN_EMAIL=admin@horus.edu.eg
-#   ADMIN_PASSWORD=<strong password>
-#
-# Content lives on the VPS at /opt/lms-content (semester 1|2 + images), rsynced
-# from the dev machine, and is bind-mounted into the app and seed containers as
-# /data. Do NOT store content in git.
-#
-# Bootstrap on a fresh VPS (once):
-#   sudo mkdir -p /opt/lms-content
-#   rsync -az "semester 1" "semester 2" images anasr@<VPS_IP>:/opt/lms-content/
-#
-# Deploy: docker compose -f docker-compose.staging.yml up -d --build
+# Explicit staging only. No default migration or seeding on startup.
+# Owner prepares DNS, secrets, approved schema/dataset and content first.
+# See STAGING_ACCESS.md. Existing project/database volume identities retained.
 name: lms-platform-staging
 
 services:
@@ -24,60 +9,48 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: lms
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env.staging}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set a separate staging password}
       POSTGRES_DB: lms
+      PGDATA: /var/lib/postgresql/data
     volumes:
       - pgdata:/var/lib/postgresql/data
+    networks: [database]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U lms -d lms"]
       interval: 5s
       timeout: 5s
       retries: 10
 
-  migrate:
-    build: .
-    restart: "no"
-    command: ["node", "scripts/migrate.mjs"]
-    environment:
-      DATABASE_URL: postgres://lms:${POSTGRES_PASSWORD:?}@db:5432/lms
-    depends_on:
-      db:
-        condition: service_healthy
-
-  seed:
+  app:
     build:
       context: .
-      target: seed
-    restart: "no"
-    environment:
-      DATABASE_URL: postgres://lms:${POSTGRES_PASSWORD:?}@db:5432/lms
-      CONTENT_ROOT: /data
-      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@horus.edu.eg}
-      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-ChangeMe!Admin2026}
-    volumes:
-      - /opt/lms-content:/data:ro
-    depends_on:
-      migrate:
-        condition: service_completed_successfully
-
-  app:
-    build: .
+      target: runner
     restart: unless-stopped
-    ports:
-      - "3000:3000"
+    expose: ["3000"]
+    command: ["sh", "-c", "node scripts/validate-staging-env.mjs && exec node server.js"]
     environment:
-      DATABASE_URL: postgres://lms:${POSTGRES_PASSWORD:?}@db:5432/lms
-      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?set BETTER_AUTH_SECRET in .env.staging}
-      BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://localhost:3000}
+      NODE_ENV: production
+      VYLO_ENVIRONMENT: staging
+      STAGING_DOMAIN: ${STAGING_DOMAIN:?set a dedicated staging DNS name}
+      DATABASE_URL: ${DATABASE_URL:?set the separate staging database URL}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set a separate staging password}
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?set a separate staging auth secret}
+      BETTER_AUTH_URL: ${BETTER_AUTH_URL:?set the exact HTTPS staging origin}
+      BETTER_AUTH_TRUSTED_ORIGINS: ${BETTER_AUTH_URL:?}
+      USE_HOSTED_AI: ${USE_HOSTED_AI:-false}
       GROQ_API_KEY: ${GROQ_API_KEY:-}
       GROQ_MODEL: ${GROQ_MODEL:-llama-3.3-70b-versatile}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      EMAIL_FROM: ${EMAIL_FROM:-}
+      STORAGE_DRIVER: local
       CONTENT_ROOT: /data
       LOG_LEVEL: ${LOG_LEVEL:-info}
     volumes:
-      - /opt/lms-content:/data:ro
+      - ${STAGING_CONTENT_ROOT:?set the approved staging content directory}:/data:ro
+    networks: [database, web]
     depends_on:
-      seed:
-        condition: service_completed_successfully
+      db:
+        condition: service_healthy
     healthcheck:
       test:
         - CMD-SHELL
@@ -86,6 +59,21 @@ services:
       timeout: 5s
       retries: 12
 
+  proxy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    environment:
+      STAGING_DOMAIN: ${STAGING_DOMAIN:?}
+    ports: ["80:80", "443:443"]
+    volumes:
+      - ./deploy/staging/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks: [web]
+    depends_on:
+      app:
+        condition: service_healthy
+
   backup:
     image: postgres:18-alpine
     restart: unless-stopped
@@ -93,21 +81,25 @@ services:
       PGPASSWORD: ${POSTGRES_PASSWORD:?}
     volumes:
       - backups:/backups
+    networks: [database]
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |
-        cat > /backup.sh <<'EOF'
-        #!/bin/sh
-        pg_dump -h db -U lms -d lms -Fc -f /backups/lms-$$(date +%Y%m%d-%H%M%S).dump
-        find /backups -name '*.dump' -mtime +14 -delete
-        EOF
-        chmod +x /backup.sh
-        echo "0 3 * * * /backup.sh" > /etc/crontabs/root
-        crond -f
+        while true; do
+          pg_dump -h db -U lms -d lms -Fc -f /backups/lms-$$(date +%Y%m%d-%H%M%S).dump
+          sleep 86400
+        done
     depends_on:
       db:
         condition: service_healthy
 
+networks:
+  database:
+    internal: true
+  web:
+
 volumes:
   pgdata:
   backups:
+  caddy_data:
+  caddy_config:

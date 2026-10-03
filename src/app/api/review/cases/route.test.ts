@@ -110,6 +110,12 @@ describe("POST /api/review/cases", () => {
     expect(res.status).toBe(401);
   });
 
+  it("ignores client ownership/role assignments when creating a stored case", async () => {
+    const response = await POST(req({ lectureId: "l1", userId: "victim", ownerId: "victim", role: "admin" }));
+    expect(response.status).toBe(200);
+    expect(mocks.createCase).toHaveBeenCalledWith("student-a", "l1", expect.any(Object));
+  });
+
   it("rejects lectures without readable content", async () => {
     mocks.lectureAccess.mockResolvedValue({ ok: true, value: { ...LECTURE, content: "   " } });
     const res = await POST(req({ lectureId: "l1" }));

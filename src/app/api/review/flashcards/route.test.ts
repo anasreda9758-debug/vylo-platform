@@ -133,6 +133,11 @@ beforeEach(() => {
 });
 
 describe("POST /api/review/flashcards - idempotent generation", () => {
+  it("ignores client ownership/role assignments when creating stored cards", async () => {
+    const response = await POST(request({ lectureId: "lecture-1", userId: "victim", ownerId: "victim", role: "admin" }));
+    expect(response.status).toBe(200);
+    expect(mocks.createFlashcards).toHaveBeenCalledWith("user-1", "lecture-1", expect.any(Array));
+  });
   it("reusing an idempotency key returns the stored result, no second generation, no second quota charge", async () => {
     const key = "11111111-1111-4111-8111-111111111111";
     const first = await POST(request({ lectureId: "lecture-1", idempotencyKey: key }));

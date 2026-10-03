@@ -34,7 +34,9 @@ yarn-error.log*
 .env
 .env.local
 .env.production
+.env.*
 !.env.example
+!.env.staging.example
 
 # runtime-only practical assets (real exam images; never committed)
 /private/

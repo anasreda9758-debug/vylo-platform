@@ -5,5 +5,13 @@ backups
 .git
 .gitignore
 .env*
+tmp
+private
+.aws
+.codex
+.agents
+query
+queryex
+pre-repair-fingerprint.json
 *.log
 npm-debug.log*
