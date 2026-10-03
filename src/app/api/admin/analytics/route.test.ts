@@ -59,6 +59,42 @@ beforeEach(() => {
 });
 
 describe("GET /api/admin/analytics", () => {
+  const tabViews = ["overview", "users", "subscriptions", "content", "learning", "quiz", "practical", "ospe", "review", "ai", "xp", "activity", "payments", "audit", "system"];
+  it("all analytics tabs accept Admin without student entitlements", async () => {
+    mocks.session.mockResolvedValue({ user: { id: "admin", role: "admin" } });
+    for (const view of tabViews) {
+      const response = await GET(request(`/api/admin/analytics?view=${view}`));
+      expect(response.status, view).toBe(200);
+    }
+  });
+  it("every analytics tab rejects students", async () => {
+    mocks.session.mockResolvedValue({ user: { id: "student", role: "student" } });
+    for (const view of tabViews) expect((await GET(request(`/api/admin/analytics?view=${view}`))).status, view).toBe(403);
+  });
+  it("every analytics tab rejects anonymous requests", async () => {
+    mocks.session.mockResolvedValue(null);
+    for (const view of tabViews) expect((await GET(request(`/api/admin/analytics?view=${view}`))).status, view).toBe(401);
+  });
+  it("Admin content includes Years 1–5 regardless of student release policy", async () => {
+    mocks.session.mockResolvedValue({ user: { id: "admin", role: "admin" } });
+    mem.seed("GROUP BY m.study_year, m.term", [1, 2, 3, 4, 5].map(year => ({ study_year: year, term: 1, modules: 1 })));
+    const response = await GET(request("/api/admin/analytics?view=content"));
+    expect(response.status).toBe(200);
+    expect((await response.json()).curriculum.map((row: { studyYear: number }) => row.studyYear)).toEqual([1, 2, 3, 4, 5]);
+  });
+  it("internal analytics errors return a safe error rather than SQL/stack details", async () => {
+    mocks.session.mockResolvedValue({ user: { id: "admin", role: "admin" } });
+    const original = mem.db.execute;
+    mem.db.execute = async () => { throw new Error("private SQL password stack"); };
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const response = await GET(request("/api/admin/analytics?view=users"));
+      expect(response.status).toBe(500);
+      const text = await response.text();
+      expect(text).toContain("analytics_failed");
+      expect(text).not.toMatch(/private|password|stack|SQL/);
+    } finally { mem.db.execute = original; log.mockRestore(); }
+  });
   it("rejects unauthenticated requests (401)", async () => {
     mocks.session.mockResolvedValue(null);
     const response = await GET(request("/api/admin/analytics?view=overview"));

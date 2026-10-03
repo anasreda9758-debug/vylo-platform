@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { fetchAdminJson } from "@/components/admin/use-admin-data";
 import { normalizeAcademicTimestamp } from "@/features/hierarchy/academic-visibility";
 
 type Period = {
@@ -19,11 +20,12 @@ export function AcademicPeriodAdmin() {
   const [warnings, setWarnings] = useState<string[]>([]);
 
   async function load() {
-    const response = await fetch("/api/admin/academic-periods");
-    if (response.ok) {
-      const data = await response.json();
+    try {
+      const data = await fetchAdminJson<{ periods: Period[]; warnings?: string[] }>("/api/admin/academic-periods");
       setPeriods(data.periods);
       setWarnings(data.warnings ?? []);
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "network_error");
     }
   }
 

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { fetchAdminJson } from "@/components/admin/use-admin-data";
 
 type Code = { id: string; code: string; internalLabel: string | null; rewardType: string; moduleId: string | null; academicPeriodId: string | null; active: boolean; usedCount: number; maxUses: number | null; expiresAt: string | null };
 type Option = { id: string; name?: string; academicYear?: string; type?: string };
@@ -15,10 +16,11 @@ export function RedeemCodeAdmin() {
   const [error, setError] = useState("");
 
   async function load() {
-    const response = await fetch("/api/admin/redeem-codes");
-    if (response.ok) {
-      const data = await response.json();
+    try {
+      const data = await fetchAdminJson<{ codes: Code[]; modules: Option[]; periods: Option[] }>("/api/admin/redeem-codes");
       setCodes(data.codes); setModules(data.modules); setPeriods(data.periods);
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "network_error");
     }
   }
   useEffect(() => {

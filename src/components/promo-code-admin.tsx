@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { fetchAdminJson } from "@/components/admin/use-admin-data";
 import { formatDate, toDateTimeLocalValue } from "./admin/use-admin-data";
 
 type Promo = {
@@ -49,12 +50,13 @@ export function PromoCodeAdmin() {
   const [error, setError] = useState<string | null>(null);
 
   async function load() {
-    const response = await fetch("/api/admin/promo-codes");
-    if (response.ok) {
-      const data = await response.json();
+    try {
+      const data = await fetchAdminJson<{ codes: Promo[]; modules: Module[]; periods: Period[] }>("/api/admin/promo-codes");
       setCodes(data.codes);
       setModules(data.modules);
       setPeriods(data.periods);
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "network_error");
     }
   }
 

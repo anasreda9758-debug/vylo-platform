@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 export type RangeValue = "today" | "7d" | "30d" | "90d" | "this_term" | "custom";
 
@@ -12,6 +12,23 @@ type Params = Record<string, string | number | undefined | null>;
  * "جاري التحميل..." forever — the loading state always settles.
  */
 const CLIENT_TIMEOUT_MS = 20000;
+
+/** Bounded reads for management tabs; never surface a server response body. */
+export async function fetchAdminJson<T>(url: string): Promise<T> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), CLIENT_TIMEOUT_MS);
+  try {
+    const response = await fetch(url, { signal: controller.signal });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return await response.json() as T;
+  } catch (error) {
+    if (controller.signal.aborted) throw new Error("timeout");
+    if (error instanceof Error && /^HTTP \d{3}$/.test(error.message)) throw error;
+    throw new Error("network_error");
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 function buildQuery(view: string, params: Params, extra?: Params): string {
   const qs = new URLSearchParams();
@@ -28,7 +45,6 @@ export function useAdminData<T>(view: string, params: Params = {}, deps: unknown
   const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const active = useRef({ current: true });
   const paramsKey = JSON.stringify(params);
   const depsKey = deps.map((d) => String(d)).join("|");
 
@@ -63,17 +79,23 @@ export function useAdminData<T>(view: string, params: Params = {}, deps: unknown
           if (unmounted?.current) return;
           setLoading(false);
         });
+      return () => {
+        clearTimeout(timer);
+        controller.abort();
+      };
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [view, paramsKey, depsKey],
   );
 
   useEffect(() => {
-    const current = active.current;
-    current.current = true;
-    void load(current);
+    // Each effect owns its cancellation flag. A mounted request is not cancelled;
+    // reusing the flag across Strict Mode restarts would revive stale responses.
+    const unmounted = { current: false };
+    const cancel = load(unmounted);
     return () => {
-      current.current = false;
+      unmounted.current = true;
+      cancel();
     };
   }, [load]);
 

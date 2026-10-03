@@ -21,7 +21,8 @@ import { ActivityTab } from "@/components/admin/activity";
 import { PaymentsTab } from "@/components/admin/payments";
 import { AuditTab } from "@/components/admin/audit";
 import { SystemTab } from "@/components/admin/system";
-import { useAdminData, type RangeValue } from "@/components/admin/use-admin-data";
+import { fetchAdminJson, useAdminData, type RangeValue } from "@/components/admin/use-admin-data";
+import { ErrorBox, Spinner } from "@/components/admin/ui";
 import type { SystemHealth } from "@/components/admin/types";
 import {
   Plus,
@@ -314,6 +315,9 @@ export function AdminPanel() {
 
   // Curriculum state
   const [modules, setModules] = useState<Module[]>([]);
+  const [modulesLoading, setModulesLoading] = useState(true);
+  const [modulesError, setModulesError] = useState<string | null>(null);
+  const [lectureErrors, setLectureErrors] = useState<Record<string, string | null>>({});
   const [expandedModule, setExpandedModule] = useState<string | null>(null);
   const [lectures, setLectures] = useState<Record<string, Lecture[]>>({});
   const [editingModule, setEditingModule] = useState<string | null>(null);
@@ -323,17 +327,19 @@ export function AdminPanel() {
   const [dragId, setDragId] = useState<string | null>(null);
 
   const fetchModules = useCallback(() => {
-    fetch("/api/admin/modules")
-      .then((r) => r.json())
-      .then((d) => setModules(d.modules))
-      .catch(() => {});
+    fetchAdminJson<{ modules: Module[] }>("/api/admin/modules")
+      .then((d) => { setModules(d.modules); setModulesError(null); })
+      .catch((error: Error) => setModulesError(error.message))
+      .finally(() => setModulesLoading(false));
   }, []);
 
   const fetchLectures = useCallback(async (moduleId: string) => {
-    const res = await fetch(`/api/admin/lectures?moduleId=${moduleId}`);
-    if (res.ok) {
-      const data = await res.json();
+    try {
+      const data = await fetchAdminJson<{ lectures: Lecture[] }>(`/api/admin/lectures?moduleId=${encodeURIComponent(moduleId)}`);
       setLectures((prev) => ({ ...prev, [moduleId]: data.lectures }));
+      setLectureErrors((prev) => ({ ...prev, [moduleId]: null }));
+    } catch (error) {
+      setLectureErrors((prev) => ({ ...prev, [moduleId]: error instanceof Error ? error.message : "network_error" }));
     }
   }, []);
 
@@ -504,6 +510,10 @@ export function AdminPanel() {
             </div>
           </div>
 
+          {modulesLoading && <Spinner />}
+          {modulesError && <ErrorBox message={modulesError} />}
+          {!modulesLoading && !modulesError && modules.length === 0 && <p className="text-sm text-muted-foreground">لا توجد موديولات</p>}
+
           {creatingModule && (
             <div className="mb-4">
               <ModuleForm onSave={saveModule} onCancel={() => setCreatingModule(false)} />
@@ -542,7 +552,11 @@ export function AdminPanel() {
                     <p className="mt-0.5 text-xs text-muted-foreground">/{m.slug}</p>
                   </div>
                   <div className="flex items-center gap-1">
-                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setExpandedModule(expandedModule === m.id ? null : m.id)}>
+                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => {
+                      const opening = expandedModule !== m.id;
+                      setExpandedModule(opening ? m.id : null);
+                      if (opening && (!lectures[m.id] || lectureErrors[m.id])) void fetchLectures(m.id);
+                    }}>
                       {expandedModule === m.id ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                     </Button>
                     <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingModule(editingModule === m.id ? null : m.id)}>
@@ -578,7 +592,12 @@ export function AdminPanel() {
                       </div>
                     )}
 
-                    {!lectures[m.id] ? (
+                    {lectureErrors[m.id] ? (
+                      <div className="space-y-2">
+                        <ErrorBox message={lectureErrors[m.id]!} />
+                        <Button size="sm" variant="outline" onClick={() => void fetchLectures(m.id)}>حاول مرة أخرى</Button>
+                      </div>
+                    ) : !lectures[m.id] ? (
                       <p className="text-xs text-muted-foreground">جاري التحميل...</p>
                     ) : lectures[m.id].length === 0 ? (
                       <p className="text-xs text-muted-foreground">لا توجد محاضرات</p>
