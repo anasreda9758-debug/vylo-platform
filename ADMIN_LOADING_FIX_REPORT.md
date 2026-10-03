@@ -105,3 +105,43 @@ All unchanged; 44/394/740 retained. No seed/reset/migration/import used.
 
 **B — Main bug fixed; complete authenticated Admin verification remains incomplete.**
 This qualified result is NOT verdict A and does not assert every tab is fully functional. The independent authentication difference needs the safe request evidence above before any auth change.
+
+## Authenticated follow-up — 2026-10-03 06:45 Africa/Cairo
+
+Owner successfully signed in with the existing password. The current IAB session opens /admin and identifies admin@vylo.win. Password recovery investigation stopped; no authentication/account modification was made. This follow-up supersedes the earlier browser-session blocker for tab loading only; historical diagnostics above are retained.
+
+Current HEAD: 7fc22b2fde0414de92367fe569618fbe79e5b368, matching the local origin/wip/renal-anatomy-practical tracking ref.
+
+All 19 tabs were opened individually, observed after loading, and opened again:
+
+| Tab | Actual browser result |
+| --- | --- |
+| Overview | Loaded real aggregate cards; 44 modules, 394 lectures, 740 questions. One second-pass locator wait expired while loading; a subsequent observation showed complete data without an application error. Not an endless spinner. |
+| Users | Loaded user table and pagination. |
+| Subscriptions | Loaded subscription table and available plans. No subscription action executed. |
+| Content Health | Loaded curriculum period, module and lecture health tables. |
+| Curriculum | Loaded full module list, including later-year modules. Expanding AEH-101 loaded its 47 lectures. No editor/save/delete/reorder action executed. |
+| Exams | Loaded; valid empty analytics for the selected period. |
+| Practical | Loaded track, question review/publishing and practice analytics. No approval or content action executed. |
+| OSPE | Loaded explicit not-configured state: 0 mapped stations, 759 reference entries. Valid empty exam results; no stations enabled. |
+| Review | Loaded due cards and clinical-case summary. |
+| Learning | Loaded daily activity and completion analytics. |
+| AI | Loaded quota/usage analytics and valid empty generation state. |
+| XP | Loaded distribution and leaderboard. |
+| Activity | Loaded activity feed. |
+| Payments | Loaded explicitly disabled gateway state and valid empty transaction analytics. |
+| Promos | Loaded existing code table and creation form; no mutation. |
+| Redeem | Loaded existing code table and generation form; no mutation. |
+| Academic Periods | Loaded period-management view; no dates or mappings changed. |
+| Audit | Loaded valid no-matching-records state. |
+| System | Loaded server, database, version and integration health. |
+
+Browser developer-log capture after both passes: 0 errors, 0 warnings. No visible HTTP 401/403/404/500/504, safe-error box, runtime exception or remaining spinner was observed. /api/health independently returned HTTP 200 with db=true during the delayed Overview check.
+
+Network limitation: the supported IAB APIs expose no Network response/HAR capture capability. Successful rendered data and the inspected response.ok/error handling demonstrate settled application reads, but exact HTTP status/timing for every authenticated request was NOT directly captured. Do not describe this as a complete Network audit.
+
+Confirmed newly broken tabs: NONE. New root causes/routes repaired: NONE. Code changes: NONE. Tests added: 0. No tests/typecheck/lint/build rerun because no code changed. Latest existing validation remains 1234 tests / 85 files PASS, 314 focused security tests PASS, typecheck PASS, lint 0 errors / 197 warnings, build PASS; those results are from the preceding fix, not a fresh run in this follow-up.
+
+Only this report was updated for the follow-up. No new commit or push; no database/account/auth/curriculum/PDF/payment mutations, no CRUD actions, and unrelated WIP preserved. The existing loading fix commit 7fc22b2 was already pushed. Overview was left open for the owner.
+
+Closure: all 19 Admin tab loading flows verified in the authenticated browser. No additional tab-loading blocker found. CRUD workflows, explicit desktop/mobile viewport QA, and exact per-request Network trace were not part of this follow-up verification and remain unverified; this is not a claim that every Admin capability is fully tested.

@@ -44,7 +44,7 @@ export default async function QuizPage({
   const hasConfig = validCount > 0 && questions.length > 0;
 
   return (
-    <div className="flex flex-1">
+    <div className="flex flex-1 flex-col lg:flex-row">
       <Navigation
         user={{ name: session.user.name, email: session.user.email }}
         isAdmin={session.user.role === "admin"}
@@ -94,7 +94,7 @@ export default async function QuizPage({
                 {t("This quiz is locked", "هذا الاختبار مدفوع")}
               </h2>
               <p className="mb-6 text-muted-foreground">
-                {t("Purchase the module, term, or academic year to unlock its quizzes.", "اشترِ الموديول أو الترم أو السنة لفتح اختبارات هذا الموديول.")}
+                {t("Purchase the module or term to unlock its quizzes.", "اشترِ الموديول أو الترم لفتح اختبارات هذا الموديول.")}
               </p>
               <Link
                 href="/pricing"

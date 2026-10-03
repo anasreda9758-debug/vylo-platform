@@ -81,7 +81,7 @@ export default async function ReviewPage({ searchParams }: { searchParams: Promi
     .where(and(eq(questionReview.userId, session.user.id), gte(questionReview.interval, 21)));
 
   return (
-    <div className="flex flex-1">
+    <div className="flex flex-1 flex-col lg:flex-row">
       <Navigation
         user={{ name: session.user.name, email: session.user.email }}
         isAdmin={session.user.role === "admin"}

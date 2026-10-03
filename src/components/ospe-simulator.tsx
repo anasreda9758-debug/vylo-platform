@@ -68,6 +68,17 @@ export function OspeSimulator() {
   const accessibleCount = modules.filter((m) => !m.locked).length;
   const lockedCount = modules.length - accessibleCount;
 
+  if (!loading && accessibleCount === 0) {
+    return (
+      <div className="rounded-xl bg-card p-10 text-center ring-1 ring-foreground/10">
+        <h2 className="mb-2 text-xl font-semibold">{t("OSPE is not available yet", "OSPE غير متاح حاليًا")}</h2>
+        <p className="text-sm text-muted-foreground">
+          {t("No approved stations are available for your current access.", "لا توجد محطات معتمدة متاحة لصلاحية حسابك الحالية.")}
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="grid gap-6">
       <div className="rounded-xl bg-card p-5 ring-1 ring-foreground/10">

@@ -1,13 +1,25 @@
 import { describe, expect, it } from "vitest";
 import {
   MODULE_PRICE_EGP,
+  MODULE_PRICE_CENTS,
   FULL_TERM_DISCOUNT_PERCENT,
+  MAX_TERM_NUMBER,
   calculateFullTermPriceCents,
+  calculateTermPriceCents,
   calculateSummerPriceCents,
   calculateDiscountCents,
   basePriceForScope,
+  isBillableTermModule,
+  isRequirementModule,
+  isElectivePlaceholder,
+  isSellablePlanScope,
+  YEAR_PLAN_SCOPE,
   promoAppliesToProduct,
   promoUsageError,
+  termNumberFromScopeRef,
+  termNumberFromType,
+  termScopeRefFromType,
+  termTypeFromNumber,
 } from "./pricing-rules";
 
 describe("VYLO pricing and promo rules", () => {
@@ -17,11 +29,43 @@ describe("VYLO pricing and promo rules", () => {
     expect(basePriceForScope("term")).toBeNull();
   });
 
+  it("only sells module and term scopes, never the legacy year plan", () => {
+    expect(isSellablePlanScope("module")).toBe(true);
+    expect(isSellablePlanScope("term")).toBe(true);
+    expect(isSellablePlanScope(YEAR_PLAN_SCOPE)).toBe(false);
+    expect(isSellablePlanScope("year")).toBe(false);
+    expect(isSellablePlanScope("summer")).toBe(false);
+    expect(isSellablePlanScope("")).toBe(false);
+  });
+
   it("calculates dynamic full-term prices for any module count", () => {
     expect(FULL_TERM_DISCOUNT_PERCENT).toBe(20);
     expect(calculateFullTermPriceCents([14900, 14900, 14900]).finalPriceCents).toBe(35760);
     expect(calculateFullTermPriceCents([14900, 14900, 14900, 14900]).finalPriceCents).toBe(47680);
     expect(calculateFullTermPriceCents([14900, 14900, 14900, 14900, 14900]).finalPriceCents).toBe(59600);
+  });
+
+  it("prices a term from its eligible medical module count", () => {
+    expect(calculateTermPriceCents(3).finalPriceCents).toBe(35760);
+    expect(calculateTermPriceCents(4).finalPriceCents).toBe(47680);
+    expect(calculateTermPriceCents(5).finalPriceCents).toBe(59600);
+    expect(calculateTermPriceCents(0).finalPriceCents).toBe(0);
+    expect(() => calculateTermPriceCents(-1)).toThrow("INVALID_TERM_MODULE_COUNT");
+  });
+
+  it("excludes requirements and elective placeholders from term pricing", () => {
+    expect(isRequirementModule("mt-104")).toBe(true);
+    expect(isRequirementModule("en-105")).toBe(true);
+    expect(isRequirementModule("uni-205")).toBe(true);
+    expect(isElectivePlaceholder("e-1")).toBe(true);
+    expect(isElectivePlaceholder("e-4")).toBe(true);
+    expect(isBillableTermModule("ahe-101")).toBe(true);
+    expect(isBillableTermModule("git-301")).toBe(true);
+    expect(isBillableTermModule("gp-10")).toBe(true);
+    expect(isBillableTermModule("mt-104")).toBe(false);
+    expect(isBillableTermModule("en-105")).toBe(false);
+    expect(isBillableTermModule("uni-205")).toBe(false);
+    expect(isBillableTermModule("e-2")).toBe(false);
   });
 
   it("prices Summer retakes module-by-module without a term discount", () => {
@@ -68,5 +112,42 @@ describe("VYLO pricing and promo rules", () => {
     expect(promoUsageError(1, 100, 1, 1)).toBe("ALREADY_USED");
     expect(promoUsageError(1, 100, 0, 1)).toBeNull();
     expect(promoUsageError(0, null, 0, 1)).toBeNull();
+  });
+
+  it("uses integer piasters for the canonical module price", () => {
+    expect(MODULE_PRICE_CENTS).toBe(14900);
+    expect(calculateTermPriceCents(1).finalPriceCents).toBe(11920);
+    expect(calculateTermPriceCents(6).finalPriceCents).toBe(71520);
+    expect(calculateTermPriceCents(10).finalPriceCents).toBe(119200);
+  });
+
+  it("maps every term 1-10 consistently across scopes", () => {
+    expect(MAX_TERM_NUMBER).toBe(10);
+    expect(termTypeFromNumber(1)).toBe("TERM_1");
+    expect(termTypeFromNumber(3)).toBe("TERM_3");
+    expect(termTypeFromNumber(10)).toBe("TERM_10");
+    expect(termTypeFromNumber(0)).toBeNull();
+    expect(termTypeFromNumber(11)).toBeNull();
+
+    expect(termNumberFromType("TERM_7")).toBe(7);
+    expect(termNumberFromType("TERM_10")).toBe(10);
+    expect(termNumberFromType("SUMMER")).toBeNull();
+    expect(termNumberFromType(null)).toBeNull();
+
+    expect(termNumberFromScopeRef("3")).toBe(3);
+    expect(termNumberFromScopeRef("10")).toBe(10);
+    expect(termNumberFromScopeRef("0")).toBeNull();
+    expect(termNumberFromScopeRef("abc")).toBeNull();
+
+    expect(termScopeRefFromType("TERM_5")).toBe("5");
+    expect(termScopeRefFromType("SUMMER")).toBeNull();
+  });
+
+  it("applies full-term codes to later terms but not to the wrong period", () => {
+    const term5 = { id: "term-5", scope: "term", scopeRef: "5", academicPeriodId: "p5" };
+    expect(promoAppliesToProduct("FULL_TERM", term5, null)).toBe(true);
+    expect(promoAppliesToProduct("FULL_TERM", term5, null, "p5")).toBe(true);
+    expect(promoAppliesToProduct("FULL_TERM", term5, null, "p1")).toBe(false);
+    expect(promoAppliesToProduct("MODULE", term5, null)).toBe(false);
   });
 });

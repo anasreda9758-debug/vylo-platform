@@ -8,18 +8,24 @@ import {
   Check,
   Crown,
   Calendar,
-  Sparkles,
 } from "lucide-react";
 import { getLocale, localize } from "@/shared/locale";
-import { moduleDescription } from "@/shared/curriculum-copy";
-import { MODULE_PRICE_EGP, calculateFullTermPriceCents } from "@/features/billing/pricing";
+import {
+  MODULE_PRICE_EGP,
+  MODULE_PRICE_CENTS,
+  calculateTermPriceCents,
+  isBillableTermModule,
+  isSellablePlanScope,
+} from "@/features/billing/pricing";
 import { SummerRetakePicker } from "@/components/summer-retake-picker";
 import { getAcademicVisibility } from "@/features/hierarchy/academic-visibility-server";
 import { filterAcademicModules } from "@/features/hierarchy/academic-visibility";
+
 type PlanRow = {
   id: string;
   name: string;
   priceEg: number;
+  priceCents: number;
   durationDays: number;
   scope: string;
   scopeRef: string | null;
@@ -27,6 +33,8 @@ type PlanRow = {
   automaticDiscount?: number;
   expiresAt?: Date;
   moduleCount?: number;
+  purchaseAvailable?: boolean;
+  pricePending?: boolean;
 };
 
 function formatExpiry(date: Date, locale: "en" | "ar") {
@@ -36,6 +44,13 @@ function formatExpiry(date: Date, locale: "en" | "ar") {
     year: "numeric",
     timeZone: "UTC",
   }).format(date);
+}
+
+function formatMoney(amount: number, locale: "en" | "ar") {
+  return new Intl.NumberFormat(locale === "ar" ? "ar-EG" : "en-GB", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(amount);
 }
 
 function PlanCard({
@@ -75,17 +90,28 @@ function PlanCard({
         </div>
       )}
       <div className="mb-4">
+        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          {plan.purchaseAvailable
+            ? t("Configured plan", "خطة مفعلة")
+            : t("Pricing preview", "معاينة السعر")}
+        </p>
         <h3 className="text-lg font-semibold">{title}</h3>
         {subtitle ? (
           <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>
         ) : null}
       </div>
-      <div className="mb-4">
-        <span className="text-4xl font-bold">{plan.priceEg}</span>
-        <span className="me-1 text-base font-medium text-muted-foreground">
-          EGP
-        </span>
-      </div>
+      {plan.pricePending ? (
+        <p className="mb-4 text-sm font-medium text-muted-foreground">
+          {t("Final term price is pending confirmation.", "سعر الترم النهائي قيد التثبيت حاليًا.")}
+        </p>
+      ) : (
+        <div className="mb-4">
+          <span className="text-4xl font-bold">{formatMoney(plan.priceCents / 100, locale)}</span>
+          <span className="me-1 text-base font-medium text-muted-foreground">
+            EGP
+          </span>
+        </div>
+      )}
       {plan.automaticDiscount ? (
         <p className="mb-3 text-sm text-emerald-600">
           Save 20%: -{plan.automaticDiscount.toFixed(2)} EGP
@@ -96,7 +122,7 @@ function PlanCard({
         <Calendar className="me-1 inline h-3.5 w-3.5" />
         {plan.expiresAt
           ? t(`Access until ${formatExpiry(plan.expiresAt, "en")}`, `متاح حتى ${formatExpiry(plan.expiresAt, "ar")}`)
-          : t("Access period configured by admin", "مدة الوصول محددة من الإدارة")}
+          : t("Expiration date not configured", "تاريخ انتهاء الوصول غير محدد")}
       </p>
       {features && features.length > 0 && (
         <ul className="mb-6 space-y-2">
@@ -109,10 +135,14 @@ function PlanCard({
         </ul>
       )}
       <div className="mt-auto">
-        {userId ? (
+        {plan.purchaseAvailable === false ? (
+          <p className="rounded-xl bg-muted px-4 py-2.5 text-center text-sm text-muted-foreground">
+            {t("Purchasing is not available yet.", "الشراء غير متاح حاليًا.")}
+          </p>
+        ) : userId ? (
           <PurchaseButton
             planId={plan.id}
-            priceEg={plan.priceEg}
+            priceEg={plan.priceCents / 100}
             owned={owned}
           />
         ) : (
@@ -153,43 +183,86 @@ export default async function PricingPage() {
     subs.filter((s) => s.expiresAt > new Date()).map((s) => s.planId)
   );
   const moduleBySlug = new Map(modules.map((m) => [m.slug, m]));
+  // Term pricing counts only eligible medical modules. Requirement modules and
+  // elective placeholders never contribute to (or receive) a term price.
+  const billableModules = modules.filter((module) => isBillableTermModule(module.slug));
+  // Purchasable modules require an active term period AND published content.
+  const availableModules = billableModules.filter(
+    (module) =>
+      module.academicPeriod?.active &&
+      /^TERM_\d+$/.test(module.academicPeriod.type) &&
+      module.lectures.length > 0,
+  );
+  // Only sellable plan scopes (module, term) are advertised. The legacy year
+  // plan is excluded from every pricing surface even though it still exists
+  // for already-held subscriptions.
+  const sellablePlans = plans.filter((p) => isSellablePlanScope(p.scope));
+  const modulePlansBySlug = new Map(
+    sellablePlans.filter((p) => p.scope === "module").map((p) => [p.scopeRef, p]),
+  );
+  const termPlansByRef = new Map(
+    sellablePlans.filter((p) => p.scope === "term").map((p) => [String(p.scopeRef), p]),
+  );
 
   const periodByType = new Map(periods.map((period) => [period.type, period]));
   const summerPeriod = periods.find((period) => period.type === "SUMMER" && visibility.currentPeriodIds.has(period.id));
   const summerModules = modules.filter((module) => module.lectures.length > 0);
-  const pricedPlans: PlanRow[] = plans
-    .filter((p) => p.scope === "module" || p.scope === "term")
-    .map((p) => {
-      if (p.scope === "module") {
-        const moduleRow = modules.find((item) => item.slug === p.scopeRef);
-        return { ...p, priceEg: MODULE_PRICE_EGP, expiresAt: moduleRow?.academicPeriod?.endsAt };
-      }
-      const type = p.scopeRef === "1" ? "TERM_1" : "TERM_2";
-      const period = periodByType.get(type);
-      const moduleCount = period ? modules.filter((module) => module.academicPeriodId === period.id).length : 0;
-      const term = calculateFullTermPriceCents(Array.from({ length: moduleCount }, () => MODULE_PRICE_EGP * 100));
-      return {
-        ...p,
-        priceEg: term.finalPriceCents / 100,
-        originalPrice: term.originalTotalCents / 100,
-        automaticDiscount: term.automaticDiscountCents / 100,
-        expiresAt: period?.endsAt,
-        moduleCount,
-      };
-    });
 
-  const nonCoreSlugs = new Set(["mt-104", "en-105", "uni-205"]);
-  const pricedModulePlans = pricedPlans.filter((p) => p.scope === "module" && p.expiresAt);
-  const pricedTermPlans = pricedPlans.filter((p) => p.scope === "term");
-  const corePlans = pricedModulePlans.filter(
-    (p) => !nonCoreSlugs.has(p.scopeRef ?? "")
-  );
-  const nonCorePlans = pricedModulePlans.filter((p) =>
-    nonCoreSlugs.has(p.scopeRef ?? "")
-  );
+  // Individual module cards: only modules that already have a live term period
+  // (i.e. content is reachable) and are billable medical modules.
+  const moduleCards: PlanRow[] = availableModules.map((module) => {
+    const configured = modulePlansBySlug.get(module.slug);
+    return {
+      ...(configured ?? {
+        id: `module-${module.slug}`,
+        name: module.name,
+        durationDays: 0,
+        scope: "module",
+        scopeRef: module.slug,
+      }),
+      priceEg: MODULE_PRICE_EGP,
+      priceCents: MODULE_PRICE_CENTS,
+      expiresAt: module.academicPeriod?.endsAt,
+      purchaseAvailable: Boolean(configured?.active),
+    };
+  });
+
+  // Term cards for every term that has at least one eligible medical module.
+  // All ten terms are represented; terms without configured plans or live
+  // academic periods render as preview-only and stay impossible to purchase.
+  const termNumbers = Array.from(new Set(billableModules.map((m) => m.term))).sort((a, b) => a - b);
+  const termCards: PlanRow[] = termNumbers.flatMap((term) => {
+    const termMedicalModules = billableModules.filter((module) => module.term === term);
+    if (termMedicalModules.length === 0) return [];
+    const hasContent = termMedicalModules.some((module) => module.lectures.length > 0);
+    const total = calculateTermPriceCents(termMedicalModules.length);
+    const configured = termPlansByRef.get(String(term));
+    const period = periodByType.get(`TERM_${term}`);
+    const pricePending = term === 10;
+    return [{
+      ...(configured ?? {
+        id: `term-${term}`,
+        name: t(`Term ${term}`, `الترم ${term}`),
+        durationDays: 0,
+        scope: "term",
+        scopeRef: String(term),
+      }),
+      priceEg: pricePending ? 0 : total.finalPriceCents / 100,
+      priceCents: pricePending ? 0 : total.finalPriceCents,
+      originalPrice: pricePending ? 0 : total.originalTotalCents / 100,
+      automaticDiscount: pricePending ? 0 : total.automaticDiscountCents / 100,
+      expiresAt: period?.endsAt,
+      moduleCount: termMedicalModules.length,
+      purchaseAvailable: Boolean(configured?.active && period && hasContent),
+      pricePending,
+    }];
+  });
+
+  const pricedModulePlans = moduleCards;
+  const pricedTermPlans = termCards;
 
   return (
-    <div className="flex flex-1">
+    <div className="flex flex-1 flex-col lg:flex-row">
       {session?.user ? (
         <Navigation
           user={{ name: session.user.name, email: session.user.email }}
@@ -200,16 +273,15 @@ export default async function PricingPage() {
       <main className="flex-1 p-6 lg:p-8">
         <div className="mx-auto max-w-5xl">
           {/* Header */}
-          <div className="mb-12 text-center">
-            <span className="mb-4 inline-flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary/5 px-3 py-1 text-sm font-medium text-primary">
-              <Sparkles className="h-3.5 w-3.5" />
-              {t("Choose what fits you", "اختر ما يناسبك")}
-            </span>
-            <h1 className="mt-4 text-3xl font-bold lg:text-4xl">
-              {t("Plans & subscription", "الأسعار والاشتراك")}
+          <div className="mb-8 text-center">
+            <h1 className="text-3xl font-bold lg:text-4xl">
+              {t("Plans & Pricing", "الخطط والأسعار")}
             </h1>
-            <p className="mx-auto mt-4 max-w-2xl text-muted-foreground">
-              {t("Choose a module for 149 EGP or unlock the full term with an automatic 20% saving. Term access covers every module in that academic period.", "اختر موديولًا بسعر 149 جنيه أو افتح الترم كاملًا مع خصم تلقائي 20٪. اشتراك الترم يشمل كل موديولات الفترة الدراسية.")}
+            <p className="mx-auto mt-2 max-w-2xl text-sm text-muted-foreground">
+              {t(
+                "Prices are calculated from the current curriculum. Purchase actions appear only for configured plans.",
+                "تُحسب الأسعار من المنهج الحالي، ولا يظهر خيار الشراء إلا للخطط المفعلة.",
+              )}
             </p>
           </div>
 
@@ -218,24 +290,21 @@ export default async function PricingPage() {
             <h2 className="mb-4 text-center text-xl font-bold">
               {t("Term subscriptions", "اشتراك الترم")}
             </h2>
-            <p className="mb-6 text-center text-sm text-emerald-600">
-              {t("Save 20% when you subscribe to the full term. Module count and price are calculated from the academic period.", "وفر 20% عند الاشتراك في الترم كاملًا. عدد الموديولات والسعر محسوبان من الفترة الدراسية.")}
-            </p>
             <div className="mx-auto grid max-w-3xl gap-4 sm:grid-cols-2">
-              {pricedTermPlans.filter((p) => (p.moduleCount ?? 0) > 0).map((p) => (
+              {pricedTermPlans.map((p) => (
                 <PlanCard
                   key={p.id}
                   plan={p}
                   title={p.name}
-                  subtitle={modules
-                    .filter((module) => module.academicPeriodId === periodByType.get(p.scopeRef === "1" ? "TERM_1" : "TERM_2")?.id)
+                  subtitle={billableModules
+                    .filter((module) => String(module.term) === p.scopeRef)
                     .map((module) => module.name)
                     .join(" · ")}
                   owned={owned.has(p.id)}
                   userId={userId}
                   locale={locale}
                   features={[
-                    t("All modules in this academic period", "كل موديولات الفترة الدراسية"),
+                    t(`${p.moduleCount ?? 0} modules included`, `يشمل ${p.moduleCount ?? 0} موديولات`),
                     t("All lectures and practice", "جميع المحاضرات والتمارين"),
                     t("Question-bank quizzes", "اختبارات الأسئلة"),
                     t("Study tutor", "المعلم الذكي"),
@@ -257,23 +326,23 @@ export default async function PricingPage() {
             />
           ) : null}
 
-          {/* Core Module Plans */}
+          {/* Individual module pricing */}
           <section className="mb-12">
             <h2 className="mb-4 text-center text-xl font-bold">
-              {t("Core modules", "الموديولات الأساسية")}
+              {t("Individual modules", "الموديولات الفردية")}
             </h2>
             <p className="mb-6 text-center text-sm text-muted-foreground">
               {t("149 EGP per module", "149 ج.م لكل موديول")}
             </p>
             <ul className="mx-auto grid max-w-4xl gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {corePlans.map((p) => {
+              {pricedModulePlans.map((p) => {
                 const m = moduleBySlug.get(p.scopeRef ?? "");
                 return (
                   <li key={p.id}>
                     <PlanCard
                       plan={p}
                       title={m?.name ?? p.name}
-                      subtitle={moduleDescription(m?.slug ?? p.scopeRef ?? "", m?.description ?? null, locale) ?? undefined}
+                      subtitle={m ? t(`Term ${m.term}`, `الترم ${m.term}`) : undefined}
                       owned={owned.has(p.id)}
                       userId={userId}
                       locale={locale}
@@ -283,35 +352,6 @@ export default async function PricingPage() {
               })}
             </ul>
           </section>
-
-          {/* Non-Core Module Plans */}
-          {nonCorePlans.length > 0 && (
-            <section className="mb-12">
-              <h2 className="mb-4 text-center text-xl font-bold">
-                {t("Additional modules", "المواد غير الأساسية")}
-              </h2>
-              <p className="mb-6 text-center text-sm text-muted-foreground">
-                {t("149 EGP per module", "149 ج.م لكل موديول")}
-              </p>
-              <ul className="mx-auto grid max-w-3xl gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {nonCorePlans.map((p) => {
-                  const m = moduleBySlug.get(p.scopeRef ?? "");
-                  return (
-                    <li key={p.id}>
-                      <PlanCard
-                        plan={p}
-                        title={m?.name ?? p.name}
-                        subtitle={moduleDescription(m?.slug ?? p.scopeRef ?? "", m?.description ?? null, locale) ?? undefined}
-                        owned={owned.has(p.id)}
-                        userId={userId}
-                        locale={locale}
-                      />
-                    </li>
-                  );
-                })}
-              </ul>
-            </section>
-          )}
 
           <p className="text-center text-sm text-muted-foreground">
             {t("Prices are in Egyptian pounds. All content requires a subscription.", "الأسعار بالجنيه المصري. جميع المحتويات مدفوعة.")}

@@ -36,7 +36,7 @@ export function StudySearch({ initialQuery = "" }: { initialQuery?: string }) {
   return (
     <div>
       <form onSubmit={submit} className="flex gap-2">
-        <label className="flex flex-1 items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 shadow-sm focus-within:ring-2 focus-within:ring-ring">
+        <label className="flex min-w-0 flex-1 items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 shadow-sm focus-within:ring-2 focus-within:ring-ring">
           <Search className="h-5 w-5 text-muted-foreground" />
           <input
             value={query}

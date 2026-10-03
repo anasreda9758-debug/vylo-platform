@@ -6,16 +6,67 @@ import { academicPeriod } from "../hierarchy/schema";
 import { promoCode, promoRedemption, plan } from "./schema";
 import {
   MODULE_PRICE_EGP,
+  MODULE_PRICE_CENTS,
   FULL_TERM_DISCOUNT_PERCENT,
   basePriceForScope,
   calculateDiscountCents,
   calculateFullTermPriceCents,
+  calculateTermPriceCents,
+  isBillableTermModule,
   promoAppliesToProduct,
   promoUsageError,
+  REQUIREMENT_MODULE_SLUGS,
+  ELECTIVE_PLACEHOLDER_SLUGS,
+  isRequirementModule,
+  isElectivePlaceholder,
+  termNumberFromScopeRef,
+  isSellablePlanScope,
+  YEAR_PLAN_SCOPE,
   type PricingProduct,
 } from "./pricing-rules";
 
-export { MODULE_PRICE_EGP, FULL_TERM_DISCOUNT_PERCENT, basePriceForScope, calculateDiscountCents, calculateFullTermPriceCents, promoAppliesToProduct, promoUsageError };
+export { MODULE_PRICE_EGP, MODULE_PRICE_CENTS, FULL_TERM_DISCOUNT_PERCENT, basePriceForScope, calculateDiscountCents, calculateFullTermPriceCents, calculateTermPriceCents, isBillableTermModule, promoAppliesToProduct, promoUsageError, REQUIREMENT_MODULE_SLUGS, ELECTIVE_PLACEHOLDER_SLUGS, isRequirementModule, isElectivePlaceholder, termNumberFromScopeRef, isSellablePlanScope, YEAR_PLAN_SCOPE };
+
+/**
+ * A plan is currently purchasable only when it is a sellable scope backed by
+ * real, billable, published content: a medical module with at least one
+ * lecture, or a term with an active period and at least one such module.
+ * Requirement modules, elective placeholders, empty/unpublished modules, the
+ * legacy year plan, and unknown scopes all return false.
+ */
+export async function isCurrentlyPurchasablePlan(selectedPlan: {
+  id: string;
+  scope: string;
+  scopeRef: string | null;
+}): Promise<boolean> {
+  if (!isSellablePlanScope(selectedPlan.scope)) return false;
+  if (selectedPlan.scope === "module") {
+    if (!selectedPlan.scopeRef) return false;
+    const moduleRow = await db.query.curriculumModule.findFirst({
+      where: eq(curriculumModule.slug, selectedPlan.scopeRef),
+      with: { lectures: { columns: { id: true }, limit: 1 } },
+    });
+    return Boolean(
+      moduleRow && isBillableTermModule(moduleRow.slug) && moduleRow.lectures.length > 0,
+    );
+  }
+  if (selectedPlan.scope === "term") {
+    const termNumber = termNumberFromScopeRef(selectedPlan.scopeRef);
+    if (termNumber === null) return false;
+    const period = await db.query.academicPeriod.findFirst({
+      where: and(eq(academicPeriod.type, `TERM_${termNumber}`), eq(academicPeriod.active, true)),
+    });
+    if (!period) return false;
+    const termModules = await db.query.curriculumModule.findMany({
+      where: eq(curriculumModule.term, termNumber),
+      columns: { slug: true },
+      with: { lectures: { columns: { id: true }, limit: 1 } },
+    });
+    const billableModules = termModules.filter((m) => isBillableTermModule(m.slug));
+    return billableModules.length > 0 && billableModules.some((m) => m.lectures.length > 0);
+  }
+  return false;
+}
 
 export type PromoErrorCode =
   | "INVALID_CODE"
@@ -59,13 +110,11 @@ export async function calculatePricePreview(input: {
   });
   if (!selectedPlan) throw new Error("PLAN_NOT_FOUND");
 
-  if (selectedPlan.scope === "year") throw new Error("PRODUCT_NOT_AVAILABLE");
-  const periodType = selectedPlan.scope === "term"
-    ? selectedPlan.scopeRef === "1" ? "TERM_1" : selectedPlan.scopeRef === "2" ? "TERM_2" : null
-    : null;
+  if (!isSellablePlanScope(selectedPlan.scope)) throw new Error("PRODUCT_NOT_AVAILABLE");
+  const termNumber = selectedPlan.scope === "term" ? termNumberFromScopeRef(selectedPlan.scopeRef) : null;
   let period: typeof academicPeriod.$inferSelect | undefined;
   let moduleCount = 1;
-  let basePriceCents = MODULE_PRICE_EGP * 100;
+  let basePriceCents = MODULE_PRICE_CENTS;
   const product: PricingProduct = {
     id: selectedPlan.id,
     scope: selectedPlan.scope,
@@ -74,27 +123,41 @@ export async function calculatePricePreview(input: {
   if (selectedPlan.scope === "module" && selectedPlan.scopeRef) {
     const moduleRow = await db.query.curriculumModule.findFirst({
       where: eq(curriculumModule.slug, selectedPlan.scopeRef),
-      with: { academicPeriod: true },
+      with: {
+        academicPeriod: true,
+        lectures: { columns: { id: true }, limit: 1 },
+      },
     });
-    product.moduleId = moduleRow?.id ?? null;
-    period = moduleRow?.academicPeriod ?? undefined;
-  } else if (periodType) {
+    // A module is only purchasable when it is billable content that actually
+    // exists. Never advertise an empty/unpublished module.
+    if (!moduleRow || !isBillableTermModule(moduleRow.slug) || moduleRow.lectures.length === 0) {
+      throw new Error("PRODUCT_NOT_AVAILABLE");
+    }
+    product.moduleId = moduleRow.id;
+    period = moduleRow.academicPeriod ?? undefined;
+    if (!period) throw new Error("ACADEMIC_PERIOD_NOT_CONFIGURED");
+  } else if (termNumber !== null) {
+    const periodType = `TERM_${termNumber}`;
     period = await db.query.academicPeriod.findFirst({
       where: and(eq(academicPeriod.type, periodType), eq(academicPeriod.active, true)),
     });
-    if (period) {
-      const periodModules = await db.query.curriculumModule.findMany({
-        where: eq(curriculumModule.academicPeriodId, period.id),
-        columns: { id: true },
-      });
-      moduleCount = periodModules.length;
-      basePriceCents = calculateFullTermPriceCents(
-        Array.from({ length: moduleCount }, () => MODULE_PRICE_EGP * 100),
-      ).finalPriceCents;
+    const termModules = await db.query.curriculumModule.findMany({
+      where: eq(curriculumModule.term, termNumber),
+      columns: { slug: true },
+      with: { lectures: { columns: { id: true }, limit: 1 } },
+    });
+    const billableModules = termModules.filter((m) => isBillableTermModule(m.slug));
+    moduleCount = billableModules.length;
+    // A term is only purchasable when it has at least one billable module with
+    // published content.
+    if (moduleCount === 0 || !billableModules.some((m) => m.lectures.length > 0)) {
+      throw new Error("PRODUCT_NOT_AVAILABLE");
     }
+    basePriceCents = calculateTermPriceCents(moduleCount).finalPriceCents;
+  } else {
+    throw new Error("PRODUCT_NOT_AVAILABLE");
   }
-  if (!period) throw new Error("ACADEMIC_PERIOD_NOT_CONFIGURED");
-  product.academicPeriodId = period.id;
+  product.academicPeriodId = period?.id ?? null;
   let discountAmountCents = 0;
   let promo: typeof promoCode.$inferSelect | null = null;
 
@@ -112,20 +175,30 @@ export async function calculatePricePreview(input: {
   }
 
   const finalPriceCents = Math.max(0, basePriceCents - discountAmountCents);
+  const originalTotalCents =
+    selectedPlan.scope === "term" ? moduleCount * MODULE_PRICE_CENTS : basePriceCents;
+  const automaticDiscountCents =
+    selectedPlan.scope === "term"
+      ? calculateFullTermPriceCents(
+          Array.from({ length: moduleCount }, () => MODULE_PRICE_CENTS),
+        ).automaticDiscountCents
+      : 0;
   return {
     planId: selectedPlan.id,
-    originalPrice: (moduleCount * MODULE_PRICE_EGP),
-    automaticDiscount: selectedPlan.scope === "term"
-      ? (moduleCount * MODULE_PRICE_EGP * FULL_TERM_DISCOUNT_PERCENT) / 100
-      : 0,
+    originalPrice: originalTotalCents / 100,
+    automaticDiscount: automaticDiscountCents / 100,
     basePrice: basePriceCents / 100,
     discountAmount: discountAmountCents / 100,
     finalPrice: finalPriceCents / 100,
+    originalTotalCents,
+    automaticDiscountCents,
     basePriceCents,
     discountAmountCents,
     finalPriceCents,
+    // Single canonical amount a future checkout must charge.
+    checkoutAmountCents: finalPriceCents,
     promoCode: promo?.code ?? null,
-    expiresAt: period.endsAt,
+    expiresAt: period?.endsAt ?? null,
   };
 }
 
@@ -203,30 +276,42 @@ export async function redeemPromoCode(input: {
 
     const selectedPlan = await tx.query.plan.findFirst({ where: eq(plan.id, input.planId) });
     if (!selectedPlan) throw new Error("PLAN_NOT_FOUND");
-    if (selectedPlan.scope === "year") throw new Error("PRODUCT_NOT_AVAILABLE");
+    if (!isSellablePlanScope(selectedPlan.scope)) throw new Error("PRODUCT_NOT_AVAILABLE");
     const product: PricingProduct = { id: selectedPlan.id, scope: selectedPlan.scope, scopeRef: selectedPlan.scopeRef };
-    let redemptionPriceCents = MODULE_PRICE_EGP * 100;
+    let redemptionPriceCents = MODULE_PRICE_CENTS;
     if (selectedPlan.scope === "module" && selectedPlan.scopeRef) {
       const moduleRow = await tx.query.curriculumModule.findFirst({
         where: eq(curriculumModule.slug, selectedPlan.scopeRef),
-        with: { academicPeriod: true },
+        with: {
+          academicPeriod: true,
+          lectures: { columns: { id: true }, limit: 1 },
+        },
       });
-      product.moduleId = moduleRow?.id ?? null;
-      product.academicPeriodId = moduleRow?.academicPeriod?.id ?? null;
+      if (!moduleRow || !isBillableTermModule(moduleRow.slug) || moduleRow.lectures.length === 0) {
+        throw new Error("PRODUCT_NOT_AVAILABLE");
+      }
+      product.moduleId = moduleRow.id;
+      product.academicPeriodId = moduleRow.academicPeriod?.id ?? null;
     } else if (selectedPlan.scope === "term") {
-      const type = selectedPlan.scopeRef === "1" ? "TERM_1" : "TERM_2";
+      const termNumber = termNumberFromScopeRef(selectedPlan.scopeRef);
+      if (termNumber === null) throw new Error("PRODUCT_NOT_AVAILABLE");
       const period = await tx.query.academicPeriod.findFirst({
-        where: and(eq(academicPeriod.type, type), eq(academicPeriod.active, true)),
+        where: and(eq(academicPeriod.type, `TERM_${termNumber}`), eq(academicPeriod.active, true)),
       });
       if (!period) throw new Error("ACADEMIC_PERIOD_NOT_CONFIGURED");
       product.academicPeriodId = period.id;
-      const periodModules = await tx.query.curriculumModule.findMany({
-        where: eq(curriculumModule.academicPeriodId, period.id),
-        columns: { id: true },
+      const termModules = await tx.query.curriculumModule.findMany({
+        where: eq(curriculumModule.term, termNumber),
+        columns: { slug: true },
+        with: { lectures: { columns: { id: true }, limit: 1 } },
       });
-      redemptionPriceCents = calculateFullTermPriceCents(
-        Array.from({ length: periodModules.length }, () => MODULE_PRICE_EGP * 100),
-      ).finalPriceCents;
+      const billableModules = termModules.filter((m) => isBillableTermModule(m.slug));
+      if (billableModules.length === 0 || !billableModules.some((m) => m.lectures.length > 0)) {
+        throw new Error("PRODUCT_NOT_AVAILABLE");
+      }
+      redemptionPriceCents = calculateTermPriceCents(billableModules.length).finalPriceCents;
+    } else {
+      throw new Error("PRODUCT_NOT_AVAILABLE");
     }
     await validatePromoWithTx(tx, promo, product, input.userId);
     const discountAmountCents = calculateDiscountCents(redemptionPriceCents, promo.discountType, promo.discountValue);

@@ -41,7 +41,7 @@ export default async function OspeQuizPage({
   const hasConfig = validCount > 0 && questions.length > 0;
 
   return (
-    <div className="flex flex-1">
+    <div className="flex flex-1 flex-col lg:flex-row">
       <Navigation
         user={{ name: session.user.name, email: session.user.email }}
         isAdmin={session.user.role === "admin"}
@@ -82,7 +82,7 @@ export default async function OspeQuizPage({
               <Lock className="mx-auto mb-4 h-12 w-12 text-amber-400" />
               <h2 className="mb-2 text-xl font-semibold">هذا الموديول مدفوع</h2>
               <p className="mb-6 text-muted-foreground">
-                اشترِ الموديول أو الترم أو السنة لفتح اختبارات هذا الموديول.
+                اشترِ الموديول أو الترم لفتح اختبارات هذا الموديول.
               </p>
               <Link
                 href="/pricing"

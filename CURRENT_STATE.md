@@ -1,4 +1,4 @@
-# Horus LMS — Current State Audit
+# VYLO — Current State Audit
 
 **Audit date:** 2026-09-06 17:24:23 +03:00  
 **Audited commit:** `0c78ec96b06f93b6245fcb8d82fefe4407d1e3f6`  
@@ -517,3 +517,22 @@ No database mapping, curriculum row, PDF, OSPE image, answer key, rubric, practi
 ### OSPE review continuation dependency
 
 `reports/ospe-human-review-grouped.html` embeds all station, rubric, clustering, and decision-workflow data needed for review. Its 529 available image previews remain local and resolve through relative paths to the sibling content tree at `C:\work\projects\images` (798 files, approximately 238.86 MiB); that large source tree is intentionally not copied into Git. The review and decision export still work without those previews, while the existing 230 missing-image stations remain visibly `IMAGE_MISSING` and cannot become `READY_FOR_OSPE`.
+
+## OSPE POST-REVIEW PIPELINE — 2026-09-13 21:51:07 +03:00
+
+### Prepared
+
+- `src/features/ospe/review-pipeline.ts` is a pure validator/planner for the future individual human decision export. It accepts only the documented seven subjects and three verdicts, rejects malformed/duplicate/unknown/deleted answer keys, prevents `Unknown` confirmation, detects conflicting decisions inside exact-duplicate groups, and rejects authoritative module/track or subject/track mismatches.
+- Exact-duplicate reconstruction uses the same conservative boundary documented in the grouped review tool: explicit module, normalized prompt, complete answer key, ordered rubric, and configured source evidence. It reproduces the current review artifact's **114 exact groups / 593 stations**; image readiness remains station-specific.
+- `npm run ospe:mapping:dry-run` is a database-read-only planner. When a future `reports/ospe-human-decisions.json` exists, it enforces a read-only database session, checks the recovered **7 modules / 248 lectures**, queries current answer keys and practical tracks with `SELECT` only, and writes `reports/ospe-mapping-dry-run.json` plus `reports/ospe-mapping-dry-run.md`.
+- The plan distinguishes `READY_FOR_MAPPING`, `READY_FOR_OSPE`, `BLOCKED_ASSET`, and `MISSING_TRACK`; it never creates a missing track and never enables OSPE. A safety snapshot verifies module, lecture, station, and mapping counts are unchanged during generation.
+- `OSPE_MAPPING_APPLY_PLAN.md` documents a later backup/checkpoint, validation, transaction, rollback, and post-verification process. It is intentionally non-executable: no apply command or database-writing script was added.
+- Focused validation: **13 tests passed** in `src/features/ospe/review-pipeline.test.ts`; repository typecheck passed; focused ESLint passed with zero errors/warnings. The full application suite was not rerun because production code paths and database content were not changed.
+
+### Still requires human decisions
+
+- `reports/ospe-human-decisions.json` does not exist yet. This is an expected pre-review state: the dry-run command exits successfully without opening a database connection or writing misleading empty reports.
+- A human must review/export the individual decisions. Only after that export may the command produce the two dry-run reports; any rejected decision must be corrected before a separately approved apply tool is considered.
+- A valid confirmed subject with no matching existing module + subject practical track remains `MISSING_TRACK`. It is not mapped, no track is inferred or auto-created, and OSPE remains disabled.
+
+**Database modified: NO. Mappings modified: NO. OSPE enabled: NO.**

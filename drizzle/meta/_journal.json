@@ -148,6 +148,20 @@
       "when": 1789500696594,
       "tag": "0020_password_reset_challenges",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1789560000000,
+      "tag": "0021_repair_module_study_year",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1789650000000,
+      "tag": "0022_billing_cents",
+      "breakpoints": true
     }
   ]
 }

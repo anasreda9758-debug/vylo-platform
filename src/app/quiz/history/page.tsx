@@ -48,7 +48,7 @@ export default async function QuizHistoryPage() {
   const bestPercent = totalAttempts > 0 ? Math.max(...history.map((h) => h.percent)) : 0;
 
   return (
-    <div className="flex flex-1">
+    <div className="flex flex-1 flex-col lg:flex-row">
       <Navigation
         user={{ name: session.user.name, email: session.user.email }}
         isAdmin={session.user.role === "admin"}

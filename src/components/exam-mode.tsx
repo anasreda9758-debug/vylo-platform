@@ -32,7 +32,7 @@ type ExamResult = {
   stations: { id: string; score: number }[];
 };
 
-export function ExamMode({ folder, moduleSlug, subjectSlug }: { folder?: string; moduleSlug?: string; subjectSlug?: string }) {
+export function ExamMode({ folder, moduleSlug, subjectSlug, availableStationCount = 0 }: { folder?: string; moduleSlug?: string; subjectSlug?: string; availableStationCount?: number }) {
   const { t } = useLocale();
   const router = useRouter();
   const [exam, setExam] = useState<ExamData | null>(null);
@@ -176,6 +176,16 @@ export function ExamMode({ folder, moduleSlug, subjectSlug }: { folder?: string;
 
   // No exam yet — show start screen
   if (!exam) {
+    if (availableStationCount === 0) {
+      return (
+        <div className="rounded-xl bg-card p-10 text-center ring-1 ring-foreground/10">
+          <h2 className="mb-2 text-xl font-semibold">{t("OSPE exam is not available yet", "امتحان OSPE غير متاح حاليًا")}</h2>
+          <p className="text-sm text-muted-foreground">
+            {t("No approved stations are available for your current access.", "لا توجد محطات معتمدة متاحة لصلاحية حسابك الحالية.")}
+          </p>
+        </div>
+      );
+    }
     return (
       <div className="rounded-xl bg-card p-8 text-center ring-1 ring-foreground/10">
         <h2 className="mb-2 text-2xl font-bold">{t("Exam mode", "وضع الامتحان")}</h2>

@@ -1,8 +1,23 @@
 "use client";
 
 import { Languages, Moon, Sun } from "lucide-react";
-import { useState } from "react";
+import { useSyncExternalStore } from "react";
 import { useLocale } from "@/components/locale-provider";
+
+const THEME_CHANGE_EVENT = "horus-theme-change";
+
+function subscribeToTheme(onChange: () => void) {
+  window.addEventListener(THEME_CHANGE_EVENT, onChange);
+  return () => window.removeEventListener(THEME_CHANGE_EVENT, onChange);
+}
+
+function getThemeSnapshot() {
+  return document.documentElement.classList.contains("dark");
+}
+
+function getServerThemeSnapshot() {
+  return false;
+}
 
 function savePreference(key: "horus_locale" | "horus_theme", value: string) {
   document.cookie = `${key}=${value}; path=/; max-age=31536000; samesite=lax`;
@@ -10,9 +25,7 @@ function savePreference(key: "horus_locale" | "horus_theme", value: string) {
 
 export function PreferenceControls({ compact = false }: { compact?: boolean }) {
   const { locale, t } = useLocale();
-  const [dark, setDark] = useState(
-    () => typeof document !== "undefined" && document.documentElement.classList.contains("dark"),
-  );
+  const dark = useSyncExternalStore(subscribeToTheme, getThemeSnapshot, getServerThemeSnapshot);
 
   function toggleLocale() {
     const next = locale === "en" ? "ar" : "en";
@@ -25,7 +38,7 @@ export function PreferenceControls({ compact = false }: { compact?: boolean }) {
     savePreference("horus_theme", next);
     document.documentElement.classList.toggle("dark", next === "dark");
     document.documentElement.style.colorScheme = next;
-    setDark(next === "dark");
+    window.dispatchEvent(new Event(THEME_CHANGE_EVENT));
   }
 
   return (

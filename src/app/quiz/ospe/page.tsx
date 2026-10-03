@@ -31,7 +31,7 @@ export default async function OspeModuleSelectPage() {
   const term2 = modulesWithOspe.filter((m) => m.term === 2);
 
   return (
-    <div className="flex flex-1">
+    <div className="flex flex-1 flex-col lg:flex-row">
       <Navigation
         user={{ name: session.user.name, email: session.user.email }}
         isAdmin={session.user.role === "admin"}

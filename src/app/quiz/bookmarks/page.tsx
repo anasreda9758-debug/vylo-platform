@@ -54,7 +54,7 @@ export default async function BookmarksPage() {
   );
 
   return (
-    <div className="flex flex-1">
+    <div className="flex flex-1 flex-col lg:flex-row">
       <Navigation user={{ name: session.user.name, email: session.user.email }} isAdmin={session.user.role === "admin"} />
       <main className="flex-1 p-6 lg:p-8">
         <div className="mx-auto max-w-3xl">

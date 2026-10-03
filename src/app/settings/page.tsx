@@ -20,7 +20,7 @@ export default async function SettingsPage() {
   const [dbUser] = await db.select().from(user).where(eq(user.id, session.user.id)).limit(1);
 
   return (
-    <div className="flex flex-1">
+    <div className="flex flex-1 flex-col lg:flex-row">
       <Navigation user={{ name: session.user.name, email: session.user.email }} isAdmin={session.user.role === "admin"} />
       <main className="flex-1 p-6 lg:p-8">
         <div className="mx-auto max-w-2xl">
