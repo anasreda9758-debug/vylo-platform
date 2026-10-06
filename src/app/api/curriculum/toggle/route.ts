@@ -5,7 +5,9 @@ import { randomUUID } from "node:crypto";
 import { getSession } from "@/shared/session";
 import { db } from "@/shared/db";
 import { lectureProgress } from "@/features/curriculum/schema";
-import { awardXp, updateStreak } from "@/features/gamification/queries";
+import { awardXp, updateStreak, hasEarnedLectureCompletionXp } from "@/features/gamification/queries";
+import { getAccessibleLecture } from "@/features/access/learning-access";
+import { safeAwardXp, safeUpdateStreak } from "@/features/gamification/error-handling";
 
 export async function POST(request: NextRequest) {
   const session = await getSession();
@@ -25,6 +27,11 @@ export async function POST(request: NextRequest) {
   } catch {
     return NextResponse.json({ error: "invalid json" }, { status: 400 });
   }
+
+  const lectureAccess = await getAccessibleLecture(session.user, lectureId, { allowPreview: true });
+  if (!lectureAccess.ok) return NextResponse.json({ error: "lecture not found" }, { status: 404 });
+  const lectureRow = lectureAccess.value;
+  if (moduleSlug && moduleSlug !== lectureRow.module.slug) moduleSlug = null;
 
   const existing = await db
     .select({ id: lectureProgress.id })
@@ -49,11 +56,29 @@ export async function POST(request: NextRequest) {
         lectureId,
       });
       completed = true;
-      awardXp(session.user.id, "lecture_complete", lectureId).catch(() => {});
-      updateStreak(session.user.id).catch(() => {});
     }
   } catch {
-    return NextResponse.json({ error: "lecture not found" }, { status: 400 });
+    return NextResponse.json({ error: "progress could not be updated" }, { status: 400 });
+  }
+
+  // XP and streak are best-effort after the progress write has committed. A
+  // transient gamification failure must never appear as a progress failure.
+  if (completed) {
+    try {
+      const alreadyEarned = await hasEarnedLectureCompletionXp(session.user.id, lectureId);
+      if (!alreadyEarned) {
+        await safeAwardXp(
+          () => awardXp(session.user.id, "lecture_complete", lectureId),
+          (msg, err) => console.warn(`[toggle] ${msg}`, err),
+        );
+        await safeUpdateStreak(
+          () => updateStreak(session.user.id),
+          (msg, err) => console.warn(`[toggle] ${msg}`, err),
+        );
+      }
+    } catch (err) {
+      console.warn("[toggle] non-fatal XP/streak failure", err);
+    }
   }
 
   revalidatePath("/curriculum");

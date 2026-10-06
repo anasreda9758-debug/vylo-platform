@@ -1,0 +1,37 @@
+{
+  "generatedAt": "2026-09-27T03:19:45.159Z",
+  "sourcePdf": "C:\\work\\projects\\OSPE CVS.pdf",
+  "answerKeyRowsTotal": 356,
+  "answerKeyRowsEmptyDiagnosis": 179,
+  "distinctStructures": 62,
+  "structuresOnOneImage": 0,
+  "cleanRelationFacts": 3,
+  "sourceNotes": [
+    "Canonical numbered CVS questions recovered from the PDF with a verified source answer: 79.",
+    "ospe_answer_key rows with folder='CVS': 356.",
+    "  ...of which 179 have an EMPTY diagnosis and are unusable (no verified answer).",
+    "  ...leaving 177 verified fact atoms across 62 DISTINCT structures.",
+    "  Structures that appear on exactly one image: 0 (0 means every structure is repeated across multiple images).",
+    "Clean source-stated relations extracted: 3.",
+    "CVS source images available on disk: C:/work/projects/images/CVS (177 files)."
+  ],
+  "capacity": {
+    "canonicalSourceQuestions": 79,
+    "verifiedFactAtoms": 177,
+    "rawGeneratedCandidates": 259,
+    "duplicatesRemoved": 0,
+    "uniqueCandidates": 259,
+    "sourceVerified": 215,
+    "derivedVerified": 3,
+    "needsReview": 41,
+    "rejected": 0,
+    "totalUniqueUsableCandidates": 218,
+    "targetApproved": 300,
+    "gapToTarget": 82,
+    "gapToPreferredPool": 91,
+    "meetsTarget": false,
+    "meetsPreferredPool": false,
+    "shortfall": true
+  },
+  "benchmarkCompleted": false
+}

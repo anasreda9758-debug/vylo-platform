@@ -1,0 +1,33 @@
+{
+  "generated": "2026-03-02",
+  "branch": "wip/renal-anatomy-practical",
+  "note": "Statuses distinguish missing CODE from missing CONTENT and missing EXTERNAL CONFIG. No vague percentages.",
+  "areas": [
+    { "area": "Authentication & sessions", "status": "COMPLETE", "tests": "existing auth suites", "knownLimitations": [], "nextAction": null },
+    { "area": "Access control (server-side)", "status": "COMPLETE", "tests": "features/access/learning-access.test.ts", "knownLimitations": [], "nextAction": null },
+    { "area": "Curriculum & progress", "status": "COMPLETE", "tests": "curriculum term-progress tests", "knownLimitations": ["T4-T10 have 0 lectures (content, not code)"], "nextAction": "publish T4+ lecture content when supplied" },
+    { "area": "Lecture reader + PDF delivery", "status": "COMPLETE", "tests": "existing", "knownLimitations": [], "nextAction": null },
+    { "area": "Quiz (bank, grading, history, analytics)", "status": "COMPLETE", "tests": "quiz route tests", "knownLimitations": [], "nextAction": null },
+    { "area": "Practical student UX", "status": "COMPLETE", "tests": "features/practical/practical-gate.test.ts", "knownLimitations": [], "nextAction": null },
+    { "area": "Practical PDF-first extraction", "status": "COMPLETE", "tests": "ospe-pipeline/v3/pdfGeometry.test.ts (29)", "knownLimitations": ["requires Poppler pdftoppm on PATH or WinGet"], "nextAction": null },
+    { "area": "Practical answer verification", "status": "COMPLETE", "tests": "answerVerification.test.ts", "knownLimitations": ["RESP key stores prompts not answers"], "nextAction": null },
+    { "area": "Practical pathology/histology/micro", "status": "BLOCKED_EXTERNAL", "tests": "n/a", "knownLimitations": ["source PDFs are lecture slides or image-only"], "nextAction": "install Tesseract, then OCR Module 3" },
+    { "area": "OSPE simulator", "status": "COMPLETE", "tests": "features/ospe/exam.test.ts, integrity.test.ts", "knownLimitations": [], "nextAction": null },
+    { "area": "Flashcards / SRS", "status": "COMPLETE", "tests": "flashcard-due-policy.test.ts", "knownLimitations": [], "nextAction": null },
+    { "area": "Clinical cases", "status": "COMPLETE", "tests": "clinical-case-evaluation.test.ts", "knownLimitations": [], "nextAction": null },
+    { "area": "AI tutor", "status": "COMPLETE", "tests": "tutor route tests", "knownLimitations": [], "nextAction": null },
+    { "area": "AI quota & idempotency", "status": "COMPLETE", "tests": "generation route tests", "knownLimitations": [], "nextAction": null },
+    { "area": "Weekly study plan", "status": "COMPLETE", "tests": "weeklyPlan.test.ts (13), route.test.ts (4)", "knownLimitations": [], "nextAction": null },
+    { "area": "Search & navigation", "status": "COMPLETE", "tests": "existing", "knownLimitations": [], "nextAction": null },
+    { "area": "XP / engagement", "status": "COMPLETE", "tests": "xp-farming, xp-atomic, case-xp-once-ever", "knownLimitations": [], "nextAction": null },
+    { "area": "Admin Control Center", "status": "COMPLETE", "tests": "admin analytics route tests", "knownLimitations": [], "nextAction": null },
+    { "area": "Payments (Paymob)", "status": "OWNER_DECISION", "tests": "billing pricing/activation/money tests", "knownLimitations": ["activation deliberately OFF"], "nextAction": "owner approval + production credentials" },
+    { "area": "Promo redemption", "status": "OWNER_DECISION", "tests": "redeem route test", "knownLimitations": ["redemption flag deliberately OFF"], "nextAction": "owner policy decision" },
+    { "area": "Subscriptions & plans", "status": "COMPLETE", "tests": "pricing tests", "knownLimitations": ["T10 price needs unverified GP-10 status"], "nextAction": "confirm GP-10 eligibility" },
+    { "area": "OCR for image-only PDFs", "status": "BLOCKED_EXTERNAL", "tests": "n/a", "knownLimitations": ["Tesseract installers abort 0x800704c7 (interactive/elevated)"], "nextAction": "owner runs winget install --id UB-Mannheim.TesseractOCR --exact" },
+    { "area": "RESP verified answers", "status": "BLOCKED_GROUND_TRUTH", "tests": "n/a", "knownLimitations": ["all 51 RESP answer-key rows have empty diagnosis"], "nextAction": "supply a real RESP answer key" },
+    { "area": "300 approved questions/module", "status": "BLOCKED_CONTENT", "tests": "capacity.test.ts (16)", "knownLimitations": ["capacity model reports SHORTFALL; never fabricates"], "nextAction": "supply more verified labelled source images" },
+    { "area": "T4-T10 lecture content", "status": "BLOCKED_CONTENT", "tests": "n/a", "knownLimitations": ["0 lectures published"], "nextAction": "owner supplies lecture PDFs" },
+    { "area": "GPA values (e-1..e-4, gp-10)", "status": "OWNER_DECISION", "tests": "n/a", "knownLimitations": ["preserved as UNVERIFIED by policy"], "nextAction": "owner supplies verified GPA" }
+  ]
+}

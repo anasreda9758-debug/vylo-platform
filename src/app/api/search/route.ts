@@ -3,8 +3,8 @@ import { getSession } from "@/shared/session";
 import { getRAGIndex, retrieve } from "@/features/rag";
 import { db } from "@/shared/db";
 import { lecture } from "@/features/curriculum/schema";
-import { hasModuleAccess } from "@/features/billing/queries";
 import { inArray } from "drizzle-orm";
+import { getAccessibleLecture } from "@/features/access/learning-access";
 
 export async function GET(request: NextRequest) {
   const session = await getSession();
@@ -16,20 +16,25 @@ export async function GET(request: NextRequest) {
   if (!q || q.trim().length === 0) {
     return NextResponse.json({ error: "missing query parameter 'q'" }, { status: 400 });
   }
+  if (q.length > 500) {
+    return NextResponse.json({ error: "query too long" }, { status: 400 });
+  }
 
   const moduleSlug = request.nextUrl.searchParams.get("module") ?? undefined;
-  const topK = Math.min(parseInt(request.nextUrl.searchParams.get("k") ?? "5", 10), 20);
+  const requestedK = parseInt(request.nextUrl.searchParams.get("k") ?? "5", 10);
+  const topK = Number.isFinite(requestedK) ? Math.min(Math.max(requestedK, 1), 20) : 5;
 
   try {
     const index = await getRAGIndex();
     const results = retrieve(index, q, { topK, moduleSlug });
     const lectureIds = [...new Set(results.map((result) => result.chunk.lectureId))];
     const lectures = lectureIds.length
-      ? await db.query.lecture.findMany({ where: inArray(lecture.id, lectureIds), with: { module: true } })
+      ? await db.query.lecture.findMany({ where: inArray(lecture.id, lectureIds) })
       : [];
     const available = new Map<string, string>();
     for (const lectureRow of lectures) {
-      if (lectureRow.module && (lectureRow.order === 1 || await hasModuleAccess(session.user.id, lectureRow.module))) {
+      const access = await getAccessibleLecture(session.user, lectureRow.id, { allowPreview: true });
+      if (access.ok) {
         available.set(lectureRow.id, lectureRow.slug);
       }
     }

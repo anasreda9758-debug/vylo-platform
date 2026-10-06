@@ -1,6 +1,7 @@
-import { index, integer, json, pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import { index, integer, json, pgTable, primaryKey, text, timestamp } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { user } from "../auth/schema";
+import { practicalTrack } from "../practical/schema";
 
 /**
  * OSPE Answer Key — the correct answer for each station image.
@@ -46,6 +47,19 @@ export const ospeRubric = pgTable(
   ],
 );
 
+/** Explicit reviewed relationship; folder/file names never infer a subject. */
+export const practicalTrackOspeStation = pgTable(
+  "practical_track_ospe_station",
+  {
+    trackId: text("track_id").notNull().references(() => practicalTrack.id, { onDelete: "cascade" }),
+    answerKeyId: text("answer_key_id").notNull().references(() => ospeAnswerKey.id, { onDelete: "cascade" }),
+  },
+  (table) => [
+    primaryKey({ columns: [table.trackId, table.answerKeyId] }),
+    index("practical_track_ospe_answer_key_idx").on(table.answerKeyId),
+  ],
+);
+
 /**
  * OSPE Exam — a timed, locked exam session.
  * When examMode=true, the student sees one station at a time with a strict timer,
@@ -58,6 +72,7 @@ export const ospeExam = pgTable(
     userId: text("user_id")
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
+    practicalTrackId: text("practical_track_id").references(() => practicalTrack.id),
     folder: text("folder"), // null = mixed across all folders
     stationCount: integer("station_count").notNull().default(10),
     timePerStationSec: integer("time_per_station_sec").notNull().default(60),

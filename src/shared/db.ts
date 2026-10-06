@@ -27,7 +27,7 @@ if (!connectionString) {
  */
 const poolMax = Number(process.env.DB_POOL_MAX) || (process.env.NODE_ENV === "production" ? 5 : 10);
 
-const client = postgres(connectionString, {
+export const client = postgres(connectionString, {
   max: poolMax,
   prepare: false,
   idle_timeout: 30,
@@ -36,4 +36,4 @@ const client = postgres(connectionString, {
 });
 
 export const db = drizzle(client, { schema });
-export { client };
+export type PgClient = typeof client;

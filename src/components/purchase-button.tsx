@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
 export function PurchaseButton({
@@ -16,7 +17,6 @@ export function PurchaseButton({
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
   async function purchase() {
     setBusy(true);
     setError(null);
@@ -41,6 +41,9 @@ export function PurchaseButton({
 
   return (
     <div className="flex flex-col gap-2">
+      <Link href="/redeem" className="text-center text-xs text-muted-foreground underline-offset-4 hover:underline">
+        Have a code? Redeem it · لديك كود؟ استخدمه
+      </Link>
       <Button
         onClick={purchase}
         disabled={busy || owned}

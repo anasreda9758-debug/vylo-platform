@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/shared/session";
-import { setReady } from "@/features/gamification/battles";
+import { getBattle, setReady } from "@/features/gamification/battles";
 import { battleReadySchema } from "@/shared/validation";
+import { getAccessibleQuestionBankBySlug } from "@/features/access/learning-access";
 
 export async function POST(request: NextRequest) {
   const session = await getSession();
@@ -18,6 +19,13 @@ export async function POST(request: NextRequest) {
     }
     return NextResponse.json({ error: "invalid json" }, { status: 400 });
   }
+
+  const battle = await getBattle(battleId);
+  if (!battle || !battle.participants.some((participant: { userId: string }) => participant.userId === session.user.id)) {
+    return NextResponse.json({ error: "battle not found" }, { status: 404 });
+  }
+  const bankAccess = await getAccessibleQuestionBankBySlug(session.user, battle.bank_slug);
+  if (!bankAccess.ok) return NextResponse.json({ error: "battle not found" }, { status: 404 });
 
   const started = await setReady(battleId, session.user.id);
   return NextResponse.json({ started });

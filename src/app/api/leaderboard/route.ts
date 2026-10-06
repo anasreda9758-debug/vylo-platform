@@ -9,6 +9,9 @@ export async function GET(request: NextRequest) {
 
   const userId = request.nextUrl.searchParams.get("userId");
   if (userId) {
+    if (userId !== session.user.id) {
+      return NextResponse.json({ error: "forbidden" }, { status: 403 });
+    }
     const profile = await getProfile(userId);
     const history = await getXpHistory(userId);
     return NextResponse.json({ profile, history });

@@ -1,6 +1,8 @@
 import { relations } from "drizzle-orm";
-import { boolean, index, integer, pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import { boolean, index, integer, pgTable, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 import { user } from "../auth/schema";
+import { curriculumModule } from "../curriculum/schema";
+import { academicPeriod } from "../hierarchy/schema";
 
 export const plan = pgTable(
   "plan",
@@ -77,8 +79,110 @@ export const payment = pgTable(
   ],
 );
 
+export const promoCode = pgTable(
+  "promo_code",
+  {
+    id: text("id").primaryKey(),
+    code: text("code").notNull(),
+    internalLabel: text("internal_label"),
+    rewardType: text("reward_type").notNull().default("PERCENTAGE_DISCOUNT"),
+    description: text("description"),
+    discountType: text("discount_type").notNull(), // PERCENTAGE | FIXED_EGP
+    discountValue: integer("discount_value").notNull(),
+    appliesTo: text("applies_to").notNull().default("ANY"), // ANY | MODULE | FULL_TERM
+    moduleId: text("module_id").references(() => curriculumModule.id, { onDelete: "set null" }),
+    academicPeriodId: text("academic_period_id").references(() => academicPeriod.id, { onDelete: "set null" }),
+    active: boolean("active").notNull().default(true),
+    startsAt: timestamp("starts_at"),
+    expiresAt: timestamp("expires_at"),
+    maxUses: integer("max_uses"),
+    usedCount: integer("used_count").notNull().default(0),
+    maxUsesPerUser: integer("max_uses_per_user").notNull().default(1),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at")
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("promo_code_code_idx").on(table.code),
+    index("promo_code_active_idx").on(table.active, table.startsAt, table.expiresAt),
+  ],
+);
+
+export const promoRedemption = pgTable(
+  "promo_redemption",
+  {
+    id: text("id").primaryKey(),
+    promoCodeId: text("promo_code_id")
+      .notNull()
+      .references(() => promoCode.id, { onDelete: "restrict" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    paymentId: text("payment_id").references(() => payment.id, { onDelete: "set null" }),
+    discountAmountCents: integer("discount_amount_cents").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("promo_redemption_code_idx").on(table.promoCodeId),
+    index("promo_redemption_user_idx").on(table.userId, table.promoCodeId),
+    uniqueIndex("promo_redemption_code_user_unique").on(table.promoCodeId, table.userId),
+  ],
+);
+
+export const summerAccess = pgTable(
+  "summer_access",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+    moduleId: text("module_id").notNull().references(() => curriculumModule.id, { onDelete: "restrict" }),
+    summerSessionId: text("summer_session_id").notNull().references(() => academicPeriod.id, { onDelete: "restrict" }),
+    startsAt: timestamp("starts_at").notNull(),
+    expiresAt: timestamp("expires_at").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("summer_access_user_module_session_idx").on(table.userId, table.moduleId, table.summerSessionId),
+    index("summer_access_user_expiry_idx").on(table.userId, table.expiresAt),
+  ],
+);
+
 export const planRelations = relations(plan, ({ many }) => ({
   subscriptions: many(subscription),
+}));
+
+export const promoCodeRelations = relations(promoCode, ({ one, many }) => ({
+  module: one(curriculumModule, {
+    fields: [promoCode.moduleId],
+    references: [curriculumModule.id],
+  }),
+  academicPeriod: one(academicPeriod, {
+    fields: [promoCode.academicPeriodId],
+    references: [academicPeriod.id],
+  }),
+  redemptions: many(promoRedemption),
+}));
+
+export const promoRedemptionRelations = relations(promoRedemption, ({ one }) => ({
+  promoCode: one(promoCode, {
+    fields: [promoRedemption.promoCodeId],
+    references: [promoCode.id],
+  }),
+  user: one(user, {
+    fields: [promoRedemption.userId],
+    references: [user.id],
+  }),
+  payment: one(payment, {
+    fields: [promoRedemption.paymentId],
+    references: [payment.id],
+  }),
+}));
+
+export const summerAccessRelations = relations(summerAccess, ({ one }) => ({
+  user: one(user, { fields: [summerAccess.userId], references: [user.id] }),
+  module: one(curriculumModule, { fields: [summerAccess.moduleId], references: [curriculumModule.id] }),
+  summerSession: one(academicPeriod, { fields: [summerAccess.summerSessionId], references: [academicPeriod.id] }),
 }));
 
 export const subscriptionRelations = relations(subscription, ({ one }) => ({

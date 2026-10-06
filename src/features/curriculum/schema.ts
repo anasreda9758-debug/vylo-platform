@@ -1,7 +1,7 @@
 import { relations } from "drizzle-orm";
 import { boolean, index, integer, jsonb, pgTable, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 import { user } from "../auth/schema";
-import { subject } from "../hierarchy/schema";
+import { academicPeriod, subject } from "../hierarchy/schema";
 
 export const curriculumModule = pgTable("module", {
   id: text("id").primaryKey(),
@@ -13,6 +13,7 @@ export const curriculumModule = pgTable("module", {
   isFree: boolean("is_free").notNull().default(false),
   studyYear: integer("study_year").notNull().default(1),
   term: integer("term").notNull().default(1),
+  academicPeriodId: text("academic_period_id").references(() => academicPeriod.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at")
     .defaultNow()
@@ -103,8 +104,12 @@ export const lectureNote = pgTable(
   (table) => [index("lecture_note_user_lecture_idx").on(table.userId, table.lectureId)],
 );
 
-export const curriculumModuleRelations = relations(curriculumModule, ({ many }) => ({
+export const curriculumModuleRelations = relations(curriculumModule, ({ one, many }) => ({
   lectures: many(lecture),
+  academicPeriod: one(academicPeriod, {
+    fields: [curriculumModule.academicPeriodId],
+    references: [academicPeriod.id],
+  }),
 }));
 
 export const lectureRelations = relations(lecture, ({ one, many }) => ({

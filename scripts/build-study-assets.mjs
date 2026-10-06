@@ -359,7 +359,7 @@ function renderCard({ title, moduleName, sections }) {
   <text x="${W - 92}" y="86" text-anchor="end" font-size="26" fill="${accent}" font-weight="700">${esc(moduleName)}</text>
   <text x="${W - 70}" y="190" text-anchor="end" font-size="${titleLines.some((l) => l.length > 30) ? 40 : 46}" fill="#ffffff" font-weight="800">${titleSpans}</text>
   ${rows.join("\n  ")}
-  <text x="${W - 70}" y="${H - 42}" text-anchor="end" font-size="22" fill="#64748b">Horus MED · ملخص المحاضرة</text>
+  <text x="${W - 70}" y="${H - 42}" text-anchor="end" font-size="22" fill="#64748b">VYLO · ملخص المحاضرة</text>
 </svg>`;
 }
 

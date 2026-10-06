@@ -1,4 +1,4 @@
-import { and, desc, eq, lte, sql } from "drizzle-orm";
+import { and, desc, eq, lte } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { db } from "@/shared/db";
 import {
@@ -9,6 +9,7 @@ import {
   quizAttempt,
 } from "./schema";
 import { curriculumModule } from "../curriculum/schema";
+import { canAccessModule, type LearningActor } from "../access/learning-access";
 
 export type QuizQuestion = {
   id: string;
@@ -351,7 +352,36 @@ export async function updateQuestionReview(userId: string, questionId: string, i
 
 // ── Quiz History ──
 
-export async function getQuizHistory(userId: string, limit = 20) {
+type ModuleScopedRow = {
+  moduleId: string;
+  moduleSlug: string;
+  moduleIsFree: boolean;
+  moduleTerm: number;
+};
+
+/**
+ * Results remain private to their owner, but are also filtered by the current
+ * module entitlement so an expired subscription cannot disclose paid results.
+ */
+async function filterAccessibleModuleRows<T extends ModuleScopedRow>(
+  actor: LearningActor,
+  rows: T[],
+): Promise<T[]> {
+  const decisions = new Map<string, boolean>();
+  for (const row of rows) {
+    if (decisions.has(row.moduleId)) continue;
+    const access = await canAccessModule(actor, {
+      id: row.moduleId,
+      slug: row.moduleSlug,
+      isFree: row.moduleIsFree,
+      term: row.moduleTerm,
+    });
+    decisions.set(row.moduleId, access.ok);
+  }
+  return rows.filter((row) => decisions.get(row.moduleId) === true);
+}
+
+export async function getQuizHistory(actor: LearningActor, limit = 20) {
   const rows = await db
     .select({
       id: quizAttempt.id,
@@ -366,17 +396,21 @@ export async function getQuizHistory(userId: string, limit = 20) {
       completedAt: quizAttempt.completedAt,
       bankTitle: questionBank.title,
       bankSlug: questionBank.slug,
+      moduleId: curriculumModule.id,
       moduleName: curriculumModule.name,
       moduleSlug: curriculumModule.slug,
+      moduleIsFree: curriculumModule.isFree,
+      moduleTerm: curriculumModule.term,
     })
     .from(quizAttempt)
     .innerJoin(questionBank, eq(quizAttempt.bankId, questionBank.id))
     .innerJoin(curriculumModule, eq(questionBank.moduleId, curriculumModule.id))
-    .where(and(eq(quizAttempt.userId, userId), eq(quizAttempt.status, "completed")))
+    .where(and(eq(quizAttempt.userId, actor.id), eq(quizAttempt.status, "completed")))
     .orderBy(desc(quizAttempt.completedAt))
     .limit(limit);
 
-  return rows.map((r) => ({
+  const accessibleRows = await filterAccessibleModuleRows(actor, rows);
+  return accessibleRows.map((r) => ({
     id: r.id,
     bankTitle: r.bankTitle,
     bankSlug: r.bankSlug,
@@ -393,23 +427,27 @@ export async function getQuizHistory(userId: string, limit = 20) {
   }));
 }
 
-export async function getModuleAccuracy(userId: string, studyYear?: number) {
+export async function getModuleAccuracy(actor: LearningActor, studyYear?: number) {
   const rows = await db
     .select({
+      moduleId: curriculumModule.id,
       moduleSlug: curriculumModule.slug,
       moduleName: curriculumModule.name,
       studyYear: curriculumModule.studyYear,
+      moduleIsFree: curriculumModule.isFree,
+      moduleTerm: curriculumModule.term,
       score: quizAttempt.score,
       total: quizAttempt.total,
     })
     .from(quizAttempt)
     .innerJoin(questionBank, eq(quizAttempt.bankId, questionBank.id))
     .innerJoin(curriculumModule, eq(questionBank.moduleId, curriculumModule.id))
-    .where(and(eq(quizAttempt.userId, userId), eq(quizAttempt.status, "completed")))
+    .where(and(eq(quizAttempt.userId, actor.id), eq(quizAttempt.status, "completed")))
     .orderBy(desc(quizAttempt.completedAt));
 
+  const accessibleRows = await filterAccessibleModuleRows(actor, rows);
   const byModule = new Map<string, { moduleSlug: string; moduleName: string; score: number; total: number }>();
-  for (const r of rows) {
+  for (const r of accessibleRows) {
     const cur = byModule.get(r.moduleSlug) ?? {
       moduleSlug: r.moduleSlug,
       moduleName: r.moduleName,
@@ -422,7 +460,7 @@ export async function getModuleAccuracy(userId: string, studyYear?: number) {
   }
 
   return [...byModule.values()]
-    .filter((m) => studyYear === undefined || (rows.find((row) => row.moduleSlug === m.moduleSlug)?.studyYear === studyYear))
+    .filter((m) => studyYear === undefined || (accessibleRows.find((row) => row.moduleSlug === m.moduleSlug)?.studyYear === studyYear))
     .map((m) => ({
     moduleSlug: m.moduleSlug,
     moduleName: m.moduleName,
@@ -434,7 +472,7 @@ export async function getModuleAccuracy(userId: string, studyYear?: number) {
 
 // ── Analytics ──
 
-export async function getQuizAnalytics(userId: string) {
+export async function getQuizAnalytics(actor: LearningActor) {
   // All completed attempts
   const attempts = await db
     .select({
@@ -447,13 +485,16 @@ export async function getQuizAnalytics(userId: string) {
       completedAt: quizAttempt.completedAt,
       bankTitle: questionBank.title,
       bankSlug: questionBank.slug,
+      moduleId: curriculumModule.id,
       moduleName: curriculumModule.name,
       moduleSlug: curriculumModule.slug,
+      moduleIsFree: curriculumModule.isFree,
+      moduleTerm: curriculumModule.term,
     })
     .from(quizAttempt)
     .innerJoin(questionBank, eq(quizAttempt.bankId, questionBank.id))
     .innerJoin(curriculumModule, eq(questionBank.moduleId, curriculumModule.id))
-    .where(and(eq(quizAttempt.userId, userId), eq(quizAttempt.status, "completed")))
+    .where(and(eq(quizAttempt.userId, actor.id), eq(quizAttempt.status, "completed")))
     .orderBy(desc(quizAttempt.completedAt));
 
   // All answers with timing
@@ -463,19 +504,25 @@ export async function getQuizAnalytics(userId: string) {
       timeSpentMs: quizAnswer.timeSpentMs,
       difficulty: question.difficulty,
       bankSlug: questionBank.slug,
+      moduleId: curriculumModule.id,
       moduleName: curriculumModule.name,
       moduleSlug: curriculumModule.slug,
+      moduleIsFree: curriculumModule.isFree,
+      moduleTerm: curriculumModule.term,
     })
     .from(quizAnswer)
     .innerJoin(quizAttempt, eq(quizAnswer.attemptId, quizAttempt.id))
     .innerJoin(question, eq(quizAnswer.questionId, question.id))
     .innerJoin(questionBank, eq(question.bankId, questionBank.id))
     .innerJoin(curriculumModule, eq(questionBank.moduleId, curriculumModule.id))
-    .where(eq(quizAttempt.userId, userId));
+    .where(eq(quizAttempt.userId, actor.id));
+
+  const accessibleAttempts = await filterAccessibleModuleRows(actor, attempts);
+  const accessibleAnswers = await filterAccessibleModuleRows(actor, allAnswers);
 
   // Accuracy over time (group by date)
   const byDate = new Map<string, { correct: number; total: number }>();
-  for (const a of attempts) {
+  for (const a of accessibleAttempts) {
     const date = (a.completedAt ?? a.startedAt).toISOString().slice(0, 10);
     const cur = byDate.get(date) ?? { correct: 0, total: 0 };
     cur.correct += a.score;
@@ -494,7 +541,7 @@ export async function getQuizAnalytics(userId: string) {
 
   // Per-module accuracy
   const moduleMap = new Map<string, { name: string; correct: number; total: number; avgTimeMs: number; count: number }>();
-  for (const a of allAnswers) {
+  for (const a of accessibleAnswers) {
     const key = a.moduleSlug;
     const cur = moduleMap.get(key) ?? { name: a.moduleName, correct: 0, total: 0, avgTimeMs: 0, count: 0 };
     cur.total++;
@@ -514,7 +561,7 @@ export async function getQuizAnalytics(userId: string) {
 
   // Difficulty breakdown
   const diffMap = new Map<string, { correct: number; total: number }>();
-  for (const a of allAnswers) {
+  for (const a of accessibleAnswers) {
     const d = a.difficulty ?? "medium";
     const cur = diffMap.get(d) ?? { correct: 0, total: 0 };
     cur.total++;
@@ -530,7 +577,7 @@ export async function getQuizAnalytics(userId: string) {
 
   // Timing distribution (avg ms per question by difficulty)
   const timingByDiff = new Map<string, { sum: number; count: number }>();
-  for (const a of allAnswers) {
+  for (const a of accessibleAnswers) {
     const d = a.difficulty ?? "medium";
     const cur = timingByDiff.get(d) ?? { sum: 0, count: 0 };
     cur.sum += a.timeSpentMs;
@@ -544,17 +591,17 @@ export async function getQuizAnalytics(userId: string) {
   }));
 
   // Overall stats
-  const totalAttempts = attempts.length;
-  const totalAnswered = allAnswers.length;
-  const totalCorrect = allAnswers.filter((a) => a.isCorrect).length;
+  const totalAttempts = accessibleAttempts.length;
+  const totalAnswered = accessibleAnswers.length;
+  const totalCorrect = accessibleAnswers.filter((a) => a.isCorrect).length;
   const avgPercent = totalAttempts > 0
-    ? Math.round(attempts.reduce((s, a) => s + (a.total ? (a.score / a.total) * 100 : 0), 0) / totalAttempts)
+    ? Math.round(accessibleAttempts.reduce((s, a) => s + (a.total ? (a.score / a.total) * 100 : 0), 0) / totalAttempts)
     : 0;
-  const bestPercent = attempts.length > 0
-    ? Math.max(...attempts.map((a) => (a.total ? Math.round((a.score / a.total) * 100) : 0)))
+  const bestPercent = accessibleAttempts.length > 0
+    ? Math.max(...accessibleAttempts.map((a) => (a.total ? Math.round((a.score / a.total) * 100) : 0)))
     : 0;
   const avgTimePerQuestion = totalAnswered > 0
-    ? Math.round(allAnswers.reduce((s, a) => s + a.timeSpentMs, 0) / totalAnswered / 1000)
+    ? Math.round(accessibleAnswers.reduce((s, a) => s + a.timeSpentMs, 0) / totalAnswered / 1000)
     : 0;
 
   return {
@@ -566,10 +613,19 @@ export async function getQuizAnalytics(userId: string) {
   };
 }
 
-export async function getDueReviewCount(userId: string) {
-  const [result] = await db
-    .select({ count: sql<number>`count(*)::int` })
+export async function getDueReviewCount(actor: LearningActor, moduleIds?: string[]) {
+  const rows = await db
+    .select({
+      moduleId: curriculumModule.id,
+      moduleSlug: curriculumModule.slug,
+      moduleIsFree: curriculumModule.isFree,
+      moduleTerm: curriculumModule.term,
+    })
     .from(questionReview)
-    .where(and(eq(questionReview.userId, userId), lte(questionReview.nextReview, new Date())));
-  return result?.count ?? 0;
+    .innerJoin(question, eq(questionReview.questionId, question.id))
+    .innerJoin(questionBank, eq(question.bankId, questionBank.id))
+    .innerJoin(curriculumModule, eq(questionBank.moduleId, curriculumModule.id))
+    .where(and(eq(questionReview.userId, actor.id), lte(questionReview.nextReview, new Date())));
+  const scoped = moduleIds ? rows.filter((row) => moduleIds.includes(row.moduleId)) : rows;
+  return (await filterAccessibleModuleRows(actor, scoped)).length;
 }

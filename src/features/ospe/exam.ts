@@ -1,14 +1,15 @@
-import { and, asc, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { db } from "@/shared/db";
-import { ospeAnswerKey, ospeExam, ospeExamStation, ospeRubric } from "./schema";
-import { OSPE_FOLDER_TO_MODULE } from "./data";
+import { ospeAnswerKey, ospeExam, ospeExamStation, ospeRubric, practicalTrackOspeStation } from "./schema";
+import { rubricMaximum } from "./integrity";
 
 /**
  * Create a new OSPE exam session.
  */
 export async function createExam(params: {
   userId: string;
+  practicalTrackId?: string | null;
   folder?: string | null;
   stationCount: number;
   timePerStationSec: number;
@@ -18,6 +19,7 @@ export async function createExam(params: {
   await db.insert(ospeExam).values({
     id: examId,
     userId: params.userId,
+    practicalTrackId: params.practicalTrackId ?? null,
     folder: params.folder ?? null,
     stationCount: params.stationCount,
     timePerStationSec: params.timePerStationSec,
@@ -30,7 +32,7 @@ export async function createExam(params: {
 /**
  * Start an exam: pick random stations and set status to in_progress.
  */
-export async function startExam(examId: string) {
+export async function startExam(examId: string, permittedFolders?: string[]) {
   const exam = await db.query.ospeExam.findFirst({
     where: eq(ospeExam.id, examId),
   });
@@ -38,9 +40,22 @@ export async function startExam(examId: string) {
   if (exam.status !== "pending") throw new Error("Exam already started");
 
   // Get all answer keys for the target folder(s)
-  const folderFilter = exam.folder
-    ? eq(ospeAnswerKey.folder, exam.folder)
-    : undefined;
+  if (exam.folder && permittedFolders && !permittedFolders.includes(exam.folder)) {
+    throw new Error("OSPE folder is not available");
+  }
+  const associatedKeys = exam.practicalTrackId
+    ? await db.select({ answerKeyId: practicalTrackOspeStation.answerKeyId }).from(practicalTrackOspeStation)
+      .where(eq(practicalTrackOspeStation.trackId, exam.practicalTrackId))
+    : null;
+  const folderFilter = exam.practicalTrackId
+    ? inArray(ospeAnswerKey.id, associatedKeys!.map((row) => row.answerKeyId))
+    : exam.folder
+      ? eq(ospeAnswerKey.folder, exam.folder)
+      : permittedFolders
+        ? inArray(ospeAnswerKey.folder, permittedFolders)
+        : undefined;
+
+  if (exam.practicalTrackId && associatedKeys?.length === 0) throw new Error("No stations available for this practical subject");
 
   const allKeys = await db.query.ospeAnswerKey.findMany({
     where: folderFilter,
@@ -113,7 +128,10 @@ export async function submitStationAnswer(params: {
 
   // Score the answer (simple keyword matching for now)
   const station = await db.query.ospeExamStation.findFirst({
-    where: eq(ospeExamStation.id, params.stationId),
+    where: and(
+      eq(ospeExamStation.id, params.stationId),
+      eq(ospeExamStation.examId, params.examId),
+    ),
   });
   if (!station) throw new Error("Station not found");
 
@@ -164,7 +182,9 @@ export async function finishExam(examId: string, userId: string) {
   }
 
   const totalScore = exam.stations.reduce((sum, s) => sum + (s.score ?? 0), 0);
-  const maxPossibleScore = exam.stations.length * 10; // 10 points per station default
+  const keyIds = [...new Set(exam.stations.flatMap((s) => s.answerKeyId ? [s.answerKeyId] : []))];
+  const rubrics = keyIds.length ? await db.query.ospeRubric.findMany({ where: inArray(ospeRubric.answerKeyId, keyIds) }) : [];
+  const maxPossibleScore = rubricMaximum(exam.stations, rubrics);
 
   await db
     .update(ospeExam)
@@ -176,7 +196,8 @@ export async function finishExam(examId: string, userId: string) {
     })
     .where(eq(ospeExam.id, examId));
 
-  return { totalScore, maxPossibleScore, percentage: Math.round((totalScore / maxPossibleScore) * 100) };
+  return { totalScore, maxPossibleScore, percentage: maxPossibleScore > 0 ? Math.round((totalScore / maxPossibleScore) * 100) : 0,
+    stations: exam.stations.map((s) => ({ id: s.id, score: s.score ?? 0 })) };
 }
 
 /**

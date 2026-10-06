@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { useLocale } from "@/components/locale-provider";
+import { saveOspeAnswer } from "@/features/ospe/integrity";
 
 type Station = {
   id: string;
@@ -11,7 +12,7 @@ type Station = {
   folder: string;
   fileName: string;
   studentAnswer: string | null;
-  score: number | null;
+  score?: number | null;
   timeSpentSec: number | null;
 };
 
@@ -28,9 +29,10 @@ type ExamResult = {
   totalScore: number;
   maxPossibleScore: number;
   percentage: number;
+  stations: { id: string; score: number }[];
 };
 
-export function ExamMode({ folder }: { folder?: string }) {
+export function ExamMode({ folder, moduleSlug, subjectSlug, availableStationCount = 0 }: { folder?: string; moduleSlug?: string; subjectSlug?: string; availableStationCount?: number }) {
   const { t } = useLocale();
   const router = useRouter();
   const [exam, setExam] = useState<ExamData | null>(null);
@@ -45,6 +47,8 @@ export function ExamMode({ folder }: { folder?: string }) {
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const stationTimerRef = useRef<NodeJS.Timeout | null>(null);
   const stationStartRef = useRef<number>(0);
+  const savingRef = useRef(false);
+  const totalDeadlineRef = useRef(0);
 
   const handleFinish = useCallback(async () => {
     if (!exam) return;
@@ -57,90 +61,79 @@ export function ExamMode({ folder }: { folder?: string }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "finish" }),
       });
+      if (!res.ok) throw new Error("Could not finish the exam. Please retry.");
       if (res.ok) {
         const data = await res.json();
         setResult(data);
-        setExam((prev) => (prev ? { ...prev, status: "completed" } : null));
+        setExam((prev) => (prev ? { ...prev, status: "completed", stations: prev.stations.map((s) => ({ ...s, score: data.stations?.find((r: { id: string; score: number }) => r.id === s.id)?.score ?? 0 })) } : null));
       }
     } catch {
       setError(t("Could not finish the exam.", "تعذر إنهاء الامتحان"));
     }
   }, [exam]);
 
-  const handleSubmitAnswer = useCallback(async () => {
-    if (!exam || submitting) return;
+  const handleSubmitAnswer = useCallback(async (finishAfter = false) => {
+    if (!exam || savingRef.current) return;
     const station = exam.stations[currentIdx];
     if (!station) return;
 
     const timeSpent = Math.round((Date.now() - stationStartRef.current) / 1000);
+    savingRef.current = true;
     setSubmitting(true);
+    setError(null);
 
     try {
-      await fetch(`/api/ospe/exam/${exam.examId}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "answer",
+      await saveOspeAnswer(fetch, `/api/ospe/exam/${exam.examId}`, {
           stationId: station.id,
           answer,
           timeSpentSec: timeSpent,
-        }),
       });
-    } catch {
-      // ignore — answer already submitted
+      if (!finishAfter && currentIdx < exam.stations.length - 1) {
+        setAnswer("");
+        setCurrentIdx((i) => i + 1);
+        setStationTimeLeft(exam.timePerStationSec);
+        stationStartRef.current = Date.now();
+      } else {
+        // Keep the typed answer if finalization fails so a retry cannot erase it.
+        await handleFinish();
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Answer was not saved. Please retry this station.");
+    } finally {
+      savingRef.current = false;
+      setSubmitting(false);
     }
-
-    setAnswer("");
-    if (currentIdx < exam.stations.length - 1) {
-      setCurrentIdx((i) => i + 1);
-      setStationTimeLeft(exam.timePerStationSec);
-      stationStartRef.current = Date.now();
-    } else {
-      // Last station — finish exam
-      handleFinish();
-    }
-    setSubmitting(false);
-  }, [exam, currentIdx, answer, submitting, handleFinish]);
+  }, [exam, currentIdx, answer, handleFinish]);
 
   // Global timer
   useEffect(() => {
     if (!exam || exam.status !== "in_progress") return;
 
     timerRef.current = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev <= 1) {
-          // Time's up — auto finish
-          handleFinish();
-          return 0;
-        }
-        return prev - 1;
-      });
+      const remaining = Math.max(0, Math.ceil((totalDeadlineRef.current - Date.now()) / 1000));
+      setTimeLeft(remaining);
+      if (remaining === 0 && !error) void handleSubmitAnswer(true);
     }, 1000);
 
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [exam?.status, handleFinish]);
+  }, [exam, error, handleSubmitAnswer]);
 
   // Station timer
   useEffect(() => {
     if (!exam || exam.status !== "in_progress") return;
 
     stationTimerRef.current = setInterval(() => {
-      setStationTimeLeft((prev) => {
-        if (prev <= 1) {
-          // Auto-advance to next station
-          handleSubmitAnswer();
-          return 0;
-        }
-        return prev - 1;
-      });
+      const remaining = Math.max(0, exam.timePerStationSec - Math.floor((Date.now() - stationStartRef.current) / 1000));
+      setStationTimeLeft(remaining);
+      if (remaining === 0 && !error) void handleSubmitAnswer(Date.now() >= totalDeadlineRef.current);
     }, 1000);
 
     return () => {
       if (stationTimerRef.current) clearInterval(stationTimerRef.current);
     };
-  }, [currentIdx, exam?.status, handleSubmitAnswer]);
+  }, [currentIdx, exam, error, handleSubmitAnswer]);
 
   const startExam = async () => {
     setLoading(true);
@@ -151,6 +144,8 @@ export function ExamMode({ folder }: { folder?: string }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           folder: folder || undefined,
+          moduleSlug,
+          subjectSlug,
           stationCount: 10,
           timePerStationSec: 60,
         }),
@@ -165,6 +160,7 @@ export function ExamMode({ folder }: { folder?: string }) {
       setTimeLeft(data.totalTimeLimitSec);
       setStationTimeLeft(data.timePerStationSec);
       stationStartRef.current = Date.now();
+      totalDeadlineRef.current = Date.now() + data.totalTimeLimitSec * 1000;
     } catch {
       setError(t("Could not connect to the server.", "تعذر الاتصال بالخادم"));
     } finally {
@@ -180,6 +176,16 @@ export function ExamMode({ folder }: { folder?: string }) {
 
   // No exam yet — show start screen
   if (!exam) {
+    if (availableStationCount === 0) {
+      return (
+        <div className="rounded-xl bg-card p-10 text-center ring-1 ring-foreground/10">
+          <h2 className="mb-2 text-xl font-semibold">{t("OSPE exam is not available yet", "امتحان OSPE غير متاح حاليًا")}</h2>
+          <p className="text-sm text-muted-foreground">
+            {t("No approved stations are available for your current access.", "لا توجد محطات معتمدة متاحة لصلاحية حسابك الحالية.")}
+          </p>
+        </div>
+      );
+    }
     return (
       <div className="rounded-xl bg-card p-8 text-center ring-1 ring-foreground/10">
         <h2 className="mb-2 text-2xl font-bold">{t("Exam mode", "وضع الامتحان")}</h2>
@@ -239,7 +245,7 @@ export function ExamMode({ folder }: { folder?: string }) {
             </div>
           ))}
         </div>
-        <Button onClick={() => router.refresh()} size="lg">
+        <Button onClick={() => { setExam(null); setResult(null); setCurrentIdx(0); setError(null); setAnswer(""); }} size="lg">
           {t("New exam", "امتحان جديد")}
         </Button>
       </div>
@@ -297,19 +303,23 @@ export function ExamMode({ folder }: { folder?: string }) {
           <h3 className="font-semibold">{station.folder} — {station.fileName}</h3>
         </div>
         <img
-          src={`/api/content/ospe/image?folder=${encodeURIComponent(station.folder)}&file=${encodeURIComponent(station.fileName)}`}
+          src={moduleSlug && subjectSlug
+            ? `/api/practical/ospe/image?module=${encodeURIComponent(moduleSlug)}&subject=${encodeURIComponent(subjectSlug)}&folder=${encodeURIComponent(station.folder)}&file=${encodeURIComponent(station.fileName)}`
+            : `/api/content/ospe/image?folder=${encodeURIComponent(station.folder)}&file=${encodeURIComponent(station.fileName)}`}
           alt={`Station ${currentIdx + 1}`}
           className="max-h-[50vh] w-full bg-black object-contain"
         />
       </div>
 
       {/* Answer input */}
+      {error && <p role="alert" className="rounded-lg border border-red-600 bg-red-50 p-4 text-red-950 dark:bg-red-950 dark:text-red-100">{error}</p>}
       <div className="rounded-xl bg-card p-5 ring-1 ring-foreground/10">
         <label className="mb-2 block text-sm font-medium text-muted-foreground">
           {t("Your answer", "إجابتك")}
         </label>
         <textarea
           value={answer}
+          disabled={submitting}
           onChange={(e) => setAnswer(e.target.value)}
           placeholder={t("Write the diagnosis and key findings here…", "اكتب التشخيص والعلامات المهمة هنا...")}
           className="h-32 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring"
@@ -317,13 +327,14 @@ export function ExamMode({ folder }: { folder?: string }) {
         <div className="mt-3 flex items-center justify-between">
           <Button
             variant="destructive"
-            onClick={handleFinish}
+            onClick={() => handleSubmitAnswer(true)}
+            disabled={submitting}
             size="sm"
           >
-            إنهاء الامتحان
+            {t("Save and finish exam", "حفظ وإنهاء الامتحان")}
           </Button>
           <Button
-            onClick={handleSubmitAnswer}
+            onClick={() => handleSubmitAnswer(Date.now() >= totalDeadlineRef.current)}
             disabled={submitting}
           >
             {submitting ? "جارٍ الإرسال…" : currentIdx === exam.stations.length - 1 ? "إرسال وإنهاء" : "المحطة التالية"}

@@ -2,6 +2,26 @@ import { NextRequest, NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { getSession } from "@/shared/session";
 import { activateSubscription, deactivateSubscription } from "@/features/billing/queries";
+import { getSubscriptionTable, getPlansAdmin } from "@/features/admin/analytics";
+
+export async function GET(request: NextRequest) {
+  const session = await getSession();
+  if (!session) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  if (session.user.role !== "admin") return NextResponse.json({ error: "forbidden" }, { status: 403 });
+
+  const url = request.nextUrl;
+  const [table, plans] = await Promise.all([
+    getSubscriptionTable({
+      status: url.searchParams.get("status"),
+      search: url.searchParams.get("search"),
+      page: Number(url.searchParams.get("page")) || 1,
+      limit: Number(url.searchParams.get("limit")) || 25,
+    }),
+    getPlansAdmin(),
+  ]);
+
+  return NextResponse.json({ ...table, plans });
+}
 
 export async function POST(request: NextRequest) {
   const session = await getSession();
@@ -38,7 +58,7 @@ export async function POST(request: NextRequest) {
   if (action === "activate") {
     const activated = await activateSubscription(userId, planId!);
     if (!activated) {
-      return NextResponse.json({ error: "plan not found" }, { status: 400 });
+      return NextResponse.json({ error: "plan or period not found" }, { status: 400 });
     }
   } else {
     await deactivateSubscription(userId);

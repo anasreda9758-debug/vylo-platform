@@ -4,11 +4,10 @@ import { db } from "../src/shared/db";
 import { plan } from "../src/features/billing/schema";
 
 // Full pricing matrix (user-confirmed):
-//   Core modules ......... 119 EGP each, duration per module
+//   Modules .............. 149 EGP each, duration per module
 //   Non-core subjects ....  50 EGP each, valid for the whole term
-//   Term 1 ............... 399 EGP, valid for the whole term
+//   Semester ............. 449 EGP, valid for the whole semester
 //   Term 2 ............... 449 EGP, valid for the whole term
-//   Year ................. 749 EGP, valid for a full year
 //
 // Durations (months): AEH-101 4, PPG-102 3, PMB-103 2, RS-201 4, CVS-202 3,
 // RAU-203 2.5, IBL-204 1.5. Non-core subjects last the whole term (120d).
@@ -26,19 +25,19 @@ type PlanSeed = {
 
 const PLANS: PlanSeed[] = [
   // ---- Core modules (119 EGP) ----------------------------------------------------
-  { id: "module-ahe-101", name: "AEH-101", description: "التشريح والأجنة والأنسجة — موديول واحد.", priceEg: 119, durationDays: 120, scope: "module", scopeRef: "ahe-101" },
-  { id: "module-ppg-102", name: "PPG-102", description: "الفارماكولوجيا والبيولوجيا الجزيئية والفيزيولوجيا — موديول واحد.", priceEg: 119, durationDays: 90, scope: "module", scopeRef: "ppg-102" },
-  { id: "module-pmb-103", name: "PMB-103", description: "الباثولوجيا والميكروبيولوجيا والكيمياء الحيوية — موديول واحد.", priceEg: 119, durationDays: 60, scope: "module", scopeRef: "pmb-103" },
-  { id: "module-rs-201", name: "RS-201", description: "الجهاز التنفسي — موديول واحد.", priceEg: 119, durationDays: 120, scope: "module", scopeRef: "rs-201" },
-  { id: "module-cvs-202", name: "CVS-202", description: "الجهاز القلبي الوعائي — موديول واحد.", priceEg: 119, durationDays: 90, scope: "module", scopeRef: "cvs-202" },
-  { id: "module-rau-203", name: "RAU-203", description: "الجهاز البولي — موديول واحد.", priceEg: 119, durationDays: 75, scope: "module", scopeRef: "rau-203" },
-  { id: "module-ibl-204", name: "IBL-204", description: "المناعة والدم والجهاز اللمفاوي — موديول واحد.", priceEg: 119, durationDays: 45, scope: "module", scopeRef: "ibl-204" },
+  { id: "module-ahe-101", name: "AEH-101", description: "التشريح والأجنة والأنسجة — موديول واحد.", priceEg: 149, durationDays: 120, scope: "module", scopeRef: "ahe-101" },
+  { id: "module-ppg-102", name: "PPG-102", description: "الفارماكولوجيا والبيولوجيا الجزيئية والفيزيولوجيا — موديول واحد.", priceEg: 149, durationDays: 90, scope: "module", scopeRef: "ppg-102" },
+  { id: "module-pmb-103", name: "PMB-103", description: "الباثولوجيا والميكروبيولوجيا والكيمياء الحيوية — موديول واحد.", priceEg: 149, durationDays: 60, scope: "module", scopeRef: "pmb-103" },
+  { id: "module-rs-201", name: "RS-201", description: "الجهاز التنفسي — موديول واحد.", priceEg: 149, durationDays: 120, scope: "module", scopeRef: "rs-201" },
+  { id: "module-cvs-202", name: "CVS-202", description: "الجهاز القلبي الوعائي — موديول واحد.", priceEg: 149, durationDays: 90, scope: "module", scopeRef: "cvs-202" },
+  { id: "module-rau-203", name: "RAU-203", description: "الجهاز البولي — موديول واحد.", priceEg: 149, durationDays: 75, scope: "module", scopeRef: "rau-203" },
+  { id: "module-ibl-204", name: "IBL-204", description: "المناعة والدم والجهاز اللمفاوي — موديول واحد.", priceEg: 149, durationDays: 45, scope: "module", scopeRef: "ibl-204" },
   // ---- Non-core subjects (50 EGP, whole term) -------------------------------------
   { id: "module-mt-104", name: "MT-104", description: "المصطلحات الطبية — صالحة طوال الترم الأول.", priceEg: 50, durationDays: 120, scope: "module", scopeRef: "mt-104" },
   { id: "module-en-105", name: "EN-105", description: "اللغة الإنجليزية — صالحة طوال الترم الأول.", priceEg: 50, durationDays: 120, scope: "module", scopeRef: "en-105" },
   { id: "module-uni-205", name: "UNI-205", description: "القضايا المجتمعية — صالحة طوال الترم الثاني.", priceEg: 50, durationDays: 120, scope: "module", scopeRef: "uni-205" },
   // ---- Term plans (399 / 449 EGP) --------------------------------------------------
-  { id: "term-1", name: "الترم الأول", description: "كل موديولات الترم الأول (AEH-101، PPG-102، PMB-103، MT-104، EN-105).", priceEg: 399, durationDays: 120, scope: "term", scopeRef: "1" },
+  { id: "term-1", name: "الترم الأول", description: "كل موديولات الترم الأول (AEH-101، PPG-102، PMB-103، MT-104، EN-105).", priceEg: 449, durationDays: 120, scope: "term", scopeRef: "1" },
   { id: "term-2", name: "الترم الثاني", description: "كل موديولات الترم الثاني (RS-201، CVS-202، RAU-203، IBL-204، UNI-205).", priceEg: 449, durationDays: 120, scope: "term", scopeRef: "2" },
   // ---- Year plan (749 EGP) --------------------------------------------------------
   { id: "year", name: "السنة كاملة", description: "كل موديولات الترمين الأول والثاني لمدة عام كامل.", priceEg: 749, durationDays: 365, scope: "year", scopeRef: null },

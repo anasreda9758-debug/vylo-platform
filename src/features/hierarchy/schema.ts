@@ -44,6 +44,24 @@ export const academicYear = pgTable("academic_year", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const academicPeriod = pgTable(
+  "academic_period",
+  {
+    id: text("id").primaryKey(),
+    academicYear: text("academic_year").notNull(),
+    type: text("type").notNull(), // TERM_1 | TERM_2 | SUMMER
+    startsAt: timestamp("starts_at").notNull(),
+    endsAt: timestamp("ends_at").notNull(),
+    active: boolean("active").notNull().default(true),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("academic_period_year_type_idx").on(table.academicYear, table.type),
+    index("academic_period_active_idx").on(table.active, table.startsAt, table.endsAt),
+  ],
+);
+
 export const semester = pgTable("semester", {
   id: text("id").primaryKey(),
   academicYearId: text("academic_year_id")
@@ -118,7 +136,6 @@ export const academicYearRelations = relations(academicYear, ({ one, many }) => 
   }),
   semesters: many(semester),
 }));
-
 export const semesterRelations = relations(semester, ({ one, many }) => ({
   academicYear: one(academicYear, {
     fields: [semester.academicYearId],

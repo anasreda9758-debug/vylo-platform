@@ -1,15 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { eq } from "drizzle-orm";
 import { getSession } from "@/shared/session";
-import { db } from "@/shared/db";
 import { streamTutorReply, type TutorMessage } from "@/shared/ai-client";
-import { FREE_DAILY_LIMIT, getAiUsageToday, recordAiUsage } from "@/features/ai/queries";
-import { hasModuleAccess, hasAnySubscription } from "@/features/billing/queries";
-import { lecture } from "@/features/curriculum/schema";
+import { FREE_DAILY_LIMIT, recordAiUsage, reserveAiUsageSlot } from "@/features/ai/queries";
 import { getRAGIndex, retrieve } from "@/features/rag";
 import { tutorChatSchema } from "@/shared/validation";
 import { updateStreak } from "@/features/gamification/queries";
 import { createSourceTutorReply } from "@/features/review/source-generators";
+import { getAccessibleLecture } from "@/features/access/learning-access";
+import { safeUpdateStreak } from "@/features/gamification/error-handling";
+import { readBoundedJson, RequestBodyTooLarge } from "@/shared/bounded-json";
 
 // ── Principle 1: Role Playing ──────────────────────────────────────────────
 function buildSystemPrompt(
@@ -115,60 +114,44 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  updateStreak(session.user.id).catch(() => {});
-
   let lectureId: string;
   let messages: TutorMessage[];
   try {
-    const body = await request.json();
+    const body = await readBoundedJson(request, 256 * 1024);
     const parsed = tutorChatSchema.parse(body);
     lectureId = parsed.lectureId;
     messages = parsed.messages;
   } catch (e: any) {
+    if (e instanceof RequestBodyTooLarge) return NextResponse.json({ error: "request_too_large" }, { status: 413 });
     if (e?.issues) {
       return NextResponse.json({ error: "validation", details: e.issues }, { status: 400 });
     }
     return NextResponse.json({ error: "invalid json" }, { status: 400 });
   }
 
-  const lectureRow = await db.query.lecture.findFirst({
-    where: eq(lecture.id, lectureId),
-    with: { module: true },
-  });
-  if (!lectureRow || !lectureRow.module) {
-    return NextResponse.json({ error: "lecture not found" }, { status: 400 });
-  }
+  const lectureAccess = await getAccessibleLecture(session.user, lectureId, { allowPreview: true });
+  if (!lectureAccess.ok) return NextResponse.json({ error: "lecture not found" }, { status: 404 });
+  const lectureRow = lectureAccess.value;
   // Local source-grounded study tools are the default. A hosted model is an
   // explicit opt-in, never an accidental dependency just because a key exists.
   const useHostedModel = process.env.USE_HOSTED_AI === "true" && Boolean(process.env.GROQ_API_KEY);
-  const premium = useHostedModel && await hasAnySubscription(session.user.id);
-  if (!lectureRow.module.isFree && !(await hasModuleAccess(session.user.id, lectureRow.module))) {
-    return NextResponse.json({ error: "premium required" }, { status: 403 });
-  }
-
-  if (useHostedModel && !premium) {
-    const usedToday = await getAiUsageToday(session.user.id);
-    if (usedToday >= FREE_DAILY_LIMIT) {
-      return NextResponse.json(
-        {
-          error: "free_limit",
-          message: `وصلت إلى حد ${FREE_DAILY_LIMIT} رسالة مجانية اليوم. فعّل Premium لفتح محادثات غير محدودة.`,
-        },
-        { status: 429 },
-      );
-    }
-  }
 
   try {
     const lastUserMsg = messages[messages.length - 1].content;
     // The study assistant remains useful without a paid/hosted model. This
     // fallback only reorganizes the verified lecture text already in the DB.
     if (!useHostedModel) {
+      await safeUpdateStreak(
+        () => updateStreak(session.user.id),
+        (msg: string, err?: Error) => console.warn(`[tutor] ${msg}`, err),
+      );
+      const history = messages.slice(0, -1).map((m) => ({ role: m.role, content: m.content }));
       const answer = createSourceTutorReply(
         lectureRow.title,
         lectureRow.content ?? "",
         lectureRow.summaryJson,
         lastUserMsg,
+        { history },
       );
       return new Response(answer, {
         headers: {
@@ -188,11 +171,37 @@ export async function POST(request: NextRequest) {
       moduleSlug: lectureRow.module.slug,
     });
 
-    const chunks = retrieved.map((r) => ({
-      text: r.chunk.text,
-      lectureTitle: r.chunk.lectureTitle,
-      moduleSlug: r.chunk.moduleSlug,
-    }));
+    // The global index is not an authorization boundary. Check every source
+    // against current DB policy before putting text or metadata in a prompt/header.
+    const chunks: { text: string; lectureTitle: string; moduleSlug: string }[] = [];
+    let remainingContext = 8000;
+    for (const { chunk } of retrieved.slice(0, 6)) {
+      if (!chunk.lectureId) continue;
+      const sourceAccess = await getAccessibleLecture(session.user, chunk.lectureId, { allowPreview: true });
+      if (!sourceAccess.ok || sourceAccess.value.module.id !== lectureRow.module.id ||
+          sourceAccess.value.module.slug !== chunk.moduleSlug || !sourceAccess.value.content) continue;
+      const text = chunk.text.slice(0, Math.min(2000, remainingContext));
+      if (!text) continue;
+      chunks.push({ text, lectureTitle: sourceAccess.value.title, moduleSlug: sourceAccess.value.module.slug });
+      remainingContext -= text.length;
+      if (remainingContext === 0) break;
+    }
+
+    // Subscription unlocks content, not unbounded provider spend. All actors
+    // reserve from the same atomic finite budget before any external AI call.
+    let reservation;
+    try {
+      reservation = await reserveAiUsageSlot(session.user.id);
+    } catch {
+      return NextResponse.json({ error: "quota_unavailable" }, { status: 503 });
+    }
+    if (!reservation.ok) {
+      return NextResponse.json({ error: "free_limit", message: `Daily AI limit (${FREE_DAILY_LIMIT}) reached.` }, { status: 429 });
+    }
+    await safeUpdateStreak(
+      () => updateStreak(session.user.id),
+      (msg: string, err?: Error) => console.warn(`[tutor] ${msg}`, err),
+    );
 
     const systemPrompt = buildSystemPrompt(
       lectureRow.title,

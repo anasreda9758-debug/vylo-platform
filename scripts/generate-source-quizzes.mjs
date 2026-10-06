@@ -61,17 +61,17 @@ async function main() {
   let bankCount = 0;
   let questionCount = 0;
 
-  for (const module of modules) {
-    const bankId = `source-bank-${module.slug}`;
-    const bankSlug = `source-quiz-${module.slug}`;
+  for (const moduleRow of modules) {
+    const bankId = `source-bank-${moduleRow.slug}`;
+    const bankSlug = `source-quiz-${moduleRow.slug}`;
     await sql`
       INSERT INTO question_bank (id, module_id, slug, title)
-      VALUES (${bankId}, ${module.id}, ${bankSlug}, ${`${module.name} source review`})
+      VALUES (${bankId}, ${moduleRow.id}, ${bankSlug}, ${`${moduleRow.name} source review`})
       ON CONFLICT (slug) DO UPDATE SET title = EXCLUDED.title
     `;
     bankCount++;
 
-    const moduleLectures = lectures.filter((lecture) => lecture.module_id === module.id);
+    const moduleLectures = lectures.filter((lecture) => lecture.module_id === moduleRow.id);
     for (const lecture of moduleLectures) {
       const facts = factsFor(lecture);
       for (let index = 0; index < facts.length; index++) {

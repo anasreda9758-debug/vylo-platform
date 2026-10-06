@@ -9,10 +9,10 @@ export default async function FlashcardsPage() {
   const session = await requireUser();
   const locale = await getLocale();
   const t = (english: string, arabic: string) => localize(locale, english, arabic);
-  const lectures = await listLecturesForReview(session.user.id);
+  const lectures = await listLecturesForReview(session.user);
 
   return (
-    <div className="flex flex-1">
+    <div className="flex flex-1 flex-col lg:flex-row">
       <Navigation
         user={{ name: session.user.name, email: session.user.email }}
         isAdmin={session.user.role === "admin"}

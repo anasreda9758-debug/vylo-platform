@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { stat } from "node:fs/promises";
+import { and, eq } from "drizzle-orm";
 import { getSession } from "@/shared/session";
 import { getOspeModuleAccess } from "@/features/ospe/queries";
 import { OSPE_IMAGE_MIME, resolveOspeImage } from "@/features/ospe/data";
+import { ospeAnswerKey } from "@/features/ospe/schema";
+import { db } from "@/shared/db";
 import { extname } from "node:path";
 
 export async function GET(request: NextRequest) {
@@ -17,13 +20,25 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "missing params" }, { status: 400 });
   }
 
-  const access = await getOspeModuleAccess(session.user.id);
+  const access = await getOspeModuleAccess(session.user);
   const meta = access.find((a) => a.folder === folder);
   if (!meta) {
     return NextResponse.json({ error: "unknown folder" }, { status: 404 });
   }
   if (meta.locked) {
     return NextResponse.json({ error: "premium required" }, { status: 403 });
+  }
+
+  // Only explicitly reviewed station images are ever served. The (folder,
+  // fileName) pair must exist on the reviewed answer key, so answer-key-labeled
+  // or unapproved derivatives can never be fetched by filename.
+  const [station] = await db
+    .select({ id: ospeAnswerKey.id })
+    .from(ospeAnswerKey)
+    .where(and(eq(ospeAnswerKey.folder, folder), eq(ospeAnswerKey.fileName, fileName)))
+    .limit(1);
+  if (!station) {
+    return NextResponse.json({ error: "not found" }, { status: 404 });
   }
 
   const resolved = resolveOspeImage(folder, fileName);
@@ -63,6 +78,7 @@ async function streamImage(resolved: string, contentLength: number, mime: string
       "Content-Type": mime,
       "Content-Length": String(contentLength),
       "Cache-Control": "private, max-age=3600",
+      "X-Content-Type-Options": "nosniff",
     },
   });
 }

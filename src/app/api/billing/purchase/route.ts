@@ -1,13 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
+import { eq } from "drizzle-orm";
+import { db } from "@/shared/db";
+import { plan } from "@/features/billing/schema";
 import { getSession } from "@/shared/session";
-import { activateSubscription } from "@/features/billing/queries";
+import { isCurrentlyPurchasablePlan } from "@/features/billing/pricing";
 
-// Purchase flow for the pricing page.
-//
-// NOTE: No real payment gateway is wired yet — the owner plans to integrate one
-// after the platform is finished. For now this endpoint simulates a successful
-// payment and immediately activates the subscription. Swap the commented block
-// below for the gateway integration later (create order -> redirect -> verify webhook).
+/**
+ * Purchase flow for the pricing page.
+ *
+ * Payments are intentionally disabled until the production payment workflow is
+ * explicitly reviewed. This endpoint must never grant an entitlement by itself.
+ *
+ * The legacy "year" plan is rejected here even after payments are enabled: only
+ * module and term scopes remain sellable.
+ */
 export async function POST(request: NextRequest) {
   const session = await getSession();
   if (!session) {
@@ -25,14 +31,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "invalid json" }, { status: 400 });
   }
 
-  // TODO(gateway): create a payment intent / order here and return a redirect URL.
-  // The subscription below must only be activated after the payment is confirmed
-  // (webhook), not before.
-
-  const activated = await activateSubscription(session.user.id, planId);
-  if (!activated) {
-    return NextResponse.json({ error: "plan not found" }, { status: 400 });
+  // Explicitly reject year plans and any plan not backed by real, billable,
+  // published content (requirement modules, empty modules, unconfigured
+  // terms), so the guard stays in place when payments are re-enabled.
+  const selectedPlan = await db.query.plan.findFirst({ where: eq(plan.id, planId) });
+  if (selectedPlan && !(await isCurrentlyPurchasablePlan(selectedPlan))) {
+    return NextResponse.json({ error: "Product not available" }, { status: 400 });
   }
 
-  return NextResponse.json({ ok: true, plan: { id: activated.id, name: activated.name } });
+  return NextResponse.json({ error: "payments are not active" }, { status: 503 });
 }

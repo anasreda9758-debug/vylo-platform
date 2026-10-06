@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useLocale } from "@/components/locale-provider";
+import { ChevronLeft } from "lucide-react";
 
 type Bank = {
   slug: string;
@@ -144,7 +145,22 @@ export default function BattlesPage() {
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-10">
-      <h1 className="mb-8 text-3xl font-bold">⚔️ {t("Peer challenge", "تحدي الأقران")}</h1>
+      <button
+        type="button"
+        onClick={() => router.back()}
+        className="mb-4 inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+      >
+        <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+        {t("Back", "رجوع")}
+      </button>
+
+      <h1 className="text-3xl font-bold">⚔️ {t("Peer challenge", "تحدي الأقران")}</h1>
+      <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
+        {t(
+          "Challenge a classmate to the same question bank. You both answer the same questions at your own pace, and the room shows who is ready. Scores are compared when everyone finishes.",
+          "تحدِّ زميلًا في بنك الأسئلة نفسه. يجيب الاثنان عن نفس الأسئلة ولكل منكما سرعته، وتعرض الغرفة من جاهز. تُقارن النتائج عند الانتهاء.",
+        )}
+      </p>
 
       {error && <p className="mb-4 rounded-lg bg-red-500/10 p-3 text-sm text-red-600">{error}</p>}
 

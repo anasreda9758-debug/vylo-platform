@@ -5,8 +5,9 @@ import { LocaleProvider, type AppLocale } from "@/components/locale-provider";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Horus MED — Medical Learning Platform",
-  description: "A structured learning platform for medical students: lectures, practice, and study tools.",
+  applicationName: "VYLO",
+  title: "VYLO — Smart Learning",
+  description: "VYLO brings learning material, practice, and study tools into one focused workspace.",
 };
 
 export default async function RootLayout({ children }: { children: ReactNode }) {

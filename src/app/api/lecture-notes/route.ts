@@ -1,31 +1,20 @@
 import { randomUUID } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
-import { and, asc, desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { getSession } from "@/shared/session";
 import { db } from "@/shared/db";
-import { lecture, lectureNote } from "@/features/curriculum/schema";
-import { hasModuleAccess } from "@/features/billing/queries";
-
-async function canUseLecture(userId: string, lectureId: string) {
-  const row = await db.query.lecture.findFirst({
-    where: eq(lecture.id, lectureId),
-    with: { module: true },
-  });
-  if (!row?.module) return false;
-  if (await hasModuleAccess(userId, row.module)) return true;
-  const firstLecture = await db.query.lecture.findFirst({
-    where: eq(lecture.moduleId, row.module.id),
-    orderBy: [asc(lecture.order)],
-    columns: { id: true },
-  });
-  return firstLecture?.id === lectureId;
-}
+import { lectureNote } from "@/features/curriculum/schema";
+import { getAccessibleLecture } from "@/features/access/learning-access";
 
 export async function GET(request: NextRequest) {
   const session = await getSession();
   if (!session) return NextResponse.json({ message: "Sign in required" }, { status: 401 });
   const lectureId = new URL(request.url).searchParams.get("lectureId");
-  if (!lectureId || !(await canUseLecture(session.user.id, lectureId))) {
+  if (!lectureId) {
+    return NextResponse.json({ message: "Lecture not available" }, { status: 403 });
+  }
+  const access = await getAccessibleLecture(session.user, lectureId, { allowPreview: true });
+  if (!access.ok) {
     return NextResponse.json({ message: "Lecture not available" }, { status: 403 });
   }
   const notes = await db.query.lectureNote.findMany({
@@ -45,7 +34,8 @@ export async function POST(request: NextRequest) {
   if (!lectureId || !note || note.length > 4000 || highlightedText.length > 500) {
     return NextResponse.json({ message: "Invalid note" }, { status: 400 });
   }
-  if (!(await canUseLecture(session.user.id, lectureId))) {
+  const access = await getAccessibleLecture(session.user, lectureId, { allowPreview: true });
+  if (!access.ok) {
     return NextResponse.json({ message: "Lecture not available" }, { status: 403 });
   }
   const [created] = await db.insert(lectureNote).values({

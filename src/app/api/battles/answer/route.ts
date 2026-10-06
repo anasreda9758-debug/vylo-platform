@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/shared/session";
-import { answerBattleQuestion } from "@/features/gamification/battles";
-import { db } from "@/shared/db";
-import { sql } from "drizzle-orm";
+import { answerBattleQuestion, getBattle } from "@/features/gamification/battles";
 import { battleAnswerSchema } from "@/shared/validation";
+import {
+  getAccessibleQuestion,
+  getAccessibleQuestionBankBySlug,
+  questionBelongsToBank,
+} from "@/features/access/learning-access";
 
 export async function POST(request: NextRequest) {
   const session = await getSession();
@@ -25,12 +28,19 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "invalid json" }, { status: 400 });
   }
 
-  const [opt] = await db.execute(sql`
-    SELECT is_correct FROM question_option WHERE id = ${optionId} AND question_id = ${questionId}
-  `);
-  const isCorrect = (opt as any)?.is_correct === true || (opt as any)?.is_correct === 1;
+  const battle = await getBattle(battleId);
+  if (!battle || !battle.participants.some((participant: { userId: string }) => participant.userId === session.user.id)) {
+    return NextResponse.json({ error: "battle not found" }, { status: 404 });
+  }
+  const bankAccess = await getAccessibleQuestionBankBySlug(session.user, battle.bank_slug);
+  const questionAccess = await getAccessibleQuestion(session.user, questionId);
+  if (!bankAccess.ok || !questionAccess.ok || !questionBelongsToBank(questionAccess.value.bankId, bankAccess.value.id)) {
+    return NextResponse.json({ error: "question not found" }, { status: 404 });
+  }
+  const selectedOption = questionAccess.value.options.find((option) => option.id === optionId);
+  if (!selectedOption) return NextResponse.json({ error: "option not found" }, { status: 404 });
 
-  await answerBattleQuestion(battleId, session.user.id, questionId, optionId, isCorrect);
+  await answerBattleQuestion(battleId, session.user.id, questionId, optionId, selectedOption.isCorrect);
 
-  return NextResponse.json({ correct: isCorrect });
+  return NextResponse.json({ correct: selectedOption.isCorrect });
 }

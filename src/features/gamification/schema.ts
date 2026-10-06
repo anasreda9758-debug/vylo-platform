@@ -1,5 +1,7 @@
-import { pgTable, text, timestamp, integer, uuid, index, uniqueIndex } from "drizzle-orm/pg-core";
+﻿import { date, pgTable, text, timestamp, integer, uuid, index, uniqueIndex, primaryKey } from "drizzle-orm/pg-core";
 import { user } from "@/features/auth/schema";
+import { lecture } from "@/features/curriculum/schema";
+import { practicalTrack } from "@/features/practical/schema";
 
 export const userProfile = pgTable(
   "user_profile",
@@ -40,7 +42,7 @@ export const battle = pgTable(
   "battle",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    status: text("status").notNull().default("waiting"), // waiting | active | finished
+    status: text("status").notNull().default("waiting"),
     bankSlug: text("bank_slug").notNull(),
     questionCount: integer("question_count").notNull().default(5),
     createdBy: text("created_by")
@@ -66,7 +68,7 @@ export const battleParticipant = pgTable(
       .references(() => user.id, { onDelete: "cascade" }),
     score: integer("score").notNull().default(0),
     total: integer("total").notNull().default(0),
-    isReady: integer("is_ready").notNull().default(0), // 0=false, 1=true
+    isReady: integer("is_ready").notNull().default(0),
     joinedAt: timestamp("joined_at").notNull().defaultNow(),
   },
   (t) => [
@@ -92,5 +94,44 @@ export const battleAnswer = pgTable(
   },
   (t) => [
     uniqueIndex("battle_answer_unique").on(t.battleId, t.userId, t.questionId),
+  ],
+);
+
+export const aiUsageDaily = pgTable(
+  "ai_usage_daily",
+  {
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    usageDate: date("usage_date", { mode: "string" }).notNull(),
+    bucket: text("bucket").notNull().default("study_generation"),
+    count: integer("count").notNull().default(0),
+  },
+  (t) => [
+    primaryKey({ columns: [t.userId, t.usageDate, t.bucket] }),
+    index("ai_usage_daily_user_date_idx").on(t.userId, t.usageDate),
+  ],
+);
+
+export const aiGenerationRequest = pgTable(
+  "ai_generation_request",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    idempotencyKey: text("idempotency_key").notNull(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    feature: text("feature").notNull(),
+    lectureId: text("lecture_id").references(() => lecture.id),
+    practicalTrackId: text("practical_track_id").references(() => practicalTrack.id),
+    status: text("status").notNull().default("pending"),
+    resultJson: text("result_json"),
+    quotaReserved: integer("quota_reserved").notNull().default(0),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    completedAt: timestamp("completed_at"),
+  },
+  (t) => [
+    index("ai_generation_request_user_feature_idx").on(t.userId, t.lectureId, t.practicalTrackId),
+    uniqueIndex("ai_generation_request_user_idempotency_key_unique").on(t.userId, t.idempotencyKey),
   ],
 );

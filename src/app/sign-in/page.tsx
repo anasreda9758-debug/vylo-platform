@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { authClient } from "@/shared/auth-client";
@@ -26,6 +26,17 @@ export default function SignInPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
+  useEffect(() => {
+    let active = true;
+    void authClient.getSession().then(({ data }) => {
+      if (!active || !data?.user) return;
+      router.replace("/dashboard");
+    });
+    return () => {
+      active = false;
+    };
+  }, [router]);
+
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
@@ -46,7 +57,7 @@ export default function SignInPage() {
       <Card className="w-full max-w-sm">
         <CardHeader>
           <CardTitle>{t("Sign in", "تسجيل الدخول")}</CardTitle>
-          <CardDescription>{t("Welcome back to Horus MED", "أهلاً بعودتك إلى منصة التعلم الذكية")}</CardDescription>
+          <CardDescription>{t("Welcome back to VYLO", "أهلاً بعودتك إلى VYLO")}</CardDescription>
         </CardHeader>
         <form onSubmit={onSubmit}>
           <CardContent className="grid gap-4">
@@ -78,6 +89,14 @@ export default function SignInPage() {
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? t("Signing in…", "جارٍ الدخول...") : t("Sign in", "تسجيل الدخول")}
             </Button>
+            <Link href="/forgot-password" className="text-sm text-muted-foreground underline">
+              {t("Forgot password?", "نسيت كلمة المرور؟")}
+            </Link>
+            {error?.toLowerCase().includes("email") ? (
+              <Link href={`/verify-email?email=${encodeURIComponent(email.trim().toLowerCase())}`} className="text-sm text-muted-foreground underline">
+                {t("Verify your email", "تحقق من بريدك الإلكتروني")}
+              </Link>
+            ) : null}
             <p className="text-sm text-muted-foreground">
               {t("Don't have an account?", "ليس لديك حساب؟")}{" "}
               <Link href="/sign-up" className="underline">

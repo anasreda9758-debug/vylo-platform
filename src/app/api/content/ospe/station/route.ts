@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
+import { and, eq } from "drizzle-orm";
 import { getSession } from "@/shared/session";
 import { getOspeModuleAccess } from "@/features/ospe/queries";
-import { listImagesInFolder } from "@/features/ospe/data";
+import { db } from "@/shared/db";
+import { curriculumModule } from "@/features/curriculum/schema";
+import { practicalTrack } from "@/features/practical/schema";
+import { ospeAnswerKey, practicalTrackOspeStation } from "@/features/ospe/schema";
 
 export async function GET(request: NextRequest) {
   const session = await getSession();
@@ -10,15 +14,26 @@ export async function GET(request: NextRequest) {
   }
 
   const folder = request.nextUrl.searchParams.get("folder") ?? "all";
-  const access = await getOspeModuleAccess(session.user.id);
+  const access = await getOspeModuleAccess(session.user);
 
-  // Pick uniformly among all accessible images (or restrict to one folder).
+  // Pick only explicitly reviewed stations on published, OSPE-enabled tracks.
   const pools: { folder: string; fileName: string }[] = [];
   for (const a of access) {
     if (folder !== "all" && a.folder !== folder) continue;
     if (a.locked) continue;
-    const files = await listImagesInFolder(a.folder);
-    for (const fileName of files) pools.push({ folder: a.folder, fileName });
+    const stations = await db
+      .select({ folder: ospeAnswerKey.folder, fileName: ospeAnswerKey.fileName })
+      .from(practicalTrackOspeStation)
+      .innerJoin(ospeAnswerKey, eq(practicalTrackOspeStation.answerKeyId, ospeAnswerKey.id))
+      .innerJoin(practicalTrack, eq(practicalTrackOspeStation.trackId, practicalTrack.id))
+      .innerJoin(curriculumModule, eq(practicalTrack.moduleId, curriculumModule.id))
+      .where(and(
+        eq(curriculumModule.slug, a.moduleSlug),
+        eq(ospeAnswerKey.folder, a.folder),
+        eq(practicalTrack.status, "PUBLISHED"),
+        eq(practicalTrack.ospeEnabled, true),
+      ));
+    pools.push(...stations);
   }
   if (pools.length === 0) {
     return NextResponse.json({ error: "no accessible stations" }, { status: 403 });

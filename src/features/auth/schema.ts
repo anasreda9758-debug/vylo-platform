@@ -1,5 +1,5 @@
 import { relations } from "drizzle-orm";
-import { pgTable, text, timestamp, boolean, index } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, boolean, index, integer } from "drizzle-orm/pg-core";
 
 export const user = pgTable("user", {
   id: text("id").primaryKey(),
@@ -72,6 +72,29 @@ export const verification = pgTable(
       .notNull(),
   },
   (table) => [index("verification_identifier_idx").on(table.identifier)],
+);
+
+export const passwordResetChallenge = pgTable(
+  "password_reset_challenge",
+  {
+    id: text("id").primaryKey(),
+    email: text("email").notNull(),
+    userId: text("user_id").references(() => user.id, { onDelete: "cascade" }),
+    requestKeyHash: text("request_key_hash").notNull(),
+    codeHash: text("code_hash").notNull(),
+    attempts: integer("attempts").notNull().default(0),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    lastSentAt: timestamp("last_sent_at").defaultNow().notNull(),
+    expiresAt: timestamp("expires_at").notNull(),
+    verifiedAt: timestamp("verified_at"),
+    resetTokenHash: text("reset_token_hash"),
+    invalidatedAt: timestamp("invalidated_at"),
+    consumedAt: timestamp("consumed_at"),
+  },
+  (table) => [
+    index("password_reset_challenge_request_key_idx").on(table.requestKeyHash, table.createdAt),
+    index("password_reset_challenge_reset_token_idx").on(table.resetTokenHash),
+  ],
 );
 
 export const userRelations = relations(user, ({ many }) => ({

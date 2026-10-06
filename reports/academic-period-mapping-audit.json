@@ -1,0 +1,1507 @@
+{
+  "status": "BLOCKED_PENDING_AUTHORITATIVE_PERIOD_ASSOCIATIONS",
+  "startingHead": "23d2cea3f4016a3e4d937a06b8a29cbe0b35bc4a",
+  "branch": "wip/renal-anatomy-practical",
+  "auditAt": "2026-10-03T00:49:42.173Z",
+  "verifiedAt": "2026-10-03T00:52:40.851Z",
+  "timezone": "Africa/Cairo",
+  "sources": [
+    "Local module.study_year / module.term / module.order / module.academic_period_id",
+    "Local academic_period rows (raw Cairo timestamp text)",
+    "Local subject -> semester -> academic_year hierarchy (NULL for all modules)",
+    "scripts/data/horus-curriculum-2026.mjs"
+  ],
+  "sourceRegistryIsUnrelatedUntrackedWip": true,
+  "yearSemantics": "module.study_year is curriculum year; academic_period.academic_year is a calendar/cohort label. No target calendar year can be deduced from curriculum year alone.",
+  "before": {
+    "modules": 44,
+    "mapped": 10,
+    "unmapped": 34,
+    "lectures": 394
+  },
+  "after": {
+    "modules": 44,
+    "mapped": 10,
+    "unmapped": 34,
+    "lectures": 394
+  },
+  "associationUpdatesPerformed": 0,
+  "newDeterministicMappings": 0,
+  "summerModulesExplicitlyMarked": 0,
+  "summerMappingsPerformed": 0,
+  "existingMappings": [
+    {
+      "id": "53700064-e0a7-4c37-95aa-9f75220d6983",
+      "code": "ahe-101",
+      "name": "Anatomy, Embryology & Histology (AEH-101)",
+      "study_year": 1,
+      "term": 1,
+      "curriculum_position": 1,
+      "academic_period_id": "period-2026-2027-term-1",
+      "subject_id": null,
+      "subject_name": null,
+      "semester_id": null,
+      "semester_term": null,
+      "semester_name": null,
+      "hierarchy_year_id": null,
+      "hierarchy_year": null,
+      "hierarchy_year_order": null,
+      "registryEvidence": [
+        {
+          "code": "AEH-101",
+          "year": 1,
+          "term": 1,
+          "academicPeriodId": "period-2026-2027-term-1",
+          "order": 1
+        }
+      ],
+      "targetAcademicYear": "2026-2027",
+      "status": "EXISTING_MAPPING_VERIFIED"
+    },
+    {
+      "id": "ba80fcd7-f2df-43c2-8f76-bebdb390523c",
+      "code": "ppg-102",
+      "name": "Pharmacology, Molecular Biology & Physiology (PPG-102)",
+      "study_year": 1,
+      "term": 1,
+      "curriculum_position": 2,
+      "academic_period_id": "period-2026-2027-term-1",
+      "subject_id": null,
+      "subject_name": null,
+      "semester_id": null,
+      "semester_term": null,
+      "semester_name": null,
+      "hierarchy_year_id": null,
+      "hierarchy_year": null,
+      "hierarchy_year_order": null,
+      "registryEvidence": [
+        {
+          "code": "PPG-102",
+          "year": 1,
+          "term": 1,
+          "academicPeriodId": "period-2026-2027-term-1",
+          "order": 2
+        }
+      ],
+      "targetAcademicYear": "2026-2027",
+      "status": "EXISTING_MAPPING_VERIFIED"
+    },
+    {
+      "id": "941d2888-0892-4502-b0e9-f65d7a4bc48d",
+      "code": "pmb-103",
+      "name": "Pathology, Microbiology & Biochemistry (PMB-103)",
+      "study_year": 1,
+      "term": 1,
+      "curriculum_position": 3,
+      "academic_period_id": "period-2026-2027-term-1",
+      "subject_id": null,
+      "subject_name": null,
+      "semester_id": null,
+      "semester_term": null,
+      "semester_name": null,
+      "hierarchy_year_id": null,
+      "hierarchy_year": null,
+      "hierarchy_year_order": null,
+      "registryEvidence": [
+        {
+          "code": "PMB-103",
+          "year": 1,
+          "term": 1,
+          "academicPeriodId": "period-2026-2027-term-1",
+          "order": 3
+        }
+      ],
+      "targetAcademicYear": "2026-2027",
+      "status": "EXISTING_MAPPING_VERIFIED"
+    },
+    {
+      "id": "fe319272-f44b-43fa-9e63-b9dd2ebab90a",
+      "code": "mt-104",
+      "name": "Medical Terminology (MT-104)",
+      "study_year": 1,
+      "term": 1,
+      "curriculum_position": 4,
+      "academic_period_id": "period-2026-2027-term-1",
+      "subject_id": null,
+      "subject_name": null,
+      "semester_id": null,
+      "semester_term": null,
+      "semester_name": null,
+      "hierarchy_year_id": null,
+      "hierarchy_year": null,
+      "hierarchy_year_order": null,
+      "registryEvidence": [
+        {
+          "code": "MT-104",
+          "year": 1,
+          "term": 1,
+          "academicPeriodId": "period-2026-2027-term-1",
+          "order": 4
+        }
+      ],
+      "targetAcademicYear": "2026-2027",
+      "status": "EXISTING_MAPPING_VERIFIED"
+    },
+    {
+      "id": "07953bfc-158b-4186-ae2e-6eb5f3cb0125",
+      "code": "en-105",
+      "name": "English Language (UNI-105)",
+      "study_year": 1,
+      "term": 1,
+      "curriculum_position": 5,
+      "academic_period_id": "period-2026-2027-term-1",
+      "subject_id": null,
+      "subject_name": null,
+      "semester_id": null,
+      "semester_term": null,
+      "semester_name": null,
+      "hierarchy_year_id": null,
+      "hierarchy_year": null,
+      "hierarchy_year_order": null,
+      "registryEvidence": [
+        {
+          "code": "UNI-105",
+          "year": 1,
+          "term": 1,
+          "academicPeriodId": "period-2026-2027-term-1",
+          "order": 5
+        }
+      ],
+      "targetAcademicYear": "2026-2027",
+      "status": "EXISTING_MAPPING_VERIFIED"
+    },
+    {
+      "id": "589d551c-eb5b-4c1f-892a-ff456b64c10e",
+      "code": "rs-201",
+      "name": "Respiratory System (RS-201)",
+      "study_year": 1,
+      "term": 2,
+      "curriculum_position": 6,
+      "academic_period_id": "period-2026-2027-term-2",
+      "subject_id": null,
+      "subject_name": null,
+      "semester_id": null,
+      "semester_term": null,
+      "semester_name": null,
+      "hierarchy_year_id": null,
+      "hierarchy_year": null,
+      "hierarchy_year_order": null,
+      "registryEvidence": [
+        {
+          "code": "RS-201",
+          "year": 1,
+          "term": 2,
+          "academicPeriodId": "period-2026-2027-term-2",
+          "order": 6
+        }
+      ],
+      "targetAcademicYear": "2026-2027",
+      "status": "EXISTING_MAPPING_VERIFIED"
+    },
+    {
+      "id": "ca429988-1f4c-4430-a28c-7e47805cbf1a",
+      "code": "cvs-202",
+      "name": "Cardio-Vascular System (CVS-202)",
+      "study_year": 1,
+      "term": 2,
+      "curriculum_position": 7,
+      "academic_period_id": "period-2026-2027-term-2",
+      "subject_id": null,
+      "subject_name": null,
+      "semester_id": null,
+      "semester_term": null,
+      "semester_name": null,
+      "hierarchy_year_id": null,
+      "hierarchy_year": null,
+      "hierarchy_year_order": null,
+      "registryEvidence": [
+        {
+          "code": "CVS-202",
+          "year": 1,
+          "term": 2,
+          "academicPeriodId": "period-2026-2027-term-2",
+          "order": 7
+        }
+      ],
+      "targetAcademicYear": "2026-2027",
+      "status": "EXISTING_MAPPING_VERIFIED"
+    },
+    {
+      "id": "ada77ba1-458a-45a7-81d3-4a2047bde027",
+      "code": "rau-203",
+      "name": "Renal & Urinary System (RAU-203)",
+      "study_year": 1,
+      "term": 2,
+      "curriculum_position": 8,
+      "academic_period_id": "period-2026-2027-term-2",
+      "subject_id": null,
+      "subject_name": null,
+      "semester_id": null,
+      "semester_term": null,
+      "semester_name": null,
+      "hierarchy_year_id": null,
+      "hierarchy_year": null,
+      "hierarchy_year_order": null,
+      "registryEvidence": [
+        {
+          "code": "RAU-203",
+          "year": 1,
+          "term": 2,
+          "academicPeriodId": "period-2026-2027-term-2",
+          "order": 8
+        }
+      ],
+      "targetAcademicYear": "2026-2027",
+      "status": "EXISTING_MAPPING_VERIFIED"
+    },
+    {
+      "id": "96d7d26a-c695-43b6-9a93-a7d65e672beb",
+      "code": "ibl-204",
+      "name": "Immune, Blood & Lymphatic (IBL-204)",
+      "study_year": 1,
+      "term": 2,
+      "curriculum_position": 9,
+      "academic_period_id": "period-2026-2027-term-2",
+      "subject_id": null,
+      "subject_name": null,
+      "semester_id": null,
+      "semester_term": null,
+      "semester_name": null,
+      "hierarchy_year_id": null,
+      "hierarchy_year": null,
+      "hierarchy_year_order": null,
+      "registryEvidence": [
+        {
+          "code": "IBL-204",
+          "year": 1,
+          "term": 2,
+          "academicPeriodId": "period-2026-2027-term-2",
+          "order": 9
+        }
+      ],
+      "targetAcademicYear": "2026-2027",
+      "status": "EXISTING_MAPPING_VERIFIED"
+    },
+    {
+      "id": "e7cd0704-3950-44ac-ae11-fbecccdd3bb7",
+      "code": "uni-205",
+      "name": "Community/Social Issues (UNI-205)",
+      "study_year": 1,
+      "term": 2,
+      "curriculum_position": 10,
+      "academic_period_id": "period-2026-2027-term-2",
+      "subject_id": null,
+      "subject_name": null,
+      "semester_id": null,
+      "semester_term": null,
+      "semester_name": null,
+      "hierarchy_year_id": null,
+      "hierarchy_year": null,
+      "hierarchy_year_order": null,
+      "registryEvidence": [
+        {
+          "code": "UNI-205",
+          "year": 1,
+          "term": 2,
+          "academicPeriodId": "period-2026-2027-term-2",
+          "order": 10
+        }
+      ],
+      "targetAcademicYear": "2026-2027",
+      "status": "EXISTING_MAPPING_VERIFIED"
+    }
+  ],
+  "unmappedModules": [
+    {
+      "id": "6dfb0476-cf54-425e-883f-882fe525ef78",
+      "code": "git-301",
+      "name": "Gastro-Intestinal System (GIT-301)",
+      "study_year": 2,
+      "term": 3,
+      "curriculum_position": 11,
+      "academic_period_id": null,
+      "subject_id": null,
+      "subject_name": null,
+      "semester_id": null,
+      "semester_term": null,
+      "semester_name": null,
+      "hierarchy_year_id": null,
+      "hierarchy_year": null,
+      "hierarchy_year_order": null,
+      "registryEvidence": [
+        {
+          "code": "GIS-303",
+          "year": 2,
+          "term": 3,
+          "academicPeriodId": null,
+          "order": 13
+        }
+      ],
+      "targetAcademicYear": null,
+      "targetAcademicPeriodId": null,
+      "status": "MISSING_AUTHORITATIVE_PERIOD_ASSOCIATION",
+      "reason": "Structured curriculum year and global term are known, but the registry's academicPeriodId is NULL and the semester hierarchy is absent. No explicit calendar-period target/date correspondence exists; do not infer odd/even TERM_1/TERM_2 or create dated periods."
+    },
+    {
+      "id": "2697fd6a-bbae-453e-b36e-7c5f83dd28e3",
+      "code": "end-302",
+      "name": "Endocrine System (END-302)",
+      "study_year": 2,
+      "term": 3,
+      "curriculum_position": 12,
+      "academic_period_id": null,
+      "subject_id": null,
+      "subject_name": null,
+      "semester_id": null,
+      "semester_term": null,
+      "semester_name": null,
+      "hierarchy_year_id": null,
+      "hierarchy_year": null,
+      "hierarchy_year_order": null,
+      "registryEvidence": [
+        {
+          "code": "ENS-301",
+          "year": 2,
+          "term": 3,
+          "academicPeriodId": null,
+          "order": 11
+        }
+      ],
+      "targetAcademicYear": null,
+      "targetAcademicPeriodId": null,
+      "status": "MISSING_AUTHORITATIVE_PERIOD_ASSOCIATION",
+      "reason": "Structured curriculum year and global term are known, but the registry's academicPeriodId is NULL and the semester hierarchy is absent. No explicit calendar-period target/date correspondence exists; do not infer odd/even TERM_1/TERM_2 or create dated periods."
+    },
+    {
+      "id": "9bbc4f56-8313-480f-ae63-46ad76691bae",
+      "code": "msk-303",
+      "name": "Musculoskeletal System (MSK-303)",
+      "study_year": 2,
+      "term": 3,
+      "curriculum_position": 13,
+      "academic_period_id": null,
+      "subject_id": null,
+      "subject_name": null,
+      "semester_id": null,
+      "semester_term": null,
+      "semester_name": null,
+      "hierarchy_year_id": null,
+      "hierarchy_year": null,
+      "hierarchy_year_order": null,
+      "registryEvidence": [
+        {
+          "code": "MSS-302",
+          "year": 2,
+          "term": 3,
+          "academicPeriodId": null,
+          "order": 12
+        }
+      ],
+      "targetAcademicYear": null,
+      "targetAcademicPeriodId": null,
+      "status": "MISSING_AUTHORITATIVE_PERIOD_ASSOCIATION",
+      "reason": "Structured curriculum year and global term are known, but the registry's academicPeriodId is NULL and the semester hierarchy is absent. No explicit calendar-period target/date correspondence exists; do not infer odd/even TERM_1/TERM_2 or create dated periods."
+    },
+    {
+      "id": "56d2f27c-17f8-4992-9c89-75e97ed732bb",
+      "code": "nut-304",
+      "name": "Nutrition & Metabolism (NUT-304)",
+      "study_year": 2,
+      "term": 3,
+      "curriculum_position": 14,
+      "academic_period_id": null,
+      "subject_id": null,
+      "subject_name": null,
+      "semester_id": null,
+      "semester_term": null,
+      "semester_name": null,
+      "hierarchy_year_id": null,
+      "hierarchy_year": null,
+      "hierarchy_year_order": null,
+      "registryEvidence": [
+        {
+          "code": "NM-304",
+          "year": 2,
+          "term": 3,
+          "academicPeriodId": null,
+          "order": 14
+        }
+      ],
+      "targetAcademicYear": null,
+      "targetAcademicPeriodId": null,
+      "status": "MISSING_AUTHORITATIVE_PERIOD_ASSOCIATION",
+      "reason": "Structured curriculum year and global term are known, but the registry's academicPeriodId is NULL and the semester hierarchy is absent. No explicit calendar-period target/date correspondence exists; do not infer odd/even TERM_1/TERM_2 or create dated periods."
+    },
+    {
+      "id": "2431dfbd-2bf2-4007-a362-8394aebbd19e",
+      "code": "ens-401",
+      "name": "Central Nervous System and Special Senses (ENS-401)",
+      "study_year": 2,
+      "term": 4,
+      "curriculum_position": 15,
+      "academic_period_id": null,
+      "subject_id": null,
+      "subject_name": null,
+      "semester_id": null,
+      "semester_term": null,
+      "semester_name": null,
+      "hierarchy_year_id": null,
+      "hierarchy_year": null,
+      "hierarchy_year_order": null,
+      "registryEvidence": [
+        {
+          "code": "ENS-401",
+          "year": 2,
+          "term": 4,
+          "academicPeriodId": null,
+          "order": 15
+        }
+      ],
+      "targetAcademicYear": null,
+      "targetAcademicPeriodId": null,
+      "status": "MISSING_AUTHORITATIVE_PERIOD_ASSOCIATION",
+      "reason": "Structured curriculum year and global term are known, but the registry's academicPeriodId is NULL and the semester hierarchy is absent. No explicit calendar-period target/date correspondence exists; do not infer odd/even TERM_1/TERM_2 or create dated periods."
+    },
+    {
+      "id": "5da8c1c6-6927-48c2-baa4-28bb1ab9faa0",
+      "code": "mss-402",
+      "name": "Reproductive System (MSS-402)",
+      "study_year": 2,
+      "term": 4,
+      "curriculum_position": 16,
+      "academic_period_id": null,
+      "subject_id": null,
+      "subject_name": null,
+      "semester_id": null,
+      "semester_term": null,
+      "semester_name": null,
+      "hierarchy_year_id": null,
+      "hierarchy_year": null,
+      "hierarchy_year_order": null,
+      "registryEvidence": [
+        {
+          "code": "MSS-402",
+          "year": 2,
+          "term": 4,
+          "academicPeriodId": null,
+          "order": 16
+        }
+      ],
+      "targetAcademicYear": null,
+      "targetAcademicPeriodId": null,
+      "status": "MISSING_AUTHORITATIVE_PERIOD_ASSOCIATION",
+      "reason": "Structured curriculum year and global term are known, but the registry's academicPeriodId is NULL and the semester hierarchy is absent. No explicit calendar-period target/date correspondence exists; do not infer odd/even TERM_1/TERM_2 or create dated periods."
+    },
+    {
+      "id": "662b6f97-373d-4a12-9080-66b3697f0629",
+      "code": "gis-403",
+      "name": "Research Methodology, Evidence-based Medicine, and Biostatistics (GIS-403)",
+      "study_year": 2,
+      "term": 4,
+      "curriculum_position": 17,
+      "academic_period_id": null,
+      "subject_id": null,
+      "subject_name": null,
+      "semester_id": null,
+      "semester_term": null,
+      "semester_name": null,
+      "hierarchy_year_id": null,
+      "hierarchy_year": null,
+      "hierarchy_year_order": null,
+      "registryEvidence": [
+        {
+          "code": "GIS-403",
+          "year": 2,
+          "term": 4,
+          "academicPeriodId": null,
+          "order": 17
+        }
+      ],
+      "targetAcademicYear": null,
+      "targetAcademicPeriodId": null,
+      "status": "MISSING_AUTHORITATIVE_PERIOD_ASSOCIATION",
+      "reason": "Structured curriculum year and global term are known, but the registry's academicPeriodId is NULL and the semester hierarchy is absent. No explicit calendar-period target/date correspondence exists; do not infer odd/even TERM_1/TERM_2 or create dated periods."
+    },
+    {
+      "id": "697dc292-1465-4622-9324-7d11696ee5cf",
+      "code": "nms-404",
+      "name": "Early Clinical Experience, Communication Skills, and Ethics (NMS-404)",
+      "study_year": 2,
+      "term": 4,
+      "curriculum_position": 18,
+      "academic_period_id": null,
+      "subject_id": null,
+      "subject_name": null,
+      "semester_id": null,
+      "semester_term": null,
+      "semester_name": null,
+      "hierarchy_year_id": null,
+      "hierarchy_year": null,
+      "hierarchy_year_order": null,
+      "registryEvidence": [
+        {
+          "code": "NMS-404",
+          "year": 2,
+          "term": 4,
+          "academicPeriodId": null,
+          "order": 18
+        }
+      ],
+      "targetAcademicYear": null,
+      "targetAcademicPeriodId": null,
+      "status": "MISSING_AUTHORITATIVE_PERIOD_ASSOCIATION",
+      "reason": "Structured curriculum year and global term are known, but the registry's academicPeriodId is NULL and the semester hierarchy is absent. No explicit calendar-period target/date correspondence exists; do not infer odd/even TERM_1/TERM_2 or create dated periods."
+    },
+    {
+      "id": "d05dda73-1ded-4110-a866-c6f97a5d0e28",
+      "code": "epd-501",
+      "name": "Epidemiology of Infectious Diseases and Preventive Medicine (EPD-501)",
+      "study_year": 3,
+      "term": 5,
+      "curriculum_position": 19,
+      "academic_period_id": null,
+      "subject_id": null,
+      "subject_name": null,
+      "semester_id": null,
+      "semester_term": null,
+      "semester_name": null,
+      "hierarchy_year_id": null,
+      "hierarchy_year": null,
+      "hierarchy_year_order": null,
+      "registryEvidence": [
+        {
+          "code": "EPD-501",
+          "year": 3,
+          "term": 5,
+          "academicPeriodId": null,
+          "order": 19
+        }
+      ],
+      "targetAcademicYear": null,
+      "targetAcademicPeriodId": null,
+      "status": "MISSING_AUTHORITATIVE_PERIOD_ASSOCIATION",
+      "reason": "Structured curriculum year and global term are known, but the registry's academicPeriodId is NULL and the semester hierarchy is absent. No explicit calendar-period target/date correspondence exists; do not infer odd/even TERM_1/TERM_2 or create dated periods."
+    },
+    {
+      "id": "714f59ae-e72e-40bd-8d1a-9d6f5f61a978",
+      "code": "inf-502",
+      "name": "Infectious Agents and Principles of Management (INF-502)",
+      "study_year": 3,
+      "term": 5,
+      "curriculum_position": 20,
+      "academic_period_id": null,
+      "subject_id": null,
+      "subject_name": null,
+      "semester_id": null,
+      "semester_term": null,
+      "semester_name": null,
+      "hierarchy_year_id": null,
+      "hierarchy_year": null,
+      "hierarchy_year_order": null,
+      "registryEvidence": [
+        {
+          "code": "INF-502",
+          "year": 3,
+          "term": 5,
+          "academicPeriodId": null,
+          "order": 20
+        }
+      ],
+      "targetAcademicYear": null,
+      "targetAcademicPeriodId": null,
+      "status": "MISSING_AUTHORITATIVE_PERIOD_ASSOCIATION",
+      "reason": "Structured curriculum year and global term are known, but the registry's academicPeriodId is NULL and the semester hierarchy is absent. No explicit calendar-period target/date correspondence exists; do not infer odd/even TERM_1/TERM_2 or create dated periods."
+    },
+    {
+      "id": "7870a3c3-9f69-4942-bcd7-b4a5f402fc4b",
+      "code": "trp-503",
+      "name": "Tropical Medicine and Liver Diseases (TRP-503)",
+      "study_year": 3,
+      "term": 5,
+      "curriculum_position": 21,
+      "academic_period_id": null,
+      "subject_id": null,
+      "subject_name": null,
+      "semester_id": null,
+      "semester_term": null,
+      "semester_name": null,
+      "hierarchy_year_id": null,
+      "hierarchy_year": null,
+      "hierarchy_year_order": null,
+      "registryEvidence": [
+        {
+          "code": "TRP-503",
+          "year": 3,
+          "term": 5,
+          "academicPeriodId": null,
+          "order": 21
+        }
+      ],
+      "targetAcademicYear": null,
+      "targetAcademicPeriodId": null,
+      "status": "MISSING_AUTHORITATIVE_PERIOD_ASSOCIATION",
+      "reason": "Structured curriculum year and global term are known, but the registry's academicPeriodId is NULL and the semester hierarchy is absent. No explicit calendar-period target/date correspondence exists; do not infer odd/even TERM_1/TERM_2 or create dated periods."
+    },
+    {
+      "id": "6ffd75cc-6ca3-4013-a0f1-ff07fd7c2947",
+      "code": "bsp-504",
+      "name": "Basic Medical Skills and Professionalism (BSP-504)",
+      "study_year": 3,
+      "term": 5,
+      "curriculum_position": 22,
+      "academic_period_id": null,
+      "subject_id": null,
+      "subject_name": null,
+      "semester_id": null,
+      "semester_term": null,
+      "semester_name": null,
+      "hierarchy_year_id": null,
+      "hierarchy_year": null,
+      "hierarchy_year_order": null,
+      "registryEvidence": [
+        {
+          "code": "BSP-504",
+          "year": 3,
+          "term": 5,
+          "academicPeriodId": null,
+          "order": 22
+        }
+      ],
+      "targetAcademicYear": null,
+      "targetAcademicPeriodId": null,
+      "status": "MISSING_AUTHORITATIVE_PERIOD_ASSOCIATION",
+      "reason": "Structured curriculum year and global term are known, but the registry's academicPeriodId is NULL and the semester hierarchy is absent. No explicit calendar-period target/date correspondence exists; do not infer odd/even TERM_1/TERM_2 or create dated periods."
+    },
+    {
+      "id": "a4ef3a4c-c0b1-4af0-a41d-65d107b9f426",
+      "code": "e-1",
+      "name": "Elective (I) (E-1)",
+      "study_year": 3,
+      "term": 5,
+      "curriculum_position": 23,
+      "academic_period_id": null,
+      "subject_id": null,
+      "subject_name": null,
+      "semester_id": null,
+      "semester_term": null,
+      "semester_name": null,
+      "hierarchy_year_id": null,
+      "hierarchy_year": null,
+      "hierarchy_year_order": null,
+      "registryEvidence": [
+        {
+          "code": "E-1",
+          "year": 3,
+          "term": 5,
+          "academicPeriodId": null,
+          "order": 23
+        }
+      ],
+      "targetAcademicYear": null,
+      "targetAcademicPeriodId": null,
+      "status": "MISSING_AUTHORITATIVE_PERIOD_ASSOCIATION",
+      "reason": "Structured curriculum year and global term are known, but the registry's academicPeriodId is NULL and the semester hierarchy is absent. No explicit calendar-period target/date correspondence exists; do not infer odd/even TERM_1/TERM_2 or create dated periods."
+    },
+    {
+      "id": "1a2f0eff-8ac4-4bf2-bd70-4d26ab62512e",
+      "code": "com-601",
+      "name": "Community Medicine and Public Health (COM-601)",
+      "study_year": 3,
+      "term": 6,
+      "curriculum_position": 24,
+      "academic_period_id": null,
+      "subject_id": null,
+      "subject_name": null,
+      "semester_id": null,
+      "semester_term": null,
+      "semester_name": null,
+      "hierarchy_year_id": null,
+      "hierarchy_year": null,
+      "hierarchy_year_order": null,
+      "registryEvidence": [
+        {
+          "code": "COM-601",
+          "year": 3,
+          "term": 6,
+          "academicPeriodId": null,
+          "order": 24
+        }
+      ],
+      "targetAcademicYear": null,
+      "targetAcademicPeriodId": null,
+      "status": "MISSING_AUTHORITATIVE_PERIOD_ASSOCIATION",
+      "reason": "Structured curriculum year and global term are known, but the registry's academicPeriodId is NULL and the semester hierarchy is absent. No explicit calendar-period target/date correspondence exists; do not infer odd/even TERM_1/TERM_2 or create dated periods."
+    },
+    {
+      "id": "9eb1ed29-3a50-4c7a-95af-58b81594bed7",
+      "code": "ctf-602",
+      "name": "Clinical Toxicology & Forensic Medicine (CTF-602)",
+      "study_year": 3,
+      "term": 6,
+      "curriculum_position": 25,
+      "academic_period_id": null,
+      "subject_id": null,
+      "subject_name": null,
+      "semester_id": null,
+      "semester_term": null,
+      "semester_name": null,
+      "hierarchy_year_id": null,
+      "hierarchy_year": null,
+      "hierarchy_year_order": null,
+      "registryEvidence": [
+        {
+          "code": "CTF-602",
+          "year": 3,
+          "term": 6,
+          "academicPeriodId": null,
+          "order": 25
+        }
+      ],
+      "targetAcademicYear": null,
+      "targetAcademicPeriodId": null,
+      "status": "MISSING_AUTHORITATIVE_PERIOD_ASSOCIATION",
+      "reason": "Structured curriculum year and global term are known, but the registry's academicPeriodId is NULL and the semester hierarchy is absent. No explicit calendar-period target/date correspondence exists; do not infer odd/even TERM_1/TERM_2 or create dated periods."
+    },
+    {
+      "id": "2a524ade-7bfb-4398-a41c-d00f3a10995d",
+      "code": "ms-603",
+      "name": "Medicine (I) & Surgery (I) (MS-603)",
+      "study_year": 3,
+      "term": 6,
+      "curriculum_position": 26,
+      "academic_period_id": null,
+      "subject_id": null,
+      "subject_name": null,
+      "semester_id": null,
+      "semester_term": null,
+      "semester_name": null,
+      "hierarchy_year_id": null,
+      "hierarchy_year": null,
+      "hierarchy_year_order": null,
+      "registryEvidence": [
+        {
+          "code": "MS-603",
+          "year": 3,
+          "term": 6,
+          "academicPeriodId": null,
+          "order": 26
+        }
+      ],
+      "targetAcademicYear": null,
+      "targetAcademicPeriodId": null,
+      "status": "MISSING_AUTHORITATIVE_PERIOD_ASSOCIATION",
+      "reason": "Structured curriculum year and global term are known, but the registry's academicPeriodId is NULL and the semester hierarchy is absent. No explicit calendar-period target/date correspondence exists; do not infer odd/even TERM_1/TERM_2 or create dated periods."
+    },
+    {
+      "id": "606419b9-6b05-4e0d-b95c-04dfb346747e",
+      "code": "e-2",
+      "name": "Elective (II) (E-2)",
+      "study_year": 3,
+      "term": 6,
+      "curriculum_position": 27,
+      "academic_period_id": null,
+      "subject_id": null,
+      "subject_name": null,
+      "semester_id": null,
+      "semester_term": null,
+      "semester_name": null,
+      "hierarchy_year_id": null,
+      "hierarchy_year": null,
+      "hierarchy_year_order": null,
+      "registryEvidence": [
+        {
+          "code": "E-2",
+          "year": 3,
+          "term": 6,
+          "academicPeriodId": null,
+          "order": 27
+        }
+      ],
+      "targetAcademicYear": null,
+      "targetAcademicPeriodId": null,
+      "status": "MISSING_AUTHORITATIVE_PERIOD_ASSOCIATION",
+      "reason": "Structured curriculum year and global term are known, but the registry's academicPeriodId is NULL and the semester hierarchy is absent. No explicit calendar-period target/date correspondence exists; do not infer odd/even TERM_1/TERM_2 or create dated periods."
+    },
+    {
+      "id": "b00ecabf-2a4c-4ce5-b1e5-1aa46f726494",
+      "code": "ms-701",
+      "name": "Surgery (II) and Medicine (II) (MS-701)",
+      "study_year": 4,
+      "term": 7,
+      "curriculum_position": 28,
+      "academic_period_id": null,
+      "subject_id": null,
+      "subject_name": null,
+      "semester_id": null,
+      "semester_term": null,
+      "semester_name": null,
+      "hierarchy_year_id": null,
+      "hierarchy_year": null,
+      "hierarchy_year_order": null,
+      "registryEvidence": [
+        {
+          "code": "MS-701",
+          "year": 4,
+          "term": 7,
+          "academicPeriodId": null,
+          "order": 28
+        }
+      ],
+      "targetAcademicYear": null,
+      "targetAcademicPeriodId": null,
+      "status": "MISSING_AUTHORITATIVE_PERIOD_ASSOCIATION",
+      "reason": "Structured curriculum year and global term are known, but the registry's academicPeriodId is NULL and the semester hierarchy is absent. No explicit calendar-period target/date correspondence exists; do not infer odd/even TERM_1/TERM_2 or create dated periods."
+    },
+    {
+      "id": "efae98c5-63d8-463e-bacb-a73f2d84381b",
+      "code": "ped-702",
+      "name": "Pediatrics (I) (PED-702)",
+      "study_year": 4,
+      "term": 7,
+      "curriculum_position": 29,
+      "academic_period_id": null,
+      "subject_id": null,
+      "subject_name": null,
+      "semester_id": null,
+      "semester_term": null,
+      "semester_name": null,
+      "hierarchy_year_id": null,
+      "hierarchy_year": null,
+      "hierarchy_year_order": null,
+      "registryEvidence": [
+        {
+          "code": "PED-702",
+          "year": 4,
+          "term": 7,
+          "academicPeriodId": null,
+          "order": 29
+        }
+      ],
+      "targetAcademicYear": null,
+      "targetAcademicPeriodId": null,
+      "status": "MISSING_AUTHORITATIVE_PERIOD_ASSOCIATION",
+      "reason": "Structured curriculum year and global term are known, but the registry's academicPeriodId is NULL and the semester hierarchy is absent. No explicit calendar-period target/date correspondence exists; do not infer odd/even TERM_1/TERM_2 or create dated periods."
+    },
+    {
+      "id": "049209e7-90df-4c34-a1a2-2ec88f17af04",
+      "code": "ogy-703",
+      "name": "Obstetrics and Gynecology (I) (OGY-703)",
+      "study_year": 4,
+      "term": 7,
+      "curriculum_position": 30,
+      "academic_period_id": null,
+      "subject_id": null,
+      "subject_name": null,
+      "semester_id": null,
+      "semester_term": null,
+      "semester_name": null,
+      "hierarchy_year_id": null,
+      "hierarchy_year": null,
+      "hierarchy_year_order": null,
+      "registryEvidence": [
+        {
+          "code": "OGY-703",
+          "year": 4,
+          "term": 7,
+          "academicPeriodId": null,
+          "order": 30
+        }
+      ],
+      "targetAcademicYear": null,
+      "targetAcademicPeriodId": null,
+      "status": "MISSING_AUTHORITATIVE_PERIOD_ASSOCIATION",
+      "reason": "Structured curriculum year and global term are known, but the registry's academicPeriodId is NULL and the semester hierarchy is absent. No explicit calendar-period target/date correspondence exists; do not infer odd/even TERM_1/TERM_2 or create dated periods."
+    },
+    {
+      "id": "692f73d9-af0d-473b-aa5f-bab47f6abd8e",
+      "code": "e-3",
+      "name": "Elective (III) (E-3)",
+      "study_year": 4,
+      "term": 7,
+      "curriculum_position": 31,
+      "academic_period_id": null,
+      "subject_id": null,
+      "subject_name": null,
+      "semester_id": null,
+      "semester_term": null,
+      "semester_name": null,
+      "hierarchy_year_id": null,
+      "hierarchy_year": null,
+      "hierarchy_year_order": null,
+      "registryEvidence": [
+        {
+          "code": "E-3",
+          "year": 4,
+          "term": 7,
+          "academicPeriodId": null,
+          "order": 31
+        }
+      ],
+      "targetAcademicYear": null,
+      "targetAcademicPeriodId": null,
+      "status": "MISSING_AUTHORITATIVE_PERIOD_ASSOCIATION",
+      "reason": "Structured curriculum year and global term are known, but the registry's academicPeriodId is NULL and the semester hierarchy is absent. No explicit calendar-period target/date correspondence exists; do not infer odd/even TERM_1/TERM_2 or create dated periods."
+    },
+    {
+      "id": "030115ef-8ecd-4f40-810b-0810581b8df5",
+      "code": "ms-801",
+      "name": "Surgery (III) and Medicine (III) (MS-801)",
+      "study_year": 4,
+      "term": 8,
+      "curriculum_position": 32,
+      "academic_period_id": null,
+      "subject_id": null,
+      "subject_name": null,
+      "semester_id": null,
+      "semester_term": null,
+      "semester_name": null,
+      "hierarchy_year_id": null,
+      "hierarchy_year": null,
+      "hierarchy_year_order": null,
+      "registryEvidence": [
+        {
+          "code": "MS-801",
+          "year": 4,
+          "term": 8,
+          "academicPeriodId": null,
+          "order": 32
+        }
+      ],
+      "targetAcademicYear": null,
+      "targetAcademicPeriodId": null,
+      "status": "MISSING_AUTHORITATIVE_PERIOD_ASSOCIATION",
+      "reason": "Structured curriculum year and global term are known, but the registry's academicPeriodId is NULL and the semester hierarchy is absent. No explicit calendar-period target/date correspondence exists; do not infer odd/even TERM_1/TERM_2 or create dated periods."
+    },
+    {
+      "id": "add84899-c3b5-4153-9247-b88604e34e8d",
+      "code": "ped-802",
+      "name": "Pediatrics (II) (PED-802)",
+      "study_year": 4,
+      "term": 8,
+      "curriculum_position": 33,
+      "academic_period_id": null,
+      "subject_id": null,
+      "subject_name": null,
+      "semester_id": null,
+      "semester_term": null,
+      "semester_name": null,
+      "hierarchy_year_id": null,
+      "hierarchy_year": null,
+      "hierarchy_year_order": null,
+      "registryEvidence": [
+        {
+          "code": "PED-802",
+          "year": 4,
+          "term": 8,
+          "academicPeriodId": null,
+          "order": 33
+        }
+      ],
+      "targetAcademicYear": null,
+      "targetAcademicPeriodId": null,
+      "status": "MISSING_AUTHORITATIVE_PERIOD_ASSOCIATION",
+      "reason": "Structured curriculum year and global term are known, but the registry's academicPeriodId is NULL and the semester hierarchy is absent. No explicit calendar-period target/date correspondence exists; do not infer odd/even TERM_1/TERM_2 or create dated periods."
+    },
+    {
+      "id": "323fcc9a-208a-4cf7-b936-8ea630a50172",
+      "code": "ogy-803",
+      "name": "Obstetrics and Gynecology (II) (OGY-803)",
+      "study_year": 4,
+      "term": 8,
+      "curriculum_position": 34,
+      "academic_period_id": null,
+      "subject_id": null,
+      "subject_name": null,
+      "semester_id": null,
+      "semester_term": null,
+      "semester_name": null,
+      "hierarchy_year_id": null,
+      "hierarchy_year": null,
+      "hierarchy_year_order": null,
+      "registryEvidence": [
+        {
+          "code": "OGY-803",
+          "year": 4,
+          "term": 8,
+          "academicPeriodId": null,
+          "order": 34
+        }
+      ],
+      "targetAcademicYear": null,
+      "targetAcademicPeriodId": null,
+      "status": "MISSING_AUTHORITATIVE_PERIOD_ASSOCIATION",
+      "reason": "Structured curriculum year and global term are known, but the registry's academicPeriodId is NULL and the semester hierarchy is absent. No explicit calendar-period target/date correspondence exists; do not infer odd/even TERM_1/TERM_2 or create dated periods."
+    },
+    {
+      "id": "652890e6-f97f-45a6-9fb3-036e4bbee242",
+      "code": "ent-901",
+      "name": "Ear, Nose and Throat (ENT-901)",
+      "study_year": 5,
+      "term": 9,
+      "curriculum_position": 35,
+      "academic_period_id": null,
+      "subject_id": null,
+      "subject_name": null,
+      "semester_id": null,
+      "semester_term": null,
+      "semester_name": null,
+      "hierarchy_year_id": null,
+      "hierarchy_year": null,
+      "hierarchy_year_order": null,
+      "registryEvidence": [
+        {
+          "code": "ENT-901",
+          "year": 5,
+          "term": 9,
+          "academicPeriodId": null,
+          "order": 35
+        }
+      ],
+      "targetAcademicYear": null,
+      "targetAcademicPeriodId": null,
+      "status": "MISSING_AUTHORITATIVE_PERIOD_ASSOCIATION",
+      "reason": "Structured curriculum year and global term are known, but the registry's academicPeriodId is NULL and the semester hierarchy is absent. No explicit calendar-period target/date correspondence exists; do not infer odd/even TERM_1/TERM_2 or create dated periods."
+    },
+    {
+      "id": "8297c858-4713-4ec4-9bbf-538e12faf930",
+      "code": "opt-902",
+      "name": "Ophthalmology (OPT-902)",
+      "study_year": 5,
+      "term": 9,
+      "curriculum_position": 36,
+      "academic_period_id": null,
+      "subject_id": null,
+      "subject_name": null,
+      "semester_id": null,
+      "semester_term": null,
+      "semester_name": null,
+      "hierarchy_year_id": null,
+      "hierarchy_year": null,
+      "hierarchy_year_order": null,
+      "registryEvidence": [
+        {
+          "code": "OPT-902",
+          "year": 5,
+          "term": 9,
+          "academicPeriodId": null,
+          "order": 36
+        }
+      ],
+      "targetAcademicYear": null,
+      "targetAcademicPeriodId": null,
+      "status": "MISSING_AUTHORITATIVE_PERIOD_ASSOCIATION",
+      "reason": "Structured curriculum year and global term are known, but the registry's academicPeriodId is NULL and the semester hierarchy is absent. No explicit calendar-period target/date correspondence exists; do not infer odd/even TERM_1/TERM_2 or create dated periods."
+    },
+    {
+      "id": "71cdc069-6021-43fc-b1f4-5133b1025f21",
+      "code": "fmi-903",
+      "name": "Family Medicine and Integrated Management of Common Illnesses (FMI-903)",
+      "study_year": 5,
+      "term": 9,
+      "curriculum_position": 37,
+      "academic_period_id": null,
+      "subject_id": null,
+      "subject_name": null,
+      "semester_id": null,
+      "semester_term": null,
+      "semester_name": null,
+      "hierarchy_year_id": null,
+      "hierarchy_year": null,
+      "hierarchy_year_order": null,
+      "registryEvidence": [
+        {
+          "code": "FMI-903",
+          "year": 5,
+          "term": 9,
+          "academicPeriodId": null,
+          "order": 37
+        }
+      ],
+      "targetAcademicYear": null,
+      "targetAcademicPeriodId": null,
+      "status": "MISSING_AUTHORITATIVE_PERIOD_ASSOCIATION",
+      "reason": "Structured curriculum year and global term are known, but the registry's academicPeriodId is NULL and the semester hierarchy is absent. No explicit calendar-period target/date correspondence exists; do not infer odd/even TERM_1/TERM_2 or create dated periods."
+    },
+    {
+      "id": "57a5c4ba-75d2-492d-acdb-8c8f22d52f00",
+      "code": "lmr-904",
+      "name": "Laboratory Medicine and Radiology (LMR-904)",
+      "study_year": 5,
+      "term": 9,
+      "curriculum_position": 38,
+      "academic_period_id": null,
+      "subject_id": null,
+      "subject_name": null,
+      "semester_id": null,
+      "semester_term": null,
+      "semester_name": null,
+      "hierarchy_year_id": null,
+      "hierarchy_year": null,
+      "hierarchy_year_order": null,
+      "registryEvidence": [
+        {
+          "code": "LMR-904",
+          "year": 5,
+          "term": 9,
+          "academicPeriodId": null,
+          "order": 38
+        }
+      ],
+      "targetAcademicYear": null,
+      "targetAcademicPeriodId": null,
+      "status": "MISSING_AUTHORITATIVE_PERIOD_ASSOCIATION",
+      "reason": "Structured curriculum year and global term are known, but the registry's academicPeriodId is NULL and the semester hierarchy is absent. No explicit calendar-period target/date correspondence exists; do not infer odd/even TERM_1/TERM_2 or create dated periods."
+    },
+    {
+      "id": "9cd51a1b-eb87-4527-8a07-defb31dc960e",
+      "code": "e-4",
+      "name": "Elective (IV) (E-4)",
+      "study_year": 5,
+      "term": 9,
+      "curriculum_position": 39,
+      "academic_period_id": null,
+      "subject_id": null,
+      "subject_name": null,
+      "semester_id": null,
+      "semester_term": null,
+      "semester_name": null,
+      "hierarchy_year_id": null,
+      "hierarchy_year": null,
+      "hierarchy_year_order": null,
+      "registryEvidence": [
+        {
+          "code": "E-4",
+          "year": 5,
+          "term": 9,
+          "academicPeriodId": null,
+          "order": 39
+        }
+      ],
+      "targetAcademicYear": null,
+      "targetAcademicPeriodId": null,
+      "status": "MISSING_AUTHORITATIVE_PERIOD_ASSOCIATION",
+      "reason": "Structured curriculum year and global term are known, but the registry's academicPeriodId is NULL and the semester hierarchy is absent. No explicit calendar-period target/date correspondence exists; do not infer odd/even TERM_1/TERM_2 or create dated periods."
+    },
+    {
+      "id": "fe1ea485-3d8c-468c-b943-e4ec00e88606",
+      "code": "sur-10-1",
+      "name": "Surgery (IV): Surgical Oncology - Anesthesia and Intensive Care - Accident and Emergency (SUR-10-1)",
+      "study_year": 5,
+      "term": 10,
+      "curriculum_position": 40,
+      "academic_period_id": null,
+      "subject_id": null,
+      "subject_name": null,
+      "semester_id": null,
+      "semester_term": null,
+      "semester_name": null,
+      "hierarchy_year_id": null,
+      "hierarchy_year": null,
+      "hierarchy_year_order": null,
+      "registryEvidence": [
+        {
+          "code": "SUR-10-1",
+          "year": 5,
+          "term": 10,
+          "academicPeriodId": null,
+          "order": 40
+        }
+      ],
+      "targetAcademicYear": null,
+      "targetAcademicPeriodId": null,
+      "status": "MISSING_AUTHORITATIVE_PERIOD_ASSOCIATION",
+      "reason": "Structured curriculum year and global term are known, but the registry's academicPeriodId is NULL and the semester hierarchy is absent. No explicit calendar-period target/date correspondence exists; do not infer odd/even TERM_1/TERM_2 or create dated periods."
+    },
+    {
+      "id": "a73d4257-fbb9-4715-a750-b9b83f15e67b",
+      "code": "nps-10-2",
+      "name": "Neuroscience and Psychiatry (NPS-10-2)",
+      "study_year": 5,
+      "term": 10,
+      "curriculum_position": 41,
+      "academic_period_id": null,
+      "subject_id": null,
+      "subject_name": null,
+      "semester_id": null,
+      "semester_term": null,
+      "semester_name": null,
+      "hierarchy_year_id": null,
+      "hierarchy_year": null,
+      "hierarchy_year_order": null,
+      "registryEvidence": [
+        {
+          "code": "NPS-10-2",
+          "year": 5,
+          "term": 10,
+          "academicPeriodId": null,
+          "order": 41
+        }
+      ],
+      "targetAcademicYear": null,
+      "targetAcademicPeriodId": null,
+      "status": "MISSING_AUTHORITATIVE_PERIOD_ASSOCIATION",
+      "reason": "Structured curriculum year and global term are known, but the registry's academicPeriodId is NULL and the semester hierarchy is absent. No explicit calendar-period target/date correspondence exists; do not infer odd/even TERM_1/TERM_2 or create dated periods."
+    },
+    {
+      "id": "4a4b6e09-bbc8-4392-b528-e853da6e7090",
+      "code": "med-10-3",
+      "name": "Medicine (IV): Medical Oncology - Critical Care and Patient's Safety (MED-10-3)",
+      "study_year": 5,
+      "term": 10,
+      "curriculum_position": 42,
+      "academic_period_id": null,
+      "subject_id": null,
+      "subject_name": null,
+      "semester_id": null,
+      "semester_term": null,
+      "semester_name": null,
+      "hierarchy_year_id": null,
+      "hierarchy_year": null,
+      "hierarchy_year_order": null,
+      "registryEvidence": [
+        {
+          "code": "MED-10-3",
+          "year": 5,
+          "term": 10,
+          "academicPeriodId": null,
+          "order": 42
+        }
+      ],
+      "targetAcademicYear": null,
+      "targetAcademicPeriodId": null,
+      "status": "MISSING_AUTHORITATIVE_PERIOD_ASSOCIATION",
+      "reason": "Structured curriculum year and global term are known, but the registry's academicPeriodId is NULL and the semester hierarchy is absent. No explicit calendar-period target/date correspondence exists; do not infer odd/even TERM_1/TERM_2 or create dated periods."
+    },
+    {
+      "id": "7b9cc249-0622-4c90-ac80-47d336b2c557",
+      "code": "dan-10-4",
+      "name": "Dermatology and Andrology (DAN-10-4)",
+      "study_year": 5,
+      "term": 10,
+      "curriculum_position": 43,
+      "academic_period_id": null,
+      "subject_id": null,
+      "subject_name": null,
+      "semester_id": null,
+      "semester_term": null,
+      "semester_name": null,
+      "hierarchy_year_id": null,
+      "hierarchy_year": null,
+      "hierarchy_year_order": null,
+      "registryEvidence": [
+        {
+          "code": "DAN-10-4",
+          "year": 5,
+          "term": 10,
+          "academicPeriodId": null,
+          "order": 43
+        }
+      ],
+      "targetAcademicYear": null,
+      "targetAcademicPeriodId": null,
+      "status": "MISSING_AUTHORITATIVE_PERIOD_ASSOCIATION",
+      "reason": "Structured curriculum year and global term are known, but the registry's academicPeriodId is NULL and the semester hierarchy is absent. No explicit calendar-period target/date correspondence exists; do not infer odd/even TERM_1/TERM_2 or create dated periods."
+    },
+    {
+      "id": "fa3c1651-581c-4177-9583-da6462c8d3aa",
+      "code": "gp-10",
+      "name": "Graduation Project (GP-10)",
+      "study_year": 5,
+      "term": 10,
+      "curriculum_position": 44,
+      "academic_period_id": null,
+      "subject_id": null,
+      "subject_name": null,
+      "semester_id": null,
+      "semester_term": null,
+      "semester_name": null,
+      "hierarchy_year_id": null,
+      "hierarchy_year": null,
+      "hierarchy_year_order": null,
+      "registryEvidence": [
+        {
+          "code": "GP-10",
+          "year": 5,
+          "term": 10,
+          "academicPeriodId": null,
+          "order": 44
+        }
+      ],
+      "targetAcademicYear": null,
+      "targetAcademicPeriodId": null,
+      "status": "MISSING_AUTHORITATIVE_PERIOD_ASSOCIATION",
+      "reason": "Structured curriculum year and global term are known, but the registry's academicPeriodId is NULL and the semester hierarchy is absent. No explicit calendar-period target/date correspondence exists; do not infer odd/even TERM_1/TERM_2 or create dated periods."
+    }
+  ],
+  "academicPeriods": [
+    {
+      "id": "period-2026-2027-summer",
+      "academic_year": "2026-2027",
+      "type": "SUMMER",
+      "starts_at": "2027-07-01 00:00:00",
+      "ends_at": "2027-09-15 23:59:59.999",
+      "active": true
+    },
+    {
+      "id": "period-2026-2027-term-1",
+      "academic_year": "2026-2027",
+      "type": "TERM_1",
+      "starts_at": "2026-09-01 00:00:00",
+      "ends_at": "2027-02-28 23:59:59.999",
+      "active": true
+    },
+    {
+      "id": "period-2026-2027-term-2",
+      "academic_year": "2026-2027",
+      "type": "TERM_2",
+      "starts_at": "2027-03-01 00:00:00",
+      "ends_at": "2027-07-31 23:59:59.999",
+      "active": true
+    }
+  ],
+  "mappingRules": [
+    "Use explicit authoritative foreign-key association only.",
+    "Do not derive calendar years/dates from study_year.",
+    "Do not fold global terms 3-10 into TERM_1/TERM_2 using parity without owner-confirmed correspondence.",
+    "Do not create periods, guess future dates, or classify Summer.",
+    "Existing 10 associations agree with local registry year/term/explicit periodId; no updates needed."
+  ],
+  "fingerprintsBefore": [
+    {
+      "table_name": "module",
+      "fingerprint": "fc8b63113c525326f6e92b02d309e3be"
+    },
+    {
+      "table_name": "lecture",
+      "fingerprint": "5fc7d6b1fa1963d086251c501ccf46b1"
+    },
+    {
+      "table_name": "academic_period",
+      "fingerprint": "e29b20ab8e8a68fb9df2f5ba28f983f8"
+    }
+  ],
+  "fingerprintsAfter": [
+    {
+      "table_name": "module",
+      "fingerprint": "fc8b63113c525326f6e92b02d309e3be"
+    },
+    {
+      "table_name": "lecture",
+      "fingerprint": "5fc7d6b1fa1963d086251c501ccf46b1"
+    },
+    {
+      "table_name": "academic_period",
+      "fingerprint": "e29b20ab8e8a68fb9df2f5ba28f983f8"
+    }
+  ],
+  "moduleLecturePeriodRowsUnchanged": true,
+  "databaseWrites": "No mapping/period/curriculum/PDF/billing/access writes. SELECT-only inspection transactions enforced READ ONLY. Browser login used a legitimate existing local test account and can create an ordinary authentication session.",
+  "runtime": {
+    "checkedAt": "2026-10-03T00:52:04.250Z",
+    "cairoTime": "2026-10-03T03:52:04.250",
+    "currentPeriodIds": [
+      "period-2026-2027-term-1"
+    ],
+    "currentModulesByPolicy": [
+      "ahe-101",
+      "ppg-102",
+      "pmb-103",
+      "mt-104",
+      "en-105"
+    ],
+    "visibleModulesByPolicy": [
+      "ahe-101",
+      "ppg-102",
+      "pmb-103",
+      "mt-104",
+      "en-105"
+    ],
+    "adminModulesByPolicy": 44,
+    "academicPeriods": 3,
+    "adminBrowser": "NOT VERIFIED: legitimate admin login not available; SELECT/policy/API code inspected only",
+    "errors": [],
+    "failedRequests": [],
+    "healthStatus": 200,
+    "pages": [
+      {
+        "path": "/dashboard",
+        "status": 200,
+        "moduleLinks": [
+          "ahe-101",
+          "ppg-102",
+          "pmb-103"
+        ],
+        "onlyCurrentModules": true,
+        "futureModuleLinks": [],
+        "summerMention": false,
+        "years": [
+          "Academic year 1"
+        ]
+      },
+      {
+        "path": "/curriculum",
+        "status": 200,
+        "moduleLinks": [
+          "ahe-101",
+          "ppg-102",
+          "pmb-103"
+        ],
+        "onlyCurrentModules": true,
+        "futureModuleLinks": [],
+        "summerMention": false,
+        "years": [
+          "Academic year 1"
+        ]
+      },
+      {
+        "path": "/curriculum?year=2&term=3",
+        "status": 200,
+        "moduleLinks": [],
+        "onlyCurrentModules": true,
+        "futureModuleLinks": [],
+        "summerMention": false,
+        "years": [
+          "Academic year 1"
+        ]
+      }
+    ],
+    "expectedStudentCurrentMedicalModules": [
+      "ahe-101",
+      "ppg-102",
+      "pmb-103"
+    ],
+    "currentMedicalModulesPresent": true,
+    "requirementVisibilityPreserved": "mt-104/en-105 already hidden by unrelated owner-approved requirement visibility; association and policy unchanged"
+  },
+  "qualityGates": {
+    "tests": {
+      "command": "npm test",
+      "exitCode": 0,
+      "passed": 930,
+      "files": 75
+    },
+    "typecheck": {
+      "command": "npm run typecheck",
+      "exitCode": 0
+    },
+    "lint": {
+      "command": "npm run lint",
+      "exitCode": 0,
+      "errors": 0,
+      "warnings": 197
+    },
+    "build": {
+      "command": "npm run build",
+      "exitCode": 0,
+      "warnings": 9
+    },
+    "scope": "Full gates ran against the working tree including preserved unrelated WIP. No application code modified."
+  },
+  "ownerInputRequired": [
+    "Supply an explicit target academic_period_id for each Study Year 2-5 global term 3-10, including its calendar academic_year.",
+    "Clarify whether these years share 2026-2027 TERM_1/TERM_2 or require separate future periods; neither option was inferred.",
+    "If targets are absent, provide approved start/end dates in Africa/Cairo and separately authorize creating those periods; current task only allows association updates.",
+    "No Summer mappings unless explicitly confirmed in authoritative structured metadata."
+  ],
+  "safety": "No UPDATE, INSERT, DELETE, seeds, resets, imports, migrations or visibility rule changes were executed."
+}

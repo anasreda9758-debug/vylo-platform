@@ -1,12 +1,13 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireUser } from "@/shared/session";
-import { hasModuleAccess } from "@/shared/entitlements";
 import { getBankBySlug, getQuizQuestionsRandom, startAttempt } from "@/features/practice/queries";
 import { QuizRunner } from "@/components/quiz-runner";
 import { Navigation } from "@/components/navigation";
 import { Lock, HelpCircle, Clock, BarChart3 } from "lucide-react";
 import { getLocale, localize } from "@/shared/locale";
+import { canAccessModule } from "@/features/access/learning-access";
+import { isModuleAcademicallyVisible } from "@/features/hierarchy/academic-visibility-server";
 
 export default async function QuizPage({
   params,
@@ -22,17 +23,10 @@ export default async function QuizPage({
   const t = (english: string, arabic: string) => localize(locale, english, arabic);
   const bank = await getBankBySlug(bankSlug);
   if (!bank) notFound();
+  if (!bank.module || !(await isModuleAcademicallyVisible(session.user, bank.module))) notFound();
 
   const moduleName = bank.module?.name ?? t("this module", "هذا الموديول");
-  const access = await hasModuleAccess(
-    session.user.id,
-    bank.module ?? {
-      id: "",
-      slug: "",
-      isFree: true,
-      term: 1,
-    }
-  );
+  const access = bank.module ? (await canAccessModule(session.user, bank.module)).ok : false;
 
   const count = countParam ? parseInt(countParam, 10) : 0;
   const validCount = [10, 25, 50].includes(count) ? count : 0;
@@ -50,7 +44,7 @@ export default async function QuizPage({
   const hasConfig = validCount > 0 && questions.length > 0;
 
   return (
-    <div className="flex flex-1">
+    <div className="flex flex-1 flex-col lg:flex-row">
       <Navigation
         user={{ name: session.user.name, email: session.user.email }}
         isAdmin={session.user.role === "admin"}
@@ -100,7 +94,7 @@ export default async function QuizPage({
                 {t("This quiz is locked", "هذا الاختبار مدفوع")}
               </h2>
               <p className="mb-6 text-muted-foreground">
-                {t("Purchase the module, term, or academic year to unlock its quizzes.", "اشترِ الموديول أو الترم أو السنة لفتح اختبارات هذا الموديول.")}
+                {t("Purchase the module or term to unlock its quizzes.", "اشترِ الموديول أو الترم لفتح اختبارات هذا الموديول.")}
               </p>
               <Link
                 href="/pricing"

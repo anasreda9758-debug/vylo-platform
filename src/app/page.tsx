@@ -41,7 +41,7 @@ export default async function Home() {
           </h1>
           <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-muted-foreground lg:text-xl">
             {t(
-              "A structured curriculum, lecture-based practice, and study tools built for medical students.",
+              "A structured curriculum, lecture-based practice, and smart study tools that work for any subject.",
               "منهج منظّم، محتوى غني بالصور والمحاضرات، اختبارات من أسئلة الامتحانات الحقيقية، ومساعد ذكي يجاوب على أسئلتك فورًا.",
             )}
           </p>
@@ -93,7 +93,7 @@ export default async function Home() {
 
       {/* Features */}
       <section className="mx-auto w-full max-w-5xl px-6 py-16 lg:py-24">
-        <h2 className="mb-4 text-center text-3xl font-bold">{t("Built for focused medical study", "لماذا Horus MED؟")}</h2>
+        <h2 className="mb-4 text-center text-3xl font-bold">{t("Built for focused medical study", "لماذا VYLO؟")}</h2>
         <p className="mx-auto mb-12 max-w-2xl text-center text-muted-foreground">
           {t("Everything you need to understand, practise, and retain each lecture.", "صُمّمت لتجربة تعلم أفضل: من المحتوى إلى التقييم، كل شيء في مكان واحد.")}
         </p>
@@ -107,7 +107,7 @@ export default async function Home() {
           <FeatureCard
             icon={Brain}
             title={t("Flashcards", "البطاقات التعليمية")}
-            description={t("Spaced-repetition practice to retain key medical concepts.", "نظام تكرار متباعد (SRS) يساعدك على حفظ المعلومات على المدى الطويل.")}
+            description={t("Spaced-repetition practice so key concepts actually stick.", "????? ?????? ????? ???????? ???????? ?? ???????.")}
             color="text-purple-600 bg-purple-50 dark:bg-purple-950/40"
           />
           <FeatureCard
@@ -124,8 +124,8 @@ export default async function Home() {
           />
           <FeatureCard
             icon={GraduationCap}
-            title={t("Medical question banks", "اختبارات حقيقية")}
-            description={t("Test yourself with source-based medical questions.", "بنوك أسئلة مستخرجة من امتحانات السنوات السابقة — أنت تتدرب على الأسئلة الفعلية.")}
+            title={t("Question banks", "???? ???????")}
+            description={t("Test yourself with questions grounded in your course sources.", "????? ???? ?????? ?????? ?? ????? ?????.")}
             color="text-amber-600 bg-amber-50 dark:bg-amber-950/40"
           />
           <FeatureCard
@@ -162,7 +162,7 @@ export default async function Home() {
       {/* Footer */}
       <footer className="border-t border-border py-8">
         <div className="mx-auto flex w-full max-w-5xl items-center justify-between px-6 text-sm text-muted-foreground">
-          <span>Horus University — MED 2026</span>
+          <span>VYLO © 2026</span>
           <Link href="/pricing" className="hover:text-foreground">
             {t("Plans", "الأسعار")}
           </Link>

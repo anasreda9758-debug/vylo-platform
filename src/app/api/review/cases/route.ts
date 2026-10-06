@@ -1,13 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { eq } from "drizzle-orm";
 import { getSession } from "@/shared/session";
-import { db } from "@/shared/db";
-import { lecture } from "@/features/curriculum/schema";
-import { hasAnySubscription, hasModuleAccess } from "@/features/billing/queries";
-import { getAiUsageToday, FREE_DAILY_LIMIT, recordAiUsage } from "@/features/ai/queries";
+import { reserveAiUsageSlot, FREE_DAILY_LIMIT, recordAiUsage } from "@/features/ai/queries";
+import { beginGeneration, finalizeGeneration } from "@/features/gamification/idempotency";
 import { generateJson } from "@/shared/ai-client";
 import { createClinicalCase, listMyCases } from "@/features/review/queries";
 import { createSourceClinicalCase } from "@/features/review/source-generators";
+import { getAccessibleClinicalCase, getAccessibleLecture } from "@/features/access/learning-access";
 
 const SYSTEM_PROMPT =
   "You are a medical educator. Create one realistic medical clinical case based strictly on the content given. " +
@@ -22,54 +20,99 @@ export async function POST(request: NextRequest) {
   }
 
   let lectureId: string;
+  let idempotencyKey: string | null = null;
   try {
     const body = await request.json();
     if (typeof body.lectureId !== "string" || body.lectureId.length === 0) {
       return NextResponse.json({ error: "invalid lectureId" }, { status: 400 });
     }
+    if (body.idempotencyKey !== undefined && typeof body.idempotencyKey !== "string") {
+      return NextResponse.json({ error: "invalid idempotencyKey" }, { status: 400 });
+    }
     lectureId = body.lectureId;
+    idempotencyKey = typeof body.idempotencyKey === "string" && body.idempotencyKey.length > 0 ? body.idempotencyKey : null;
   } catch {
     return NextResponse.json({ error: "invalid json" }, { status: 400 });
   }
 
-  const lectureRow = await db.query.lecture.findFirst({
-    where: eq(lecture.id, lectureId),
-    with: { module: true },
-  });
-  if (!lectureRow || !lectureRow.module) {
-    return NextResponse.json({ error: "lecture not found" }, { status: 400 });
-  }
+  const lectureAccess = await getAccessibleLecture(session.user, lectureId, { allowPreview: false });
+  if (!lectureAccess.ok) return NextResponse.json({ error: "lecture not found" }, { status: 404 });
+  const lectureRow = lectureAccess.value;
   if (!lectureRow.content || lectureRow.content.trim().length === 0) {
     return NextResponse.json({ error: "no readable content for this lecture" }, { status: 400 });
   }
 
-  const premium = await hasAnySubscription(session.user.id);
-  if (!lectureRow.module.isFree && !(await hasModuleAccess(session.user.id, lectureRow.module))) {
-    return NextResponse.json({ error: "premium required" }, { status: 403 });
-  }
-  if (!premium) {
-    const usedToday = await getAiUsageToday(session.user.id);
-    if (usedToday >= FREE_DAILY_LIMIT) {
+  // Idempotency: replay the exact stored result for a reused key, never a second generation.
+  if (idempotencyKey) {
+    const state = await beginGeneration({
+      userId: session.user.id,
+      idempotencyKey,
+      feature: "case",
+      lectureId,
+    });
+    if (state.kind === "completed") {
+      return NextResponse.json({ ...(state.result as object), duplicate: true });
+    }
+    if (state.kind === "pending") {
+      return NextResponse.json({ error: "generation_in_progress" }, { status: 409 });
+    }
+    if (state.kind === "conflict") {
       return NextResponse.json(
-        {
-          error: "free_limit",
-          message: `وصلت إلى حد ${FREE_DAILY_LIMIT} عملية ذكية مجانية اليوم. فعّل Premium لفتح استخدام غير محدود.`,
-        },
-        { status: 429 },
+        { error: "idempotency_key_already_used_for_different_request" },
+        { status: 409 },
       );
     }
   }
 
+  // Shared study-generation quota applies to every user (no subscription bypass).
+  const reservation = await reserveAiUsageSlot(session.user.id);
+  if (!reservation.ok) {
+    return NextResponse.json(
+      {
+        error: "free_limit",
+        message: `وصلت إلى حد ${FREE_DAILY_LIMIT} عملية ذكية مجانية اليوم.`,
+      },
+      { status: 429 },
+    );
+  }
+
   const body = lectureRow.content.slice(0, 15000);
-  const createLocalCase = async () => {
+  const createLocalCase = async (): Promise<{
+    caseId: string;
+    case: string;
+    questions: string[];
+    source: string;
+  }> => {
     const data = createSourceClinicalCase(lectureRow.title, body, lectureRow.summaryJson);
     if (data.questions.length === 0) {
-      return NextResponse.json({ error: "no_usable_content" }, { status: 400 });
+      throw Object.assign(new Error("no_usable_content"), { status: 400 });
     }
     const caseId = await createClinicalCase(session.user.id, lectureId, data);
-    return NextResponse.json({ caseId, case: data.case, questions: data.questions, source: "lecture" });
+    return { caseId, case: data.case, questions: data.questions, source: "lecture" };
   };
-  if (process.env.USE_HOSTED_AI !== "true" || !process.env.GROQ_API_KEY) return createLocalCase();
+
+  const respond = async (result: { caseId: string; case: string; questions: string[]; source?: string; duplicate?: boolean }) => {
+    if (idempotencyKey) {
+      await finalizeGeneration({ userId: session.user.id, idempotencyKey, status: "completed", result });
+    }
+    return NextResponse.json(result);
+  };
+
+  if (process.env.USE_HOSTED_AI !== "true" || !process.env.GROQ_API_KEY) {
+    try {
+      return await respond(await createLocalCase());
+    } catch (err) {
+      if (idempotencyKey) {
+        await finalizeGeneration({
+          userId: session.user.id,
+          idempotencyKey,
+          status: "failed",
+          result: { error: (err as Error).message },
+        });
+      }
+      return NextResponse.json({ error: (err as Error).message }, { status: (err as { status?: number }).status ?? 400 });
+    }
+  }
 
   try {
     const { data, inputTokens, outputTokens } = await generateJson<{
@@ -86,7 +129,7 @@ export async function POST(request: NextRequest) {
       !Array.isArray(data.questions) ||
       !Array.isArray(data.model_answers)
     ) {
-      return createLocalCase();
+      return await respond(await createLocalCase());
     }
     const caseId = await createClinicalCase(session.user.id, lectureId, data);
     await recordAiUsage({
@@ -96,10 +139,22 @@ export async function POST(request: NextRequest) {
       inputTokens,
       outputTokens,
     });
-    return NextResponse.json({ caseId, case: data.case, questions: data.questions });
+    return await respond({ caseId, case: data.case, questions: data.questions });
   } catch (err) {
     console.error("clinical case error:", err);
-    return createLocalCase();
+    try {
+      return await respond(await createLocalCase());
+    } catch (fallbackErr) {
+      if (idempotencyKey) {
+        await finalizeGeneration({
+          userId: session.user.id,
+          idempotencyKey,
+          status: "failed",
+          result: { error: (fallbackErr as Error).message },
+        });
+      }
+      return NextResponse.json({ error: (fallbackErr as Error).message }, { status: (fallbackErr as { status?: number }).status ?? 400 });
+    }
   }
 }
 
@@ -108,7 +163,12 @@ export async function GET() {
   if (!session) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
-  const cases = await listMyCases(session.user.id);
+  const myCases = await listMyCases(session.user.id);
+  const cases = [] as typeof myCases;
+  for (const caseRow of myCases) {
+    const access = await getAccessibleClinicalCase(session.user, caseRow.id);
+    if (access.ok) cases.push(caseRow);
+  }
   return NextResponse.json({
     cases: cases.map((c) => ({
       id: c.id,

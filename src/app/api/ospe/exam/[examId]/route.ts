@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/shared/session";
-import { getExam, submitStationAnswer, finishExam } from "@/features/ospe/exam";
+import { submitStationAnswer, finishExam } from "@/features/ospe/exam";
+import { getAccessibleOspeExam } from "@/features/access/learning-access";
+import { studentExam } from "@/features/ospe/integrity";
 
 /**
  * GET /api/ospe/exam/[examId]
@@ -16,12 +18,12 @@ export async function GET(
   }
 
   const { examId } = await params;
-  const exam = await getExam(examId, session.user.id);
-  if (!exam) {
+  const access = await getAccessibleOspeExam(session.user, examId);
+  if (!access.ok) {
     return NextResponse.json({ error: "exam not found" }, { status: 404 });
   }
 
-  return NextResponse.json({ ok: true, exam });
+  return NextResponse.json({ ok: true, exam: studentExam(access.value) }, { headers: { "Cache-Control": "private, no-store" } });
 }
 
 /**
@@ -51,19 +53,22 @@ export async function POST(
     return NextResponse.json({ error: "invalid json" }, { status: 400 });
   }
 
+  const access = await getAccessibleOspeExam(session.user, examId);
+  if (!access.ok) return NextResponse.json({ error: "exam not found" }, { status: 404 });
+
   try {
     if (body.action === "answer") {
       if (!body.stationId || body.answer === undefined) {
         return NextResponse.json({ error: "stationId and answer required" }, { status: 400 });
       }
-      const result = await submitStationAnswer({
+      await submitStationAnswer({
         examId,
         stationId: body.stationId,
         userId: session.user.id,
         studentAnswer: body.answer,
         timeSpentSec: body.timeSpentSec ?? 0,
       });
-      return NextResponse.json({ ok: true, ...result });
+      return NextResponse.json({ ok: true, saved: true, stationId: body.stationId }, { headers: { "Cache-Control": "private, no-store" } });
     }
 
     if (body.action === "finish") {

@@ -1,5 +1,5 @@
 import { relations } from "drizzle-orm";
-import { index, integer, pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import { index, integer, jsonb, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 import { user } from "../auth/schema";
 import { lecture } from "../curriculum/schema";
 
@@ -51,6 +51,32 @@ export const flashcardRelations = relations(flashcard, ({ one }) => ({
   }),
 }));
 
+export const clinicalCaseEvaluation = pgTable(
+  "clinical_case_evaluation",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    caseId: text("case_id")
+      .notNull()
+      .references(() => clinicalCase.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    attemptNumber: integer("attempt_number").notNull().default(1),
+    answersJson: jsonb("answers_json").notNull(),
+    score: integer("score").notNull(),
+    feedbackJson: jsonb("feedback_json"),
+    evaluatedAt: timestamp("evaluated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("clinical_case_evaluation_case_user_attempt_unique").on(
+      table.caseId,
+      table.userId,
+      table.attemptNumber,
+    ),
+    index("clinical_case_evaluation_case_user_idx").on(table.caseId, table.userId),
+  ],
+);
+
 export const clinicalCaseRelations = relations(clinicalCase, ({ one }) => ({
   user: one(user, {
     fields: [clinicalCase.userId],
@@ -59,5 +85,9 @@ export const clinicalCaseRelations = relations(clinicalCase, ({ one }) => ({
   lecture: one(lecture, {
     fields: [clinicalCase.lectureId],
     references: [lecture.id],
+  }),
+  evaluations: one(clinicalCaseEvaluation, {
+    fields: [clinicalCase.id],
+    references: [clinicalCaseEvaluation.caseId],
   }),
 }));

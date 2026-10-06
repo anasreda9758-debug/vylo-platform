@@ -8,6 +8,7 @@ import { Navigation } from "@/components/navigation";
 import { ReviewSession } from "@/components/review-session";
 import { Brain, Clock, CheckCircle2, AlertCircle, BookOpen } from "lucide-react";
 import { getLocale, localize } from "@/shared/locale";
+import { getAccessibleQuestionReview } from "@/features/access/learning-access";
 
 export default async function ReviewPage({ searchParams }: { searchParams: Promise<{ mode?: string }> }) {
   const session = await requireUser();
@@ -48,9 +49,17 @@ export default async function ReviewPage({ searchParams }: { searchParams: Promi
     .orderBy(wrongOnly ? desc(questionReview.updatedAt) : asc(questionReview.nextReview))
     .limit(20);
 
-  // Get options for each due question
+  // A review record can outlive a subscription. Do not render its protected
+  // question content until current module access is confirmed.
+  const accessibleDueReviews = [] as typeof dueReviews;
+  for (const row of dueReviews) {
+    const access = await getAccessibleQuestionReview(session.user, row.questionId);
+    if (access.ok) accessibleDueReviews.push(row);
+  }
+
+  // Get options for each currently accessible due question
   const questionsWithOptions = await Promise.all(
-    dueReviews.map(async (r) => {
+    accessibleDueReviews.map(async (r) => {
       const opts = await db
         .select({ id: questionOption.id, text: questionOption.text })
         .from(questionOption)
@@ -72,7 +81,7 @@ export default async function ReviewPage({ searchParams }: { searchParams: Promi
     .where(and(eq(questionReview.userId, session.user.id), gte(questionReview.interval, 21)));
 
   return (
-    <div className="flex flex-1">
+    <div className="flex flex-1 flex-col lg:flex-row">
       <Navigation
         user={{ name: session.user.name, email: session.user.email }}
         isAdmin={session.user.role === "admin"}
@@ -104,7 +113,7 @@ export default async function ReviewPage({ searchParams }: { searchParams: Promi
                 <AlertCircle className="h-4 w-4 text-amber-600" />
                 <span className="text-xs font-medium text-muted-foreground">{wrongOnly ? t("Previously incorrect", "أخطاء سابقة") : t("Due now", "بانتظار المراجعة")}</span>
               </div>
-              <p className="text-2xl font-bold">{dueReviews.length}</p>
+              <p className="text-2xl font-bold">{accessibleDueReviews.length}</p>
             </div>
             <div className="rounded-2xl border border-border bg-card p-4">
               <div className="mb-2 flex items-center gap-2">

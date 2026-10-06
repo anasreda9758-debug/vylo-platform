@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
-import { sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { getSession } from "@/shared/session";
 import { db } from "@/shared/db";
+import { curriculumModule, lecture } from "@/features/curriculum/schema";
 import { logAudit } from "@/features/hierarchy/audit";
 
 // POST — reorder items (modules or lectures)
@@ -19,19 +20,37 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "invalid json" }, { status: 400 });
   }
 
-  const { entityType, items } = body as {
-    entityType: "module" | "lecture";
-    items: { id: string; order: number }[];
-  };
+  const { entityType } = body as { entityType: string; items?: unknown };
 
-  if (!entityType || !Array.isArray(items) || items.length === 0) {
+  if (entityType !== "module" && entityType !== "lecture") {
+    return NextResponse.json({ error: "invalid entityType" }, { status: 400 });
+  }
+
+  const items = (body as { items?: unknown }).items;
+  if (!Array.isArray(items) || items.length === 0) {
     return NextResponse.json({ error: "entityType and items required" }, { status: 400 });
   }
 
-  const table = entityType === "module" ? "module" : "lecture";
-
+  const typedItems: { id: string; order: number }[] = [];
   for (const item of items) {
-    await db.execute(sql.raw(`UPDATE "${table}" SET "order" = ${item.order}, updated_at = NOW() WHERE id = '${item.id}'`));
+    const candidate = item as { id?: unknown; order?: unknown };
+    if (
+      typeof candidate.id !== "string" ||
+      !candidate.id.trim() ||
+      typeof candidate.order !== "number" ||
+      !Number.isInteger(candidate.order)
+    ) {
+      return NextResponse.json({ error: "invalid item" }, { status: 400 });
+    }
+    typedItems.push({ id: candidate.id, order: candidate.order });
+  }
+
+  for (const item of typedItems) {
+    if (entityType === "module") {
+      await db.update(curriculumModule).set({ order: item.order }).where(eq(curriculumModule.id, item.id));
+    } else {
+      await db.update(lecture).set({ order: item.order }).where(eq(lecture.id, item.id));
+    }
   }
 
   await logAudit({

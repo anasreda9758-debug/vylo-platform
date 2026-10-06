@@ -24,7 +24,7 @@ const TTL = {
 
 export async function getCachedCurriculum(userId: string, studyYear?: number) {
   return cacheGetOrSet(
-    `curriculum:${userId}:${studyYear ?? "all"}`,
+    `curriculum:v3:${userId}:${studyYear ?? "all"}`,
     async () => {
       const { getCurriculum } = await import("@/features/curriculum/queries");
       return getCurriculum(userId, studyYear);

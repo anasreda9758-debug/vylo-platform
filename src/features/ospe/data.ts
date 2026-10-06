@@ -22,6 +22,25 @@ export const OSPE_FOLDER_TO_MODULE: Record<string, string> = {
   IBL: "ibl-204",
 };
 
+/**
+ * These files currently live in `public/ospe-pdfs` for local content storage.
+ * They are served only through the authenticated API route; direct public URLs
+ * are blocked by `src/proxy.ts`.
+ */
+export const OSPE_PDF_REFERENCES = [
+  { name: "OSPE CVS", file: "OSPE CVS.pdf", size: "80 MB", folder: "CVS" },
+  { name: "OSPE IBL", file: "OSPE IBL.pdf", size: "18 MB", folder: "IBL" },
+  { name: "Module 1 — Sites & Stains", file: "Ospe module 1 مع sites & stains.pdf", size: "4.3 MB", folder: "module 1" },
+  { name: "Module 2 — EB", file: "Ospe module 2 EB.pdf", size: "2.7 MB", folder: "module 2" },
+  { name: "Module 3", file: "Ospe module 3.pdf", size: "12 MB", folder: "module 3" },
+  { name: "OSPE RENAL (1)", file: "OSPE RENAL.pdf", size: "43 MB", folder: "RENAL" },
+  { name: "OSPE RENAL (2)", file: "OSPE RENAL.pdf-1.pdf", size: "27 MB", folder: "RENAL" },
+] as const;
+
+export function getOspePdfReference(file: string) {
+  return OSPE_PDF_REFERENCES.find((reference) => reference.file === file) ?? null;
+}
+
 export function getImagesRoot(): string {
   return join(getContentRoot(), "images");
 }

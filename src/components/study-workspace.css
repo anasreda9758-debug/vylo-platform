@@ -1,0 +1,17 @@
+/* Scoped to workspace tools; the PDF reader and global surfaces stay intact. */
+.workspace-panel > div,
+.workspace-panel > section {
+  margin-bottom: 1rem;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+.workspace-panel {
+  overflow-wrap: anywhere;
+}
+@media (prefers-reduced-motion: reduce) {
+  .workspace-panel * {
+    scroll-behavior: auto !important;
+  }
+}

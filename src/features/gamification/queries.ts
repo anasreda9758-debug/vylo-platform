@@ -1,6 +1,7 @@
-import { db } from "@/shared/db";
-import { sql, eq, desc } from "drizzle-orm";
+import { db, client } from "@/shared/db";
+import { sql, eq, desc, and } from "drizzle-orm";
 import { userProfile, xpLog } from "./schema";
+import type { PgClient } from "@/shared/db";
 
 const XP_REWARDS = {
   lecture_complete: 10,
@@ -92,44 +93,81 @@ export async function updateStreak(userId: string): Promise<{ streak: number; bo
   return { streak: newStreak, bonusAwarded };
 }
 
-export async function awardXp(userId: string, reason: XpReason, referenceId?: string) {
+export async function awardXp(userId: string, reason: XpReason, referenceId?: string): Promise<{
+  amount: number;
+  reason: XpReason;
+  totalXp: number;
+  level: number;
+  xpToNext: number;
+  alreadyAwarded?: boolean;
+}> {
   const amount = XP_REWARDS[reason];
 
-  // Get current XP first
-  const [existing] = await db.execute(sql`
-    SELECT total_xp FROM user_profile WHERE user_id = ${userId}
-  `);
-  const currentXp = (existing as any)?.total_xp ?? 0;
-  const newXp = currentXp + amount;
-  const newLevel = calcLevel(newXp);
+  // Use a database transaction for atomic XP accounting
+  // For lecture_complete, the unique constraint on xp_log will cause the transaction
+  // to rollback on duplicate, preventing partial state
+  return await client.begin(async (tx: any) => {
+    // Attempt to insert xp_log first - this will fail on duplicate lecture_complete
+    // due to the unique partial index, causing the transaction to rollback
+    await tx.unsafe(sql`
+      INSERT INTO xp_log (user_id, amount, reason, reference_id)
+      VALUES (${userId}, ${amount}, ${reason}, ${referenceId ?? null})
+    `);
 
-  // Upsert profile
-  await db.execute(sql`
-    INSERT INTO user_profile (user_id, total_xp, level, streak, last_active_date, updated_at)
-    VALUES (${userId}, ${newXp}, ${newLevel}, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-    ON CONFLICT (user_id) DO UPDATE SET
-      total_xp = ${newXp},
-      level = ${newLevel},
-      updated_at = CURRENT_TIMESTAMP
-  `);
+    // If we get here, xp_log insert succeeded. Now update user_profile atomically.
+    const [existing] = await tx.unsafe(sql`
+      SELECT total_xp FROM user_profile WHERE user_id = ${userId}
+    `);
+    const currentXp = (existing as any)?.total_xp ?? 0;
+    const newXp = currentXp + amount;
+    const newLevel = calcLevel(newXp);
 
-  // Log XP
-  await db.execute(sql`
-    INSERT INTO xp_log (user_id, amount, reason, reference_id)
-    VALUES (${userId}, ${amount}, ${reason}, ${referenceId ?? null})
-  `);
+    await tx.unsafe(sql`
+      INSERT INTO user_profile (user_id, total_xp, level, streak, last_active_date, updated_at)
+      VALUES (${userId}, ${newXp}, ${newLevel}, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+      ON CONFLICT (user_id) DO UPDATE SET
+        total_xp = ${newXp},
+        level = ${newLevel},
+        updated_at = CURRENT_TIMESTAMP
+    `);
 
-  // Return updated profile
+    // Return updated profile
+    const [profile] = await tx.unsafe(sql`
+      SELECT total_xp, level, streak FROM user_profile WHERE user_id = ${userId}
+    `);
+
+    return {
+      amount,
+      reason,
+      totalXp: (profile as any)?.total_xp ?? amount,
+      level: (profile as any)?.level ?? calcLevel(amount),
+      xpToNext: xpForNextLevel((profile as any)?.level ?? calcLevel(amount)) - ((profile as any)?.total_xp ?? amount),
+    };
+  }).catch((error: any) => {
+    // Handle expected duplicate lecture/case completion - check if it's the unique constraint violation
+    const err = error as { code?: string; constraint?: string };
+    if (err?.code === '23505' && (err?.constraint === 'xp_log_user_lecture_complete_unique' || err?.constraint === 'xp_log_user_case_complete_unique')) {
+      // Expected idempotent duplicate - return current state without modifying anything
+      return getCurrentXpState(userId, amount, reason, true);
+    }
+    // Re-throw unexpected errors
+    throw error;
+  });
+}
+
+async function getCurrentXpState(userId: string, amount: number, reason: XpReason, alreadyAwarded = false) {
   const [profile] = await db.execute(sql`
     SELECT total_xp, level, streak FROM user_profile WHERE user_id = ${userId}
   `);
-
+  const currentXp = (profile as any)?.total_xp ?? 0;
+  const currentLevel = (profile as any)?.level ?? 1;
   return {
     amount,
     reason,
-    totalXp: (profile as any)?.total_xp ?? amount,
-    level: (profile as any)?.level ?? calcLevel(amount),
-    xpToNext: xpForNextLevel((profile as any)?.level ?? calcLevel(amount)) - ((profile as any)?.total_xp ?? amount),
+    totalXp: currentXp,
+    level: currentLevel,
+    xpToNext: xpForNextLevel(currentLevel) - currentXp,
+    alreadyAwarded,
   };
 }
 
@@ -207,4 +245,53 @@ export async function getXpHistory(userId: string, limit = 20) {
     referenceId: r.reference_id,
     createdAt: r.created_at,
   }));
+}
+
+/**
+ * Check if user has already earned XP for completing a specific lecture.
+ * Uses xp_log as the durable record (survives lecture_progress deletion on unmark).
+ */
+export async function hasEarnedLectureCompletionXp(userId: string, lectureId: string): Promise<boolean> {
+  const rows = await db.execute(sql`
+    SELECT 1 FROM xp_log
+    WHERE user_id = ${userId}
+      AND reason = 'lecture_complete'
+      AND reference_id = ${lectureId}
+    LIMIT 1
+  `);
+  return (rows as any[]).length > 0;
+}
+
+/**
+ * Check if user has already earned XP for completing a specific clinical case.
+ * Uses xp_log as the durable record (unique partial index on case_complete).
+ */
+export async function hasEarnedCaseCompletionXp(userId: string, caseId: string): Promise<boolean> {
+  const rows = await db.execute(sql`
+    SELECT 1 FROM xp_log
+    WHERE user_id = ${userId}
+      AND reason = 'case_complete'
+      AND reference_id = ${caseId}
+    LIMIT 1
+  `);
+  return (rows as any[]).length > 0;
+}
+
+/**
+ * True when the user already earned quiz_correct XP for this question today.
+ * Prevents re-answering a known-correct question to farm XP while still
+ * rewarding each newly-learned correct answer once per day.
+ */
+export async function hasEarnedQuizCorrectToday(userId: string, questionId: string, now = new Date()): Promise<boolean> {
+  const startOfDay = new Date(now);
+  startOfDay.setHours(0, 0, 0, 0);
+  const rows = await db.execute(sql`
+    SELECT 1 FROM xp_log
+    WHERE user_id = ${userId}
+      AND reason = 'quiz_correct'
+      AND reference_id = ${questionId}
+      AND created_at >= ${startOfDay}
+    LIMIT 1
+  `);
+  return (rows as any[]).length > 0;
 }

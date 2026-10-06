@@ -10,6 +10,8 @@ export function AcademicYearSelector({ years, value }: { years: number[]; value:
   const searchParams = useSearchParams();
   const { t } = useLocale();
 
+  if (!years.length) return null;
+
   function change(next: number) {
     document.cookie = `horus_study_year=${next}; path=/; max-age=31536000; samesite=lax`;
     const params = new URLSearchParams(searchParams.toString());

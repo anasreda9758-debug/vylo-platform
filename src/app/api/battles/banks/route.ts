@@ -1,29 +1,28 @@
 import { NextResponse } from "next/server";
-import { sql } from "drizzle-orm";
 import { db } from "@/shared/db";
+import { getSession } from "@/shared/session";
+import { canAccessModule } from "@/features/access/learning-access";
 
-// Battle setup only needs bank metadata. Keeping this small read endpoint
-// independent from quiz-attempt authentication prevents an empty selector when
-// the challenge page loads before the session-dependent quiz endpoint.
 export async function GET() {
-  const rows = await db.execute(sql`
-    SELECT qb.slug, qb.title, m.name AS module_name, m.slug AS module_slug,
-      COUNT(q.id)::int AS question_count
-    FROM question_bank qb
-    JOIN module m ON m.id = qb.module_id
-    JOIN question q ON q.bank_id = qb.id
-    GROUP BY qb.id, qb.slug, qb.title, m.name, m.slug, m."order"
-    ORDER BY m."order", qb.title
-  `);
-  return NextResponse.json({
-    banks: (rows as unknown as Array<{
-      slug: string; title: string; module_name: string; module_slug: string; question_count: number;
-    }>).map((row) => ({
+  const session = await getSession();
+  if (!session) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+
+  const rows = await db.query.questionBank.findMany({
+    orderBy: (bank, { asc }) => [asc(bank.title)],
+    with: { module: true, questions: { columns: { id: true } } },
+  });
+  const banks = [] as { slug: string; title: string; moduleName: string; moduleSlug: string; questionCount: number }[];
+  for (const row of rows) {
+    if (!row.module || !(await canAccessModule(session.user, row.module)).ok) continue;
+    banks.push({
       slug: row.slug,
       title: row.title,
-      moduleName: row.module_name,
-      moduleSlug: row.module_slug,
-      questionCount: Number(row.question_count),
-    })),
+      moduleName: row.module.name,
+      moduleSlug: row.module.slug,
+      questionCount: row.questions.length,
+    });
+  }
+  return NextResponse.json({
+    banks,
   });
 }

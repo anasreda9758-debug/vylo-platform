@@ -1,0 +1,14 @@
+{
+    admin off
+}
+
+# No static aliases or response cache; every request reaches authorized Next.js.
+# Automatic HTTPS obtains/renews certificates and redirects HTTP to HTTPS.
+{$STAGING_DOMAIN} {
+    header Strict-Transport-Security "max-age=31536000"
+    reverse_proxy app:3000 {
+        header_up Host {$STAGING_DOMAIN}
+        header_up X-Forwarded-Host {$STAGING_DOMAIN}
+        header_up X-Forwarded-Proto https
+    }
+}

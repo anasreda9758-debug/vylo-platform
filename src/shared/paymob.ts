@@ -6,7 +6,7 @@
  *   PAYMOB_INTEGRATION_ID — the integration ID (card/wallet/fawry)
  *   PAYMOB_IFRAME_ID      — iframe ID for hosted checkout
  *   PAYMOB_HMAC_SECRET    — HMAC secret for webhook verification
- *   NEXT_PUBLIC_BASE_URL  — e.g. https://horus-med.com
+ *   NEXT_PUBLIC_BASE_URL  — e.g. https://vylo.example
  *
  * Flow:
  *   1. Client calls POST /api/billing/checkout → we create a Paymob order
@@ -63,7 +63,7 @@ export async function createOrder(params: {
       currency: "EGP",
       items: [
         {
-          name: `Horus MED Subscription — ${params.orderId}`,
+          name: `VYLO Subscription — ${params.orderId}`,
           amount: params.amountCents,
           description: params.orderId,
           quantity: 1,

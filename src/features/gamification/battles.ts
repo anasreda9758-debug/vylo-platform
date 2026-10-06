@@ -1,6 +1,8 @@
 import { db } from "@/shared/db";
 import { sql } from "drizzle-orm";
 import { battle, battleParticipant, battleAnswer } from "./schema";
+import { getAccessibleQuestionBankBySlug } from "@/features/access/learning-access";
+import { getPersistedContentActor } from "@/features/access/persisted-content";
 
 export async function createBattle(createdBy: string, bankSlug: string, questionCount = 5) {
   const [b] = await db.execute(sql`
@@ -180,6 +182,8 @@ export async function getBattle(battleId: string) {
 }
 
 export async function getUserBattles(userId: string, limit = 10) {
+  const actor = await getPersistedContentActor(userId);
+  if (!actor) return [];
   const rows = await db.execute(sql`
     SELECT b.*, bp.score as my_score, bp.total as my_total,
       (SELECT bp2.score FROM battle_participant bp2 WHERE bp2.battle_id = b.id AND bp2.user_id != ${userId} LIMIT 1) as opponent_score,
@@ -191,7 +195,12 @@ export async function getUserBattles(userId: string, limit = 10) {
     LIMIT ${limit}
   `);
 
-  return (rows as any[]).map((r) => ({
+  const accessible: (typeof rows)[number][] = [];
+  for (const row of rows) {
+    const access = await getAccessibleQuestionBankBySlug(actor, String(row.bank_slug));
+    if (access.ok) accessible.push(row);
+  }
+  return (accessible as any[]).map((r) => ({
     id: r.id,
     bankSlug: r.bank_slug,
     myScore: r.my_score,

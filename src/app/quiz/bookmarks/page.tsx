@@ -7,6 +7,7 @@ import { eq, asc } from "drizzle-orm";
 import { Navigation } from "@/components/navigation";
 import { Bookmark, BookOpen } from "lucide-react";
 import { getLocale, localize } from "@/shared/locale";
+import { getAccessibleQuestion } from "@/features/access/learning-access";
 
 export default async function BookmarksPage() {
   const session = await requireUser();
@@ -33,9 +34,16 @@ export default async function BookmarksPage() {
     .where(eq(questionBookmark.userId, session.user.id))
     .orderBy(asc(questionBookmark.createdAt));
 
-  // Get options for each question
+  // A saved question must remain both user-owned and currently accessible.
+  const accessibleBookmarks = [] as typeof bookmarks;
+  for (const bookmark of bookmarks) {
+    const access = await getAccessibleQuestion(session.user, bookmark.questionId);
+    if (access.ok) accessibleBookmarks.push(bookmark);
+  }
+
+  // Get options for each currently accessible question
   const questionsWithOptions = await Promise.all(
-    bookmarks.map(async (b) => {
+    accessibleBookmarks.map(async (b) => {
       const opts = await db
         .select({ id: questionOption.id, text: questionOption.text })
         .from(questionOption)
@@ -46,7 +54,7 @@ export default async function BookmarksPage() {
   );
 
   return (
-    <div className="flex flex-1">
+    <div className="flex flex-1 flex-col lg:flex-row">
       <Navigation user={{ name: session.user.name, email: session.user.email }} isAdmin={session.user.role === "admin"} />
       <main className="flex-1 p-6 lg:p-8">
         <div className="mx-auto max-w-3xl">
